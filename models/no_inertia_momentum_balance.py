@@ -1,6 +1,3 @@
-import numpy as np
-
-import porepy as pp
 from porepy.models.momentum_balance import MomentumBalance
 from porepy.applications.md_grids.domains import nd_cube_domain
 
