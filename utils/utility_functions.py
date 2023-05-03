@@ -39,3 +39,25 @@ def get_solution_values(
         return data[pp.TIME_STEP_SOLUTIONS][name][time_step_index]
     else:
         return data[pp.ITERATE_SOLUTIONS][name][iterate_index]
+
+
+def acceleration_velocity_displacement(
+    model,
+    data: dict,
+) -> np.ndarray:
+    a_previous = get_solution_values(
+        name=model.acceleration_key, data=data, time_step_index=0
+    )
+    v_previous = get_solution_values(
+        name=model.velocity_key, data=data, time_step_index=0
+    )
+
+    u_current = get_solution_values(
+        name=model.displacement_variable, data=data, iterate_index=0
+    )
+
+    u_previous = get_solution_values(
+        name=model.displacement_variable, data=data, time_step_index=0
+    )
+
+    return a_previous, v_previous, u_previous, u_current
