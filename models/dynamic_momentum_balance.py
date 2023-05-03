@@ -72,6 +72,14 @@ class MySolutionStrategy:
         """Key for acceleration in the time step and iterate dictionaries."""
         return "acceleration"
 
+    @property
+    def time_step_indices(self) -> str:
+        return np.array([0, 1])
+
+    @property
+    def iterate_indices(self) -> str:
+        return np.array([0, 1])
+
     def reset_state_from_file(self) -> None:
         """Reset states but through a restart from file.
 
@@ -125,7 +133,8 @@ class MySolutionStrategy:
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
-            init_vals = np.zeros(dofs * self.nd)
+            init_vals = np.zeros(dofs * self.nd) * 0.0000001
+            init_vals_a = np.ones(dofs * self.nd) * 0.0000000001
 
             pp.set_solution_values(
                 name=self.velocity_key,
@@ -137,7 +146,7 @@ class MySolutionStrategy:
 
             pp.set_solution_values(
                 name=self.acceleration_key,
-                values=init_vals,
+                values=init_vals_a,
                 data=data,
                 time_step_index=0,
                 iterate_index=0,
@@ -247,6 +256,7 @@ class MySolutionStrategy:
                 data=data,
                 iterate_index=0,
             )
+            a = 5
 
 
 class DynamicMomentumBalance(

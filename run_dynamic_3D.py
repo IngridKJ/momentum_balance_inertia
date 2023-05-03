@@ -14,23 +14,23 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1 / self.units.m
+        x = 0.25 / self.units.m
         y = 1 / self.units.m
-        z = 1 / self.units.m
+        z = 0.25 / self.units.m
         self._domain = self.nd_rect_domain(x, y, z)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "simplex")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.15 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.05 / self.units.m}
         return mesh_args
 
 
 class MomentumBalanceBC:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         bounds = self.domain_boundary_sides(sd)
-        bc = pp.BoundaryConditionVectorial(sd, bounds.south, "dir")
+        bc = pp.BoundaryConditionVectorial(sd, bounds.south + bounds.north, "dir")
         return bc
 
     def bc_values_mechanics(self, subdomains: list[pp.Grid]) -> pp.ad.AdArray:
@@ -40,7 +40,7 @@ class MomentumBalanceBC:
             val_loc = np.zeros((self.nd, sd.num_faces))
             # See section on scaling for explanation of the conversion.
             value = 1
-            val_loc[1, bounds.north] = -value
+            val_loc[1, bounds.north] = -value * 1e-5
             val_loc[1, bounds.south] = 0
 
             values.append(val_loc)
@@ -59,14 +59,25 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 0.5],
-    dt_init=0.005,
+    schedule=[0, 0.05],
+    dt_init=0.0005,
     constant_dt=True,
     iter_max=10,
     print_info=True,
 )
 
-params = {"time_manager": time_manager}
+
+solid_constants = pp.SolidConstants(
+    {
+        "density": 2670,
+        "lame_lambda": 40 * 1e9,
+        "permeability": 1,
+        "porosity": 0.1,
+        "shear_modulus": 24 * 1e9,
+    }
+)
+material_constants = {"solid": solid_constants}
+params = {"time_manager": time_manager, "material_constants": material_constants}
 
 model = MyMomentumBalance(params)
 pp.run_time_dependent_model(model, params)

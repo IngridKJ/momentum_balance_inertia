@@ -53,11 +53,11 @@ def acceleration_velocity_displacement(
     )
 
     u_current = get_solution_values(
-        name=model.displacement_variable, data=data, iterate_index=0
+        name=model.displacement_variable, data=data, time_step_index=0
     )
 
     u_previous = get_solution_values(
-        name=model.displacement_variable, data=data, time_step_index=0
+        name=model.displacement_variable, data=data, time_step_index=1
     )
 
     return a_previous, v_previous, u_previous, u_current
