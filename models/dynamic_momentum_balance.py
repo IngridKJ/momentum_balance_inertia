@@ -2,26 +2,12 @@
 Dynamic momentum balance equation - probably to inherit from momentum_balance_equation
 """
 from porepy.models.momentum_balance import MomentumBalance
-from porepy.applications.md_grids.domains import nd_cube_domain
 
 import porepy as pp
 import time_derivatives as td
 import utils as ut
 
 import numpy as np
-
-
-class MyGeometry:
-    def set_domain(self) -> None:
-        size = 1 / self.units.m
-        self._domain = nd_cube_domain(2, size)
-
-    def grid_type(self) -> str:
-        return self.params.get("grid_type", "simplex")
-
-    def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
-        return mesh_args
 
 
 class MyEquations:
@@ -38,7 +24,7 @@ class MyEquations:
 
     def inertia_(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         mass_density = self.solid_density(subdomains)
-        mass = self.volume_integral(mass_density, subdomains, dim=2)
+        mass = self.volume_integral(mass_density, subdomains, dim=self.nd)
         mass.set_name("inertia_mass")
         return mass
 
@@ -139,7 +125,7 @@ class MySolutionStrategy:
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
-            init_vals = np.zeros(dofs * 2)
+            init_vals = np.zeros(dofs * self.nd)
 
             pp.set_solution_values(
                 name=self.velocity_key,
@@ -264,7 +250,6 @@ class MySolutionStrategy:
 
 
 class DynamicMomentumBalance(
-    MyGeometry,
     MyEquations,
     MySolutionStrategy,
     MomentumBalance,
