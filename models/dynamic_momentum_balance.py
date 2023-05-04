@@ -1,11 +1,10 @@
-"""
-Dynamic momentum balance equation - probably to inherit from momentum_balance_equation
-"""
 from porepy.models.momentum_balance import MomentumBalance
 
 import porepy as pp
-import time_derivatives as td
-import utils as ut
+import time_derivatives
+
+from utils import get_solution_values
+from utils import acceleration_velocity_displacement
 
 import numpy as np
 
@@ -66,7 +65,7 @@ class MyEquations:
         dt_op = self.velocity_time_dep_array(subdomains)
         ddt_op = self.acceleration_time_dep_array(subdomains)
 
-        inertia_term = td.inertia_term(
+        inertia_term = time_derivatives.inertia_term(
             model=self,
             op=op,
             dt_op=dt_op,
@@ -167,7 +166,7 @@ class MySolutionStrategy:
             v_previous,
             u_previous,
             u_current,
-        ) = ut.acceleration_velocity_displacement(model=self, data=data)
+        ) = acceleration_velocity_displacement(model=self, data=data)
 
         v = (
             (1 - gamma / beta) * v_previous
@@ -197,7 +196,7 @@ class MySolutionStrategy:
             v_previous,
             u_previous,
             u_current,
-        ) = ut.acceleration_velocity_displacement(model=self, data=data)
+        ) = acceleration_velocity_displacement(model=self, data=data)
 
         a = (
             1
@@ -241,10 +240,10 @@ class MySolutionStrategy:
                 )
             else:
                 # Copy old values from iterate to the solution.
-                vals_velocity = ut.get_solution_values(
+                vals_velocity = get_solution_values(
                     name=self.velocity_key, data=data, iterate_index=0
                 )
-                vals_acceleration = ut.get_solution_values(
+                vals_acceleration = get_solution_values(
                     name=self.acceleration_key, data=data, iterate_index=0
                 )
                 pp.set_solution_values(
