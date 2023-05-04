@@ -12,15 +12,15 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1 / self.units.m
-        y = 0.5 / self.units.m
+        x = 3 / self.units.m
+        y = 10 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def grid_type(self) -> str:
-        return self.params.get("grid_type", "simplex")
+        return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.2 / self.units.m}
         return mesh_args
 
 
@@ -57,14 +57,25 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 10],
-    dt_init=1,
+    schedule=[0, 0.005],
+    dt_init=0.000025,
     constant_dt=True,
     iter_max=10,
     print_info=True,
 )
 
-params = {"time_manager": time_manager}
+
+solid_constants = pp.SolidConstants(
+    {
+        "density": 2670,
+        "lame_lambda": 40 * 1e9,
+        "permeability": 1,
+        "porosity": 0.1,
+        "shear_modulus": 200 * 1e9,
+    }
+)
+material_constants = {"solid": solid_constants}
+params = {"time_manager": time_manager, "material_constants": material_constants}
 
 model = MyMomentumBalance(params)
 pp.run_time_dependent_model(model, params)

@@ -134,7 +134,7 @@ class MySolutionStrategy:
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
             init_vals = np.zeros(dofs * self.nd) * 0.0000001
-            init_vals_a = np.ones(dofs * self.nd) * 0.0000000001
+            init_vals_a = np.ones(dofs * self.nd) * 0.0000001
 
             pp.set_solution_values(
                 name=self.velocity_key,
