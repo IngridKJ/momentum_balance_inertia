@@ -10,6 +10,30 @@ import utils as ut
 import numpy as np
 
 
+class NamesAndConstants:
+    @property
+    def beta(self) -> float:
+        return 0.25
+
+    @property
+    def gamma(self) -> float:
+        return 0.5
+
+    @property
+    def velocity_key(self) -> str:
+        """Key for velocity in the time step and iterate dictionaries."""
+        return "velocity"
+
+    @property
+    def acceleration_key(self) -> str:
+        """Key for acceleration in the time step and iterate dictionaries."""
+        return "acceleration"
+
+    @property
+    def time_step_indices(self) -> str:
+        return np.array([0, 1])
+
+
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
         inertia_mass = self.inertia(subdomains)
@@ -54,28 +78,6 @@ class MyEquations:
 
 
 class MySolutionStrategy:
-    @property
-    def beta(self) -> float:
-        return 0.25
-
-    @property
-    def gamma(self) -> float:
-        return 0.5
-
-    @property
-    def velocity_key(self) -> str:
-        """Key for velocity in the time step and iterate dictionaries."""
-        return "velocity"
-
-    @property
-    def acceleration_key(self) -> str:
-        """Key for acceleration in the time step and iterate dictionaries."""
-        return "acceleration"
-
-    @property
-    def time_step_indices(self) -> str:
-        return np.array([0, 1])
-
     def velocity_time_dep_array(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.TimeDependentDenseArray:
@@ -286,6 +288,7 @@ class MySolutionStrategy:
 
 
 class DynamicMomentumBalance(
+    NamesAndConstants,
     MyEquations,
     MySolutionStrategy,
     MomentumBalance,

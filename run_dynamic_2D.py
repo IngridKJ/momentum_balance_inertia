@@ -1,7 +1,7 @@
 import porepy as pp
 import numpy as np
 
-import models
+from models import DynamicMomentumBalance
 
 
 class MyGeometry:
@@ -58,7 +58,7 @@ class MyMomentumBalance(
     MyGeometry,
     MomentumBalanceBC,
     MyInitialValues,
-    models.DynamicMomentumBalance,
+    DynamicMomentumBalance,
 ):
     ...
 

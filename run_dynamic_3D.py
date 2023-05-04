@@ -1,7 +1,7 @@
 import porepy as pp
 import numpy as np
 
-import models
+from models import DynamicMomentumBalance
 
 
 class MyGeometry:
@@ -60,14 +60,14 @@ class MyMomentumBalance(
     MomentumBalanceBC,
     MyGeometry,
     MyInitialValues,
-    models.DynamicMomentumBalance,
+    DynamicMomentumBalance,
 ):
     ...
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 0.005],
-    dt_init=0.00025,
+    schedule=[0, 0.05],
+    dt_init=0.0005,
     constant_dt=True,
     iter_max=10,
     print_info=True,
