@@ -44,7 +44,21 @@ def get_solution_values(
 def acceleration_velocity_displacement(
     model,
     data: dict,
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Function for fetching acceleration, velocity and displacement values.
+
+    Found it repetitive to do this in the methods for updating velocity and acceleration
+    values in the dynamic momentum balance model.
+
+    Parameters:
+        model: The model.
+        data: Data dictionary we want to fecth values from.
+
+    Returns:
+        A tuple with previous acceleration, velocity and displacement + the current
+        displacement.
+
+    """
     a_previous = get_solution_values(
         name=model.acceleration_key, data=data, time_step_index=0
     )
