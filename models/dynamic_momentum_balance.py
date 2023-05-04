@@ -12,7 +12,7 @@ import numpy as np
 
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
-        inertia_mass = self.inertia_(subdomains)
+        inertia_mass = self.inertia(subdomains)
         stress = pp.ad.Scalar(-1) * self.stress(subdomains)
         body_force = self.body_force(subdomains)
 
@@ -22,7 +22,7 @@ class MyEquations:
         equation.set_name("momentum_balance_equation")
         return equation
 
-    def inertia_(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+    def inertia(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         mass_density = self.solid_density(subdomains)
         mass = self.volume_integral(mass_density, subdomains, dim=self.nd)
         mass.set_name("inertia_mass")
@@ -76,26 +76,6 @@ class MySolutionStrategy:
     def time_step_indices(self) -> str:
         return np.array([0, 1])
 
-    @property
-    def iterate_indices(self) -> str:
-        return np.array([0, 1])
-
-    def reset_state_from_file(self) -> None:
-        """Reset states but through a restart from file.
-
-        Add treatment of boundary conditions to the standard reset of states from file.
-
-        """
-        super().reset_state_from_file()
-
-        self.update_time_dependent_ad_arrays(initial=True)
-
-    def before_nonlinear_loop(self) -> None:
-        super().before_nonlinear_loop()
-        # Update the mechanical boundary conditions to both the time step and iterate
-        # solution.
-        self.update_time_dependent_ad_arrays(initial=False)
-
     def velocity_time_dep_array(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.TimeDependentDenseArray:
@@ -128,17 +108,27 @@ class MySolutionStrategy:
             raise ValueError("Subdomains must be of dimension nd.")
         return pp.ad.TimeDependentDenseArray(self.acceleration_key, subdomains)
 
+    def initial_velocity(self, dofs: int) -> np.ndarray:
+        """Initial velocity values."""
+        return np.zeros(dofs * self.nd)
+
+    def initial_acceleration(self, dofs: int) -> np.ndarray:
+        """Initial acceleration values."""
+        return np.zeros(dofs * self.nd)
+
     def initial_condition(self):
+        """Assigning initial velocity and acceleration values."""
         super().initial_condition()
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
-            init_vals = np.zeros(dofs * self.nd) * 0.0000001
-            init_vals_a = np.ones(dofs * self.nd) * 0.0000001
+
+            initial_velocity = self.initial_velocity(dofs=dofs)
+            initial_acceleration = self.initial_acceleration(dofs=dofs)
 
             pp.set_solution_values(
                 name=self.velocity_key,
-                values=init_vals,
+                values=initial_velocity,
                 data=data,
                 time_step_index=0,
                 iterate_index=0,
@@ -146,7 +136,7 @@ class MySolutionStrategy:
 
             pp.set_solution_values(
                 name=self.acceleration_key,
-                values=init_vals_a,
+                values=initial_acceleration,
                 data=data,
                 time_step_index=0,
                 iterate_index=0,
@@ -154,7 +144,16 @@ class MySolutionStrategy:
 
             self.update_time_dependent_ad_arrays(initial=True)
 
-    def velocity_values(self, subdomain: list[pp.Grid]):
+    def velocity_values(self, subdomain: list[pp.Grid]) -> np.ndarray:
+        """Update of velocity values to be done after linear system solve.
+
+        Newmark time discretization formula for the current velocity, depending on the
+        current displacement value and the previous acceleration value.
+
+        Parameters:
+            subdomain: The subdomain the velocity is defined on.
+
+        """
         data = self.mdg.subdomain_data(subdomain[0])
         dt = self.time_manager.dt
 
@@ -176,6 +175,16 @@ class MySolutionStrategy:
         return v
 
     def acceleration_values(self, subdomain: pp.Grid) -> np.ndarray:
+        """Update of acceleration values to be done after linear system solve (double
+        check that this is actually where it happens).
+
+        Newmark time discretization formula for the current acceleration, depending on
+        the current displacement value and the previous velocity value.
+
+        Parameters:
+            subdomain: The subdomain the acceleration is defined on.
+
+        """
         data = self.mdg.subdomain_data(subdomain[0])
         dt = self.time_manager.dt
 
@@ -201,10 +210,18 @@ class MySolutionStrategy:
         return a
 
     def update_time_dependent_ad_arrays(self, initial: bool) -> None:
+        """Update the time dependent arrays for the velocity and acceleration.
+
+        Parameters:
+            initial: If True, the array generating method is called for both the stored
+                time steps and the stored iterates. If False, the array generating
+                method is called only for the iterate, and the time step solution is
+                updated by copying the iterate.
+
+        """
         super().update_time_dependent_ad_arrays(initial)
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             if initial:
-                # I think this might be where update_X is needed
                 vals_velocity = self.velocity_values([sd])
                 vals_acceleration = self.acceleration_values([sd])
 
@@ -256,7 +273,16 @@ class MySolutionStrategy:
                 data=data,
                 iterate_index=0,
             )
-            a = 5
+
+    def reset_state_from_file(self) -> None:
+        """Reset states but through a restart from file."""
+        super().reset_state_from_file()
+
+        self.update_time_dependent_ad_arrays(initial=True)
+
+    def before_nonlinear_loop(self) -> None:
+        super().before_nonlinear_loop()
+        self.update_time_dependent_ad_arrays(initial=False)
 
 
 class DynamicMomentumBalance(

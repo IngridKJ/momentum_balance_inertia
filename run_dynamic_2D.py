@@ -13,14 +13,14 @@ class MyGeometry:
 
     def set_domain(self) -> None:
         x = 3 / self.units.m
-        y = 10 / self.units.m
+        y = 3 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.2 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 1 / self.units.m}
         return mesh_args
 
 
@@ -48,9 +48,16 @@ class MomentumBalanceBC:
         return pp.wrap_as_ad_array(values, name="bc_vals_mechanics")
 
 
+class MyInitialValues:
+    def initial_acceleration(self, dofs: int) -> np.ndarray:
+        """Initial acceleration values."""
+        return np.ones(dofs * self.nd) * 0.0000001
+
+
 class MyMomentumBalance(
     MyGeometry,
     MomentumBalanceBC,
+    MyInitialValues,
     models.DynamicMomentumBalance,
 ):
     ...
@@ -64,7 +71,6 @@ time_manager = pp.TimeManager(
     print_info=True,
 )
 
-
 solid_constants = pp.SolidConstants(
     {
         "density": 2670,
@@ -74,6 +80,7 @@ solid_constants = pp.SolidConstants(
         "shear_modulus": 200 * 1e9,
     }
 )
+
 material_constants = {"solid": solid_constants}
 params = {"time_manager": time_manager, "material_constants": material_constants}
 
