@@ -4,6 +4,12 @@ import numpy as np
 from models import DynamicMomentumBalance
 
 
+class NewmarkConstants:
+    @property
+    def gamma(self) -> float:
+        return 0.4
+
+
 class MyGeometry:
     def nd_rect_domain(self, x, y) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
@@ -12,15 +18,15 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 3 / self.units.m
-        y = 8 / self.units.m
+        x = 1 / self.units.m
+        y = 20 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.25 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 1 / self.units.m}
         return mesh_args
 
 
@@ -55,6 +61,7 @@ class MyInitialValues:
 
 
 class MyMomentumBalance(
+    NewmarkConstants,
     MyGeometry,
     MomentumBalanceBC,
     MyInitialValues,

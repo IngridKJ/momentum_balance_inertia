@@ -28,10 +28,6 @@ class NamesAndConstants:
         """Key for acceleration in the time step and iterate dictionaries."""
         return "acceleration"
 
-    @property
-    def time_step_indices(self) -> str:
-        return np.array([0, 1])
-
 
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
@@ -143,7 +139,7 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
-            self.update_time_dependent_ad_arrays(initial=True)
+            # self.update_time_dependent_ad_arrays(initial=True)
 
     def velocity_values(self, subdomain: list[pp.Grid]) -> np.ndarray:
         """Update of velocity values to be done after linear system solve.
@@ -275,15 +271,30 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
-    def reset_state_from_file(self) -> None:
-        """Reset states but through a restart from file."""
-        super().reset_state_from_file()
+    def after_nonlinear_convergence(
+        self, solution: np.ndarray, errors: float, iteration_counter: int
+    ) -> None:
+        """Method to be called after every non-linear iteration.
+
+        Possible usage is to distribute information on the solution, visualization, etc.
+
+        Parameters:
+            solution: The new solution, as computed by the non-linear solver.
+            errors: The error in the solution, as computed by the non-linear solver.
+            iteration_counter: The number of iterations performed by the non-linear
+                solver.
+
+        """
+        solution = self.equation_system.get_variable_values(iterate_index=0)
 
         self.update_time_dependent_ad_arrays(initial=True)
 
-    def before_nonlinear_loop(self) -> None:
-        super().before_nonlinear_loop()
-        self.update_time_dependent_ad_arrays(initial=False)
+        self.equation_system.shift_time_step_values()
+        self.equation_system.set_variable_values(
+            values=solution, time_step_index=0, additive=False
+        )
+        self.convergence_status = True
+        self.save_data_time_step()
 
 
 class DynamicMomentumBalance(
