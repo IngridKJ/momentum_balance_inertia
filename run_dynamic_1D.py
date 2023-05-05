@@ -7,7 +7,7 @@ from models import DynamicMomentumBalance
 class NewmarkConstants:
     @property
     def gamma(self) -> float:
-        return 0.4
+        return 0.5
 
 
 class MyGeometry:
@@ -20,23 +20,23 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 10 / self.units.m
+        x = 0.1 / self.units.m
         y = 10 / self.units.m
-        z = 10 / self.units.m
+        z = 0.1 / self.units.m
         self._domain = self.nd_rect_domain(x, y, z)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
         return mesh_args
 
 
 class MomentumBalanceBC:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         bounds = self.domain_boundary_sides(sd)
-        bc = pp.BoundaryConditionVectorial(sd, bounds.south + bounds.north, "dir")
+        bc = pp.BoundaryConditionVectorial(sd, bounds.north + bounds.south, "dir")
         return bc
 
     def bc_values_mechanics(self, subdomains: list[pp.Grid]) -> pp.ad.AdArray:
@@ -47,7 +47,6 @@ class MomentumBalanceBC:
             # See section on scaling for explanation of the conversion.
             value = 1
             val_loc[1, bounds.north] = -value * 1e-11
-            val_loc[1, bounds.south] = 0
 
             values.append(val_loc)
 
@@ -64,8 +63,8 @@ class MyInitialValues:
 
 class MyMomentumBalance(
     NewmarkConstants,
-    MomentumBalanceBC,
     MyGeometry,
+    MomentumBalanceBC,
     MyInitialValues,
     DynamicMomentumBalance,
 ):
