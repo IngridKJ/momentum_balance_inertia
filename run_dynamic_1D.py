@@ -20,20 +20,20 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 0.1 / self.units.m
-        y = 10 / self.units.m
-        z = 0.1 / self.units.m
+        x = 0.005 / self.units.m
+        y = 1 / self.units.m
+        z = 0.005 / self.units.m
         self._domain = self.nd_rect_domain(x, y, z)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.005 / self.units.m}
         return mesh_args
 
 
-class MomentumBalanceBC:
+class MomentumBalanceBCAndSource:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(sd, bounds.north + bounds.south, "dir")
@@ -46,7 +46,7 @@ class MomentumBalanceBC:
             val_loc = np.zeros((self.nd, sd.num_faces))
             # See section on scaling for explanation of the conversion.
             value = 1
-            val_loc[1, bounds.north] = -value * 1e-11
+            # val_loc[1, bounds.north] = -value * 1e-11
 
             values.append(val_loc)
 
@@ -58,13 +58,13 @@ class MomentumBalanceBC:
 class MyInitialValues:
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
-        return np.ones(dofs * self.nd) * 0.0000001
+        return np.ones(dofs * self.nd) * 0.0000001 * 0
 
 
 class MyMomentumBalance(
     NewmarkConstants,
     MyGeometry,
-    MomentumBalanceBC,
+    MomentumBalanceBCAndSource,
     MyInitialValues,
     DynamicMomentumBalance,
 ):
@@ -72,8 +72,8 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 0.05],
-    dt_init=0.0005,
+    schedule=[0, 0.00005],
+    dt_init=0.0000005,
     constant_dt=True,
     iter_max=10,
     print_info=True,
@@ -81,16 +81,20 @@ time_manager = pp.TimeManager(
 
 solid_constants = pp.SolidConstants(
     {
-        "density": 2670,
-        "lame_lambda": 40 * 1e9,
-        "permeability": 1,
-        "porosity": 0.1,
-        "shear_modulus": 200 * 1e9,
+        "density": 2700,
+        "lame_lambda": 1.067 * 1e10,
+        "permeability": 1e-15,
+        "porosity": 1e-2,
+        "shear_modulus": 1.7 * 1e10,
     }
 )
 
 material_constants = {"solid": solid_constants}
-params = {"time_manager": time_manager, "material_constants": material_constants}
+params = {
+    "time_manager": time_manager,
+    "material_constants": material_constants,
+    "folder_name": "visualization_1D_dynamic",
+}
 
 model = MyMomentumBalance(params)
 pp.run_time_dependent_model(model, params)

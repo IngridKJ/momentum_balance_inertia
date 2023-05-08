@@ -80,17 +80,20 @@ time_manager = pp.TimeManager(
 
 solid_constants = pp.SolidConstants(
     {
-        "density": 2670,
-        "lame_lambda": 40 * 1e9,
-        "permeability": 1,
-        "porosity": 0.1,
-        "shear_modulus": 200 * 1e9,
+        "density": 2700,
+        "lame_lambda": 1.067 * 1e10,
+        "permeability": 1e-15,
+        "porosity": 1e-2,
+        "shear_modulus": 1.7 * 1e10,
     }
 )
 
 material_constants = {"solid": solid_constants}
-params = {"time_manager": time_manager, "material_constants": material_constants}
-
+params = {
+    "time_manager": time_manager,
+    "material_constants": material_constants,
+    "folder_name": "visualization_2D_dynamic",
+}
 model = MyMomentumBalance(params)
 pp.run_time_dependent_model(model, params)
 
