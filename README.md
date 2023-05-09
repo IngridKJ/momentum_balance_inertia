@@ -13,6 +13,6 @@ Testing scripts:
 
 models directory contains models (surprise surprise ...)
 * dynamic momentum balance
-* momentum balance (i.e. just a call and slight modification of the built-in PorePy model)
+* momentum balance (i.e. just a call to and slight modification of the built-in PorePy model)
 
 ParaView directory is mainly for .py scripts to run for visualization in ParaView.
