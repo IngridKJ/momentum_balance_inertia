@@ -195,15 +195,11 @@ class MySolutionStrategy:
         ) = acceleration_velocity_displacement(model=self, data=data)
 
         a = (
-            1
-            / (beta * dt**2)
-            * (
-                u_current
-                - u_previous
-                - dt * v_previous
-                - (1 - 2 * beta) * dt**2 / 2 * a_previous
-            )
+            (u_current - u_previous) / (dt**2 * beta)
+            - v_previous / (dt * beta)
+            - a_previous * (1 - 2 * beta) / (2 * beta)
         )
+
         return a
 
     def update_time_dependent_ad_arrays(self, initial: bool) -> None:

@@ -19,8 +19,14 @@ def inertia_term(
     beta = model.beta
 
     acceleration = (
-        (op - op.previous_timestep()) / (time_step**2)
-        - dt_op.previous_timestep() / time_step
-        - ddt_op.previous_timestep() * (1 - 2 * beta)
+        (op - op.previous_timestep()) / (time_step**2 * beta)
+        - dt_op.previous_timestep() / (time_step * beta)
+        - ddt_op.previous_timestep() * (1 - 2 * beta) / (2 * beta)
     )
+
+    # acceleration = (
+    #     (op - op.previous_timestep()) / (time_step**2)
+    #     - dt_op.previous_timestep() / time_step
+    #     - ddt_op.previous_timestep() * (1 - 2 * beta)
+    # )
     return acceleration

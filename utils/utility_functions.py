@@ -121,3 +121,61 @@ def body_force_func(model) -> list:
         sym.lambdify((x, y), div_sigma[0], "numpy"),
         sym.lambdify((x, y), div_sigma[1], "numpy"),
     ]
+
+
+def body_force_func_time(model) -> list:
+    """Function for calculating rhs corresponding to a manufactured solution, 2D."""
+    lam = model.solid.lame_lambda()
+    mu = model.solid.shear_modulus()
+    rho = model.solid.density()
+
+    x, y, t = sym.symbols("x y t")
+
+    # Manufactured solution (bubble<3)
+    u1 = u2 = t * t * x * (1 - x) * y * (1 - y)
+    u = [u1, u2]
+
+    ddt_u = [
+        sym.diff(sym.diff(u[0], t), t),
+        sym.diff(sym.diff(u[1], t), t),
+    ]
+
+    grad_u = [
+        [sym.diff(u[0], x), sym.diff(u[0], y)],
+        [sym.diff(u[1], x), sym.diff(u[1], y)],
+    ]
+
+    grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
+
+    div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
+
+    trace_grad_u = grad_u[0][0] + grad_u[1][1]
+
+    strain = 0.5 * np.array(
+        [
+            [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
+            [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
+        ]
+    )
+
+    sigma = [
+        [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
+        [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
+    ]
+
+    div_sigma = [
+        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
+        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
+    ]
+
+    acceleration_term = [rho * ddt_u[0], rho * ddt_u[1]]
+
+    full_eqn = [
+        acceleration_term[0] + div_sigma[0],
+        acceleration_term[1] + div_sigma[1],
+    ]
+
+    return [
+        sym.lambdify((x, y, t), full_eqn[1], "numpy"),
+        sym.lambdify((x, y, t), full_eqn[0], "numpy"),
+    ]
