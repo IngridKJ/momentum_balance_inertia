@@ -1,6 +1,7 @@
 import numpy as np
 import porepy as pp
 from typing import Optional
+import sympy as sym
 
 
 def get_solution_values(
@@ -75,3 +76,48 @@ def acceleration_velocity_displacement(
     )
 
     return a_previous, v_previous, u_previous, u_current
+
+
+def body_force_func(model) -> list:
+    """Function for calculating rhs corresponding to a manufactured solution, 2D."""
+    lam = model.solid.lame_lambda()
+    mu = model.solid.shear_modulus()
+
+    x, y = sym.symbols("x y")
+
+    # Manufactured solution (bubble<3)
+    u1 = u2 = x * (1 - x) * y * (1 - y)
+    u = [u1, u2]
+
+    grad_u = [
+        [sym.diff(u[0], x), sym.diff(u[0], y)],
+        [sym.diff(u[1], x), sym.diff(u[1], y)],
+    ]
+
+    grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
+
+    div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
+
+    trace_grad_u = grad_u[0][0] + grad_u[1][1]
+
+    strain = 0.5 * np.array(
+        [
+            [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
+            [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
+        ]
+    )
+
+    sigma = [
+        [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
+        [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
+    ]
+
+    div_sigma = [
+        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
+        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
+    ]
+
+    return [
+        sym.lambdify((x, y), div_sigma[0], "numpy"),
+        sym.lambdify((x, y), div_sigma[1], "numpy"),
+    ]

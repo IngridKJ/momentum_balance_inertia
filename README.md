@@ -9,7 +9,8 @@ Runscripts:
 
 Testing scripts:
 * [1D_analytical_comparison.py](./1D_analytical_comparison.py) is a first (and failed) attempt at comparing the solution of the momentum balance equation (non-dynamic).
-* 2D_analytical_comparison is to be added
+* [2D_static_analytical_comparison](./1D_static_analytical_comparison.py) is a successfull attempt at MMS with static momentum balance equation.
+* 2D_dynamic_analytical_comparison is to be added.
 
 models directory contains models (surprise surprise ...)
 * [dynamic momentum balance](./models/dynamic_momentum_balance.py).
