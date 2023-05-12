@@ -18,4 +18,6 @@ models directory contains models (surprise surprise ...)
 
 [ParaView](./ParaView/) directory is mainly for .py scripts to run for visualization in ParaView.
 
-Folders with "random" visualization files are also found in the main directory. For now this includes the visualization files for the 2D static momentum balance analytical comparison.
+Folders with "random" visualization files are also found in the main directory. For now this includes the visualization files for
+* 2D static momentum balance analytical comparison
+* 2D dynamic momentum balance with a time-dependent source term
