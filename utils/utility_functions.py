@@ -132,7 +132,7 @@ def body_force_func_time(model) -> list:
     x, y, t = sym.symbols("x y t")
 
     # Manufactured solution (bubble<3)
-    u1 = u2 = t * x * (1 - x) * y * (1 - y)
+    u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
     u = [u1, u2]
 
     ddt_u = [

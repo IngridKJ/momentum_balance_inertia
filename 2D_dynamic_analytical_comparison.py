@@ -5,11 +5,19 @@ from models import DynamicMomentumBalance
 
 from utils import body_force_func_time
 
+"""
+(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+"""
+
 
 class NewmarkConstants:
     @property
     def gamma(self) -> float:
         return 0.5
+
+    @property
+    def beta(self) -> float:
+        return 0.25
 
 
 class MyGeometry:
@@ -29,7 +37,7 @@ class MyGeometry:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.01 / self.units.m}
         return mesh_args
 
 
@@ -42,21 +50,6 @@ class MomentumBalanceBC:
             "dir",
         )
         return bc
-
-    def bc_values_mechanics(self, subdomains: list[pp.Grid]) -> pp.ad.AdArray:
-        values = []
-        for sd in subdomains:
-            bounds = self.domain_boundary_sides(sd)
-            val_loc = np.zeros((self.nd, sd.num_faces))
-            # See section on scaling for explanation of the conversion.
-            value = 1
-            val_loc[1, bounds.north] = -value * 1e-11 * 0
-
-            values.append(val_loc)
-
-        values = np.array(values)
-        values = values.ravel("F")
-        return pp.wrap_as_ad_array(values, name="bc_vals_mechanics")
 
     def body_force(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Body force integrated over the subdomain cells.

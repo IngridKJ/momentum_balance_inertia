@@ -4,11 +4,10 @@ import numpy as np
 from models import DynamicMomentumBalance
 
 from utils import body_force_func_time
-from utils import body_force_func
 
 
 """
-(5e-3)^2 * coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + (5e-3)^2 * coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat
+(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
 """
 
 
@@ -53,29 +52,8 @@ class MomentumBalanceBC:
         )
         return bc
 
-    def bc_values_mechanics(self, subdomains: list[pp.Grid]) -> pp.ad.AdArray:
-        values = []
-        for sd in subdomains:
-            bounds = self.domain_boundary_sides(sd)
-            val_loc = np.zeros((self.nd, sd.num_faces))
-            # See section on scaling for explanation of the conversion.
-            value = 1
-            val_loc[1, bounds.north] = -value * 1e-11 * 0
-
-            values.append(val_loc)
-
-        values = np.array(values)
-        values = values.ravel("F")
-        return pp.wrap_as_ad_array(values, name="bc_vals_mechanics")
-
     def before_nonlinear_loop(self) -> None:
-        """Update values of external sources.
-
-        Note that this is hardcoded for equidimensional domains. For inspiration to how
-        to do it with faults, look to the manu_flox_comp_2d_frac.py file. And while we
-        are at it, it is also hard coded for 2d.
-
-        """
+        """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
