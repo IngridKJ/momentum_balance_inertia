@@ -17,3 +17,5 @@ models directory contains models (surprise surprise ...)
 * [momentum balance](./models/no_inertia_momentum_balance.py) (i.e. just a call to and slight modification of the built-in PorePy model)
 
 [ParaView](./ParaView/) directory is mainly for .py scripts to run for visualization in ParaView.
+
+Folders with "random" visualization files are also found in the main directory. For now this includes the visualization files for the 2D static momentum balance analytical comparison.
