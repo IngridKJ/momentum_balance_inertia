@@ -165,9 +165,9 @@ class MySolutionStrategy:
         ) = acceleration_velocity_displacement(model=self, data=data)
 
         v = (
-            (1 - gamma / beta) * v_previous
-            + dt * (1 - gamma - (gamma * (1 - 2 * beta)) / (2 * beta)) * a_previous
-            + gamma / (beta * dt) * (u_current - u_previous)
+            v_previous * (1 - gamma / beta)
+            + a_previous * (1 - gamma - (gamma * (1 - 2 * beta)) / (2 * beta)) * dt
+            + (u_current - u_previous) * gamma / (beta * dt)
         )
         return v
 
