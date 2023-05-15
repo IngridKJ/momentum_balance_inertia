@@ -7,7 +7,7 @@ from models import DynamicMomentumBalance
 class NewmarkConstants:
     @property
     def gamma(self) -> float:
-        return 0.4
+        return 0.5
 
 
 class MyGeometry:
@@ -19,14 +19,14 @@ class MyGeometry:
 
     def set_domain(self) -> None:
         x = 1 / self.units.m
-        y = 20 / self.units.m
+        y = 1 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
         return mesh_args
 
 
@@ -72,7 +72,7 @@ class MyMomentumBalance(
 
 time_manager = pp.TimeManager(
     schedule=[0, 0.05],
-    dt_init=0.0005,
+    dt_init=0.005,
     constant_dt=True,
     iter_max=10,
     print_info=True,

@@ -7,7 +7,7 @@ from models import DynamicMomentumBalance
 class NewmarkConstants:
     @property
     def gamma(self) -> float:
-        return 0.4
+        return 0.5
 
 
 class MyGeometry:
@@ -21,7 +21,7 @@ class MyGeometry:
 
     def set_domain(self) -> None:
         x = 10 / self.units.m
-        y = 10 / self.units.m
+        y = 40 / self.units.m
         z = 10 / self.units.m
         self._domain = self.nd_rect_domain(x, y, z)
 
@@ -59,7 +59,7 @@ class MomentumBalanceBC:
 class MyInitialValues:
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
-        return np.ones(dofs * self.nd) * 0.0000001
+        return np.ones(dofs * self.nd) * 0.0000001 * 0
 
 
 class MyMomentumBalance(
@@ -98,7 +98,3 @@ params = {
 }
 model = MyMomentumBalance(params)
 pp.run_time_dependent_model(model, params)
-
-pp.plot_grid(
-    grid=model.mdg, vector_value="u", figsize=(10, 8), title="Displacement", alpha=0.5
-)

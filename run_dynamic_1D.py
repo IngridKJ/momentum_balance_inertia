@@ -20,16 +20,16 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 0.005 / self.units.m
+        x = 0.1 / self.units.m
         y = 1 / self.units.m
-        z = 0.005 / self.units.m
+        z = 0.1 / self.units.m
         self._domain = self.nd_rect_domain(x, y, z)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.005 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
         return mesh_args
 
 
@@ -44,9 +44,8 @@ class MomentumBalanceBCAndSource:
         for sd in subdomains:
             bounds = self.domain_boundary_sides(sd)
             val_loc = np.zeros((self.nd, sd.num_faces))
-            # See section on scaling for explanation of the conversion.
             value = 1
-            # val_loc[1, bounds.north] = -value * 1e-11
+            val_loc[1, bounds.north] = -value * 1e-11
 
             values.append(val_loc)
 
@@ -58,7 +57,7 @@ class MomentumBalanceBCAndSource:
 class MyInitialValues:
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
-        return np.ones(dofs * self.nd) * 0.0000001 * 0
+        return np.ones(dofs * self.nd) * 0.00001 * 0
 
 
 class MyMomentumBalance(
@@ -98,7 +97,3 @@ params = {
 
 model = MyMomentumBalance(params)
 pp.run_time_dependent_model(model, params)
-
-pp.plot_grid(
-    grid=model.mdg, vector_value="u", figsize=(10, 8), title="Displacement", alpha=0.5
-)

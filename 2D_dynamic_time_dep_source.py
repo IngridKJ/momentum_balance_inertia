@@ -42,7 +42,7 @@ class MyGeometry:
         return mesh_args
 
 
-class MomentumBalanceBC:
+class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
@@ -52,6 +52,21 @@ class MomentumBalanceBC:
         )
         return bc
 
+    def initial_acceleration(self, dofs: int) -> np.ndarray:
+        """Initial acceleration values."""
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        vals[0] = 2 * x * y * (1 - x) * (1 - y)
+        vals[1] = 2 * x * y * (1 - x) * (1 - y)
+        return vals.ravel("F")
+
+
+class Source:
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
@@ -60,49 +75,53 @@ class MomentumBalanceBC:
 
         # Mechanics source
         source_func = body_force_func_time(self)
-        vals = np.zeros((self.nd, sd.num_cells))
-
-        x = sd.cell_centers[0, :]
-        y = sd.cell_centers[1, :]
-
-        x_val = source_func[0](x, y, t)
-        y_val = source_func[1](x, y, t)
-
-        cell_volume = sd.cell_volumes
-
-        vals[0] = -x_val * cell_volume
-        vals[1] = -y_val * cell_volume
-
-        mech_source = vals.ravel("F")
+        mech_source = self.source_values(source_func, sd, t)
 
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, time_step_index=0
         )
 
-    def body_force(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
-        """Body force."""
+    def source_values(self, f, sd, t) -> np.ndarray:
+        """Function for computing the source values.
 
-        external_sources = pp.ad.TimeDependentDenseArray(
-            name="source_mechanics",
-            subdomains=self.mdg.subdomains(),
-            previous_timestep=True,
-        )
+        Parameters:
+            f: Function depending on time and space for the source term.
+            sd: Subdomain where the source term is defined.
+            t: Current time in the time-stepping.
 
-        return external_sources
+        Returns:
+            An array of source values.
+
+        """
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+
+        x_val = f[0](x, y, t)
+        y_val = f[1](x, y, t)
+
+        cell_volume = sd.cell_volumes
+
+        vals[0] = x_val * cell_volume
+        vals[1] = y_val * cell_volume
+
+        return vals.ravel("F")
 
 
 class MyMomentumBalance(
     NewmarkConstants,
-    MomentumBalanceBC,
+    BoundaryAndInitialCond,
     MyGeometry,
+    Source,
     DynamicMomentumBalance,
 ):
     ...
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 1.25e0],
-    dt_init=1e-3,
+    schedule=[0, 1e-2],
+    dt_init=1e-4,
     constant_dt=True,
     iter_max=10,
     print_info=True,
@@ -122,7 +141,7 @@ material_constants = {"solid": solid_constants}
 params = {
     "time_manager": time_manager,
     "material_constants": material_constants,
-    "folder_name": "visualization_time_dep_source",
+    "folder_name": "nothing_to_care_about_viz",
 }
 model = MyMomentumBalance(params)
 

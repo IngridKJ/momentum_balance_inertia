@@ -139,7 +139,26 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
-            # self.update_time_dependent_ad_arrays(initial=True)
+        # self.update_time_dependent_ad_arrays(initial=True)
+
+    def before_nonlinear_loop(self) -> None:
+        """Update values of external sources."""
+        sd = self.mdg.subdomains()[0]
+        data = self.mdg.subdomain_data(sd)
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        cell_volume = sd.cell_volumes
+
+        vals[0] *= cell_volume
+        vals[1] *= cell_volume
+
+        vals = vals.ravel("F")
+
+        pp.set_solution_values(
+            name="source_mechanics", values=vals, data=data, time_step_index=0
+        )
 
     def velocity_values(self, subdomain: list[pp.Grid]) -> np.ndarray:
         """Update of velocity values to be done after linear system solve.
@@ -206,30 +225,33 @@ class MySolutionStrategy:
         """Update the time dependent arrays for the velocity and acceleration.
 
         Parameters:
-            initial: If True, the array generating method is called for both the stored
-                time steps and the stored iterates. If False, the array generating
-                method is called only for the iterate, and the time step solution is
-                updated by copying the iterate.
+            initial: (Outdated because I messed with it to fix a bug) If True, the
+                array generating method is called for both the stored time steps and the
+                stored iterates. If False, the array generating method is called only
+                for the iterate, and the time step solution is updated by copying the
+                iterate.
 
         """
         super().update_time_dependent_ad_arrays(initial)
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
+            dofs = sd.num_cells
             if initial:
-                vals_velocity = self.velocity_values([sd])
-                vals_acceleration = self.acceleration_values([sd])
+                if self.time_manager.time_index != 0:
+                    vals_velocity = self.velocity_values([sd])
+                    vals_acceleration = self.acceleration_values([sd])
 
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity,
-                    data=data,
-                    time_step_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration,
-                    data=data,
-                    time_step_index=0,
-                )
+                    pp.set_solution_values(
+                        name=self.velocity_key,
+                        values=vals_velocity,
+                        data=data,
+                        time_step_index=0,
+                    )
+                    pp.set_solution_values(
+                        name=self.acceleration_key,
+                        values=vals_acceleration,
+                        data=data,
+                        time_step_index=0,
+                    )
             else:
                 # Copy old values from iterate to the solution.
                 vals_velocity = get_solution_values(
@@ -251,21 +273,28 @@ class MySolutionStrategy:
                     time_step_index=0,
                 )
 
-            vals_velocity = self.velocity_values([sd])
-            vals_acceleration = self.acceleration_values([sd])
+            if self.time_manager.time_index != 0:
+                # Brute force fix of a bug. Earlier, acceleration and velocity were
+                # updated twice in the initial call. Figure out wth to do here.
+                vals_velocity = get_solution_values(
+                    name=self.velocity_key, data=data, time_step_index=0
+                )
+                vals_acceleration = get_solution_values(
+                    name=self.acceleration_key, data=data, time_step_index=0
+                )
 
-            pp.set_solution_values(
-                name=self.velocity_key,
-                values=vals_velocity,
-                data=data,
-                iterate_index=0,
-            )
-            pp.set_solution_values(
-                name=self.acceleration_key,
-                values=vals_acceleration,
-                data=data,
-                iterate_index=0,
-            )
+                pp.set_solution_values(
+                    name=self.velocity_key,
+                    values=vals_velocity,
+                    data=data,
+                    iterate_index=0,
+                )
+                pp.set_solution_values(
+                    name=self.acceleration_key,
+                    values=vals_acceleration,
+                    data=data,
+                    iterate_index=0,
+                )
 
     def after_nonlinear_convergence(
         self, solution: np.ndarray, errors: float, iteration_counter: int
@@ -293,9 +322,23 @@ class MySolutionStrategy:
         self.save_data_time_step()
 
 
+class TimeDependentSourceTerm:
+    def body_force(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        """Body force."""
+
+        external_sources = pp.ad.TimeDependentDenseArray(
+            name="source_mechanics",
+            subdomains=subdomains,
+            previous_timestep=True,
+        )
+
+        return external_sources
+
+
 class DynamicMomentumBalance(
     NamesAndConstants,
     MyEquations,
+    TimeDependentSourceTerm,
     MySolutionStrategy,
     MomentumBalance,
 ):
