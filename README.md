@@ -7,10 +7,10 @@ Runscripts:
 * [run_dynamic_2D.py](./run_dynamic_2D.py) is for running the dynamic momentum balance in 2D.
 * [run_dynamic_3D.py](./run_dynamic_3D.py) is for running the dynamic momentum balance in 3D.
 
-Testing scripts:
+Runscripts for analytical comparison:
 * [1D_analytical_comparison.py](./1D_analytical_comparison.py) is a first (and failed) attempt at comparing the solution of the momentum balance equation (non-dynamic).
 * [2D_static_analytical_comparison](./1D_static_analytical_comparison.py) is a successfull attempt at MMS with static momentum balance equation.
-* [2D_dynamic_analytical_comparison](./2D_dynamic_analytical_comparison.py) is included. Factor 2 wrong.
+* [2D_dynamic_time_dep_source](./2D_dynamic_time_dep_source.py) is for dynamic momentum balance
 
 models directory contains models (surprise surprise ...)
 * [dynamic momentum balance](./models/dynamic_momentum_balance.py).
@@ -18,6 +18,5 @@ models directory contains models (surprise surprise ...)
 
 [ParaView](./ParaView/) directory is mainly for .py scripts to run for visualization in ParaView.
 
-Folders with "random" visualization files are also found in the main directory. For now this includes the visualization files for
+Folders wit some visualization files are also found in the main directory. For now this includes the visualization files for
 * 2D static momentum balance analytical comparison
-* 2D dynamic momentum balance with a time-dependent source term
