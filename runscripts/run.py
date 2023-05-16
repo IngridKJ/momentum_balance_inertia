@@ -1,8 +1,13 @@
 import porepy as pp
-from models.no_inertia_momentum_balance import MyMomentumBalance
+
+import sys
+
+sys.path.append("../")
+
+from models.no_inertia_momentum_balance import MomentumBalanceModified
 
 params = {}
-model = MyMomentumBalance(params)
+model = MomentumBalanceModified(params)
 pp.run_time_dependent_model(model, params)
 
 pp.plot_grid(
