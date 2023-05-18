@@ -78,7 +78,7 @@ class Source:
         mech_source = self.source_values(source_func, sd, t)
 
         pp.set_solution_values(
-            name="source_mechanics", values=mech_source, data=data, time_step_index=0
+            name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
 
     def source_values(self, f, sd, t) -> np.ndarray:

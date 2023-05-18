@@ -16,7 +16,13 @@ models directory contains models (surprise surprise ...)
 * [dynamic momentum balance](./models/dynamic_momentum_balance.py).
 * [momentum balance](./models/no_inertia_momentum_balance.py) (i.e. just a call to and slight modification of the built-in PorePy model)
 
-[ParaView](./ParaView/) directory is mainly for .py scripts to run for visualization in ParaView.
+[ParaView](./ParaView/) directory is mainly for .py scripts or .pvsm files for visualization in ParaView.
+
+Convergence analysis:
+The expected rates are achieved after revisiting the sign conventions for the equations.
+* [convergence_analysis_runscript](./convergence_analysis_runscript.py) is the runscript for running the convergence analysis.
+* [manu_dynamic_mech_nofrac](./manu_dynamic_mech_nofrac.py) is implementation of a verification setup for the dynamic momentum balance. 
+
 
 Folders wit some visualization files are also found in the main directory. For now this includes the visualization files for
 * 2D static momentum balance analytical comparison

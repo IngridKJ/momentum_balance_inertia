@@ -157,7 +157,7 @@ class MySolutionStrategy:
         vals = vals.ravel("F")
 
         pp.set_solution_values(
-            name="source_mechanics", values=vals, data=data, time_step_index=0
+            name="source_mechanics", values=vals, data=data, iterate_index=0
         )
 
     def velocity_values(self, subdomain: list[pp.Grid]) -> np.ndarray:
@@ -329,9 +329,8 @@ class TimeDependentSourceTerm:
         external_sources = pp.ad.TimeDependentDenseArray(
             name="source_mechanics",
             subdomains=subdomains,
-            previous_timestep=True,
+            previous_timestep=False,
         )
-
         return external_sources
 
 
