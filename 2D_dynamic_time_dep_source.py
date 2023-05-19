@@ -60,10 +60,16 @@ class BoundaryAndInitialCond:
         y = sd.cell_centers[1, :]
 
         vals = np.zeros((self.nd, sd.num_cells))
-
-        vals[0] = 2 * x * y * (1 - x) * (1 - y)
-        vals[1] = 2 * x * y * (1 - x) * (1 - y)
-        return vals.ravel("F")
+        manufactured_sol = self.params.get("manufactured_solution", "bubble")
+        if manufactured_sol == "bubble":
+            vals[0] = 2 * x * y * (1 - x) * (1 - y)
+            vals[1] = 2 * x * y * (1 - x) * (1 - y)
+        elif manufactured_sol == "quad_time":
+            vals[0] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
+            vals[1] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
+        elif manufactured_sol == "quad_space":
+            raise NotImplementedError
+        return vals.ravel("F") * 0
 
 
 class Source:
@@ -120,12 +126,13 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 1e-2],
-    dt_init=1e-4,
+    schedule=[0, 1e0],
+    dt_init=1e-2,
     constant_dt=True,
     iter_max=10,
     print_info=True,
 )
+
 
 solid_constants = pp.SolidConstants(
     {
@@ -141,7 +148,8 @@ material_constants = {"solid": solid_constants}
 params = {
     "time_manager": time_manager,
     "material_constants": material_constants,
-    "folder_name": "nothing_to_care_about_viz",
+    "folder_name": "test_convergence_viz",
+    "manufactured_solution": "bubble",
 }
 model = MyMomentumBalance(params)
 

@@ -1,3 +1,12 @@
+"""
+ParaView quad_time analytical solution:
+(time)^2 * (sin(acos(-1) * coords[0]) * sin(acos(-1) * coords[1]) * iHat + sin(acos(-1) * coords[0]) * sin(acos(-1) * coords[1]) * jHat)
+
+ParaView bubble analytical solution:
+(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+
+"""
+
 import numpy as np
 import porepy as pp
 from typing import Optional
@@ -131,9 +140,16 @@ def body_force_func_time(model) -> list:
 
     x, y, t = sym.symbols("x y t")
 
-    # Manufactured solution (bubble<3)
-    u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
-    u = [u1, u2]
+    manufactured_sol = model.params.get("manufactured_solution", "bubble")
+    if manufactured_sol == "bubble":
+        # Manufactured solution (bubble<3)
+        u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "quad_time":
+        u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
+        u = [u1, u2]
+    elif manufactured_sol == "quad_space":
+        raise NotImplementedError
 
     ddt_u = [
         sym.diff(sym.diff(u[0], t), t),
@@ -171,8 +187,8 @@ def body_force_func_time(model) -> list:
     acceleration_term = [rho * ddt_u[0], rho * ddt_u[1]]
 
     full_eqn = [
-        acceleration_term[0] + div_sigma[0],
-        acceleration_term[1] + div_sigma[1],
+        acceleration_term[0] - div_sigma[0],
+        acceleration_term[1] - div_sigma[1],
     ]
 
     return [
