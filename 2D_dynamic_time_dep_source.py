@@ -4,6 +4,9 @@ import numpy as np
 from models import DynamicMomentumBalance
 
 from utils import body_force_func_time
+from utils import u_func_time
+from utils import v_func_time
+from utils import a_func_time
 
 
 """
@@ -84,11 +87,25 @@ class Source:
 
         # Mechanics source
         source_func = body_force_func_time(self)
+
+        u_func = u_func_time(self)
+        v_func = v_func_time(self)
+        a_func = a_func_time(self)
         mech_source = self.source_values(source_func, sd, t)
+
+        u_vals = self.field_values(u_func, sd, t)
+        v_vals = self.field_values(v_func, sd, t)
+        a_vals = self.field_values(a_func, sd, t)
 
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
+
+        pp.set_solution_values(name="u_e", values=u_vals, data=data, iterate_index=0)
+
+        pp.set_solution_values(name="v_e", values=v_vals, data=data, iterate_index=0)
+
+        pp.set_solution_values(name="a_e", values=a_vals, data=data, iterate_index=0)
 
     def source_values(self, f, sd, t) -> np.ndarray:
         """Function for computing the source values.
@@ -117,6 +134,51 @@ class Source:
 
         return vals.ravel("F")
 
+    def field_values(self, f, sd, t) -> np.ndarray:
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+
+        x_val = f[0](x, y, t)
+        y_val = f[1](x, y, t)
+
+        vals[0] = x_val
+        vals[1] = y_val
+
+        return vals.ravel("F")
+
+    def after_simulation(self) -> None:
+        """Run at the end of simulation. Can be used for cleanup etc."""
+        sd = self.mdg.subdomains(dim=2)[0]
+        data = self.mdg.subdomain_data(sd)
+
+        v_e = data[pp.ITERATE_SOLUTIONS]["v_e"][0]
+        v_h = data[pp.ITERATE_SOLUTIONS]["velocity"][0]
+        a_h = data[pp.ITERATE_SOLUTIONS]["acceleration"][0]
+        a_e = data[pp.ITERATE_SOLUTIONS]["a_e"][0]
+        u_e = data[pp.ITERATE_SOLUTIONS]["u_e"][0]
+        u_h = data[pp.ITERATE_SOLUTIONS]["u"][0]
+
+        cell_volumes = sd.cell_volumes
+
+        norm_u_e = np.sqrt(np.sum(np.sum(u_e * u_e, axis=0) * cell_volumes))
+        du = u_h - u_e
+        error_u = np.sqrt(np.sum(np.sum(du * du, axis=0) * cell_volumes)) / norm_u_e
+
+        norm_v_e = np.sqrt(np.sum(np.sum(v_e * v_e, axis=0) * cell_volumes))
+        dv = v_h - v_e
+        error_v = np.sqrt(np.sum(np.sum(dv * dv, axis=0) * cell_volumes)) / norm_v_e
+
+        norm_a_e = np.sqrt(np.sum(np.sum(a_e * a_e, axis=0) * cell_volumes))
+        da = a_h - a_e
+        error_a = np.sqrt(np.sum(np.sum(da * da, axis=0) * cell_volumes)) / norm_a_e
+
+        print("u_er =", error_u)
+        print("v_er =", error_v)
+        print("a_er =", error_a)
+        a = 5
+
 
 class MyMomentumBalance(
     NewmarkConstants,
@@ -129,8 +191,8 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 1],
-    dt_init=0.05,
+    schedule=[0, 1.0],
+    dt_init=0.05 / 2,
     constant_dt=True,
     iter_max=10,
     print_info=True,

@@ -137,6 +137,39 @@ def body_force_func(model) -> list:
     ]
 
 
+def u_func_time(model):
+    x, y, t = sym.symbols("x y t")
+    u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
+    u = [u1, u2]
+    u = [
+        sym.lambdify((x, y, t), u[0], "numpy"),
+        sym.lambdify((x, y, t), u[1], "numpy"),
+    ]
+    return u
+
+
+def v_func_time(model):
+    x, y, t = sym.symbols("x y t")
+    v1 = v2 = 2 * t * x * (1 - x) * y * (1 - y)
+    v = [v1, v2]
+    v = [
+        sym.lambdify((x, y, t), v[0], "numpy"),
+        sym.lambdify((x, y, t), v[1], "numpy"),
+    ]
+    return v
+
+
+def a_func_time(model):
+    x, y, t = sym.symbols("x y t")
+    a1 = a2 = 2 * x * (1 - x) * y * (1 - y)
+    a = [a1, a2]
+    a = [
+        sym.lambdify((x, y, t), a[0], "numpy"),
+        sym.lambdify((x, y, t), a[1], "numpy"),
+    ]
+    return a
+
+
 def body_force_func_time(model) -> list:
     """Function for calculating rhs corresponding to a manufactured solution, 2D."""
     lam = model.solid.lame_lambda()
