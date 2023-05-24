@@ -10,7 +10,8 @@ Runscripts:
 Runscripts for analytical comparison:
 * [1D_analytical_comparison.py](./1D_analytical_comparison.py) is a first (and failed) attempt at comparing the solution of the momentum balance equation (non-dynamic).
 * [2D_static_analytical_comparison](./1D_static_analytical_comparison.py) is a successfull attempt at MMS with static momentum balance equation.
-* [2D_dynamic_time_dep_source](./2D_dynamic_time_dep_source.py) is for dynamic momentum balance
+* [2D_dynamic_time_dep_source](./2D_dynamic_time_dep_source.py) is for dynamic momentum balance (2D)
+* [3D_dynamic_time_dep_source](./3D_dynamic_time_dep_source.py) is for dynamic momentum balance (3D)
 
 models directory contains models (surprise surprise ...)
 * [dynamic momentum balance](./models/dynamic_momentum_balance.py).
@@ -19,10 +20,13 @@ models directory contains models (surprise surprise ...)
 [ParaView](./ParaView/) directory is mainly for .py scripts or .pvsm files for visualization in ParaView.
 
 Convergence analysis:
-The expected rates are achieved after revisiting the sign conventions for the equations.
-* [convergence_analysis_runscript](./convergence_analysis_runscript.py) is the runscript for running the convergence analysis.
-* [manu_dynamic_mech_nofrac](./manu_dynamic_mech_nofrac.py) is implementation of a verification setup for the dynamic momentum balance. 
+Some weird thing happen with the rates. Currently revisiting "everyting"
+* [convergence_runscript_dynamic](./convergence_runscript_dynamic.py) is the runscript for running the convergence analysis.
+* [manufactured_solution_dynamic](./manufactured_solution_dynamic.py) is implementation of a verification setup for the dynamic momentum balance. 
 
+Sanity check: Checking convergence rates for static momentum balance
+* [convergence_runscript_static](./convergence_runscript_static.py) is the runscript for running the convergence analysis.
+* [manufactured_solution_static](./manufactured_solution_static.py) is implementation of a verification setup for the static momentum balance. 
 
 Folders wit some visualization files are also found in the main directory. For now this includes the visualization files for
 * 2D static momentum balance analytical comparison

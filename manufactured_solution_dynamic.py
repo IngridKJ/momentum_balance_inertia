@@ -144,7 +144,21 @@ class ManuMechExactSolution2d:
         if manufactured_sol == "bubble":
             u1 = u2 = t**2 * x * y * (1 - x) * (1 - y)
             u = [u1, u2]
-
+        elif manufactured_sol == "cub_cub":
+            u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
+            u = [u1, u2]
+        elif manufactured_sol == "cub_quad":
+            u1 = u2 = t**3 * x * y * (1 - x) * (1 - y)
+            u = [u1, u2]
+        elif manufactured_sol == "quad_time":
+            u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
+            u = [u1, u2]
+        elif manufactured_sol == "cub_time":
+            u1 = u2 = t**3 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
+            u = [u1, u2]
+        elif manufactured_sol == "quad_space":
+            u1 = u2 = x * y * (1 - y) * (1 - x) * sym.cos(t)
+            u = [u1, u2]
         # Exact divergence of the displacement
         div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
 
@@ -184,7 +198,7 @@ class ManuMechExactSolution2d:
             ],
         ]
 
-        # Exact poroelastic stress
+        # Exact elastic stress
         sigma_total = [
             [sigma_elas[0][0], sigma_elas[0][1]],
             [sigma_elas[1][0], sigma_elas[1][1]],
@@ -212,7 +226,7 @@ class ManuMechExactSolution2d:
         # Public attributes
         self.u = u  # displacement
         self.sigma_elas = sigma_elas  # elastic stress
-        self.sigma_total = sigma_total  # poroelastic (total) stress
+        self.sigma_total = sigma_total  # elastic (total) stress
         self.source_mech = source_mech  # Source term entering the momentum balance
         self.acceleration_term = acceleration_term  # Acceleration term entering mom bal
 
@@ -263,11 +277,11 @@ class ManuMechExactSolution2d:
             time: Time in seconds.
 
         Returns:
-            Array of ``shape=(2 * sd.num_faces, )`` containing the exact poroealstic
+            Array of ``shape=(2 * sd.num_faces, )`` containing the exact ealstic
             force at the face centers for the given ``time``.
 
         Notes:
-            - The returned poroelastic force is given in PorePy's flattened vector
+            - The returned elastic force is given in PorePy's flattened vector
               format.
             - Recall that force = (stress dot_prod unit_normal) * face_area.
 
@@ -278,6 +292,11 @@ class ManuMechExactSolution2d:
         # Get cell centers and face normals
         fc = sd.face_centers
         fn = sd.face_normals
+
+        # sigma_total = [
+        #     [sigma_elas[0][0], sigma_elas[0][1]],
+        #     [sigma_elas[1][0], sigma_elas[1][1]],
+        # ]
 
         # Lambdify expression
         sigma_total_fun: list[list[Callable]] = [
@@ -440,7 +459,7 @@ class ManuMechSolutionStrategy2d(dynamic_momentum_balance.MySolutionStrategy):
         """Results object that stores exact and approximated solutions and errors."""
 
         self.stress_variable: str = "elastic_force"
-        """Keyword to access the poroelastic force."""
+        """Keyword to access the elastic force."""
 
     def _is_time_dependent(self):
         return True
@@ -487,9 +506,25 @@ class ManuMechSolutionStrategy2d(dynamic_momentum_balance.MySolutionStrategy):
         y = sd.cell_centers[1, :]
 
         vals = np.zeros((self.nd, sd.num_cells))
-
-        vals[0] = 2 * x * y * (1 - x) * (1 - y)
-        vals[1] = 2 * x * y * (1 - x) * (1 - y)
+        manufactured_sol = self.params.get("manufactured_solution", "bubble")
+        if manufactured_sol == "bubble":
+            vals[0] = 2 * x * y * (1 - x) * (1 - y)
+            vals[1] = 2 * x * y * (1 - x) * (1 - y)
+        elif manufactured_sol == "cub_cub":
+            vals[0] = 6 * x**2 * y**2 * (1 - x) * (1 - y) * 0
+            vals[1] = 6 * x**2 * y**2 * (1 - x) * (1 - y) * 0
+        elif manufactured_sol == "cub_quad":
+            vals[0] = 6 * x * y * (1 - x) * (1 - y) * 0
+            vals[1] = 6 * x * y * (1 - x) * (1 - y) * 0
+        elif manufactured_sol == "quad_time":
+            vals[0] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
+            vals[1] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
+        elif manufactured_sol == "cub_time":
+            vals[0] = 6 * np.sin(np.pi * x) * np.sin(np.pi * y) * 0
+            vals[1] = 6 * np.sin(np.pi * x) * np.sin(np.pi * y) * 0
+        elif manufactured_sol == "quad_space":
+            vals[0] = -x * y * (1 - x) * (1 - y)
+            vals[1] = -x * y * (1 - x) * (1 - y)
         return vals.ravel("F")
 
 
