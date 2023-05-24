@@ -129,8 +129,8 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 1e-2],
-    dt_init=0.5e-3,
+    schedule=[0, 1],
+    dt_init=0.05,
     constant_dt=True,
     iter_max=10,
     print_info=True,

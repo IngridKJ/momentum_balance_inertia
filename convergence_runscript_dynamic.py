@@ -41,7 +41,7 @@ params = {
     # "manufactured_solution": "quad_space",
     "grid_type": "simplex",
     "material_constants": material_constants,
-    "meshing_arguments": {"cell_size": 0.25},
+    "meshing_arguments": {"cell_size": 0.25 / 2},
     "plot_results": False,
 }
 
@@ -52,16 +52,16 @@ pp.run_time_dependent_model(model, params)
 conv_analysis = ConvergenceAnalysis(
     model_class=ManuMechSetup2d,
     model_params=deepcopy(params),
-    levels=5,
-    spatial_refinement_rate=1,
-    temporal_refinement_rate=2,
+    levels=6,
+    spatial_refinement_rate=2,
+    temporal_refinement_rate=1,
 )
 ooc: list[list[dict[str, float]]] = []
 ooc_setup: list[dict[str, float]] = []
 
 results = conv_analysis.run_analysis()
-# ooc_setup.append(conv_analysis.order_of_convergence(results, x_axis="cell_diameter"))
-ooc_setup.append(conv_analysis.order_of_convergence(results, x_axis="time_step"))
+ooc_setup.append(conv_analysis.order_of_convergence(results, x_axis="cell_diameter"))
+# ooc_setup.append(conv_analysis.order_of_convergence(results, x_axis="time_step"))
 
 ooc.append(ooc_setup)
 print(ooc_setup)
