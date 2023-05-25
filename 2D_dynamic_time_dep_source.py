@@ -7,6 +7,7 @@ from utils import body_force_func_time
 from utils import u_func_time
 from utils import v_func_time
 from utils import a_func_time
+from utils import get_solution_values
 
 
 """
@@ -41,7 +42,7 @@ class MyGeometry:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.01 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
         return mesh_args
 
 
@@ -61,26 +62,25 @@ class BoundaryAndInitialCond:
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
+        t = self.time_manager.time
 
         vals = np.zeros((self.nd, sd.num_cells))
-        manufactured_sol = self.params.get("manufactured_solution", "bubble")
-        if manufactured_sol == "bubble":
-            vals[0] = 2 * x * y * (1 - x) * (1 - y)
-            vals[1] = 2 * x * y * (1 - x) * (1 - y)
-        elif manufactured_sol == "cub_cub":
-            vals = vals
-        elif manufactured_sol == "quad_time":
-            vals[0] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
-            vals[1] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
-        elif manufactured_sol == "cub_time":
-            vals[0] = 6 * np.sin(np.pi * x) * np.sin(np.pi * y) * 0
-            vals[1] = 6 * np.sin(np.pi * x) * np.sin(np.pi * y) * 0
+
+        acceleration_function = a_func_time(self)
+        vals[0] = acceleration_function[0](x, y, t)
+        vals[1] = acceleration_function[1](x, y, t)
+
         return vals.ravel("F")
 
 
 class Source:
     def before_nonlinear_loop(self) -> None:
-        """Update values of external sources."""
+        """Update values of external sources.
+
+        Currently also used for setting exact values for displacement, velocity and
+        acceleration for use in debugging/verification/convergence analysis.
+
+        """
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
@@ -91,11 +91,12 @@ class Source:
         u_func = u_func_time(self)
         v_func = v_func_time(self)
         a_func = a_func_time(self)
+
         mech_source = self.source_values(source_func, sd, t)
 
-        u_vals = self.field_values(u_func, sd, t)
-        v_vals = self.field_values(v_func, sd, t)
-        a_vals = self.field_values(a_func, sd, t)
+        u_vals = self.cell_center_function_evaluation(u_func, sd, t)
+        v_vals = self.cell_center_function_evaluation(v_func, sd, t)
+        a_vals = self.cell_center_function_evaluation(a_func, sd, t)
 
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
@@ -134,7 +135,18 @@ class Source:
 
         return vals.ravel("F")
 
-    def field_values(self, f, sd, t) -> np.ndarray:
+    def cell_center_function_evaluation(self, f, sd, t) -> np.ndarray:
+        """Function for computing cell center values for a given function.
+
+        Parameters:
+            f: Function depending on time and space.
+            sd: Subdomain where cell center values are to be computed.
+            t: Current time in the time-stepping.
+
+        Returns:
+            An array of function values.
+
+        """
         vals = np.zeros((self.nd, sd.num_cells))
 
         x = sd.cell_centers[0, :]
@@ -153,12 +165,12 @@ class Source:
         sd = self.mdg.subdomains(dim=2)[0]
         data = self.mdg.subdomain_data(sd)
 
-        v_e = data[pp.ITERATE_SOLUTIONS]["v_e"][0]
-        v_h = data[pp.ITERATE_SOLUTIONS]["velocity"][0]
-        a_h = data[pp.ITERATE_SOLUTIONS]["acceleration"][0]
-        a_e = data[pp.ITERATE_SOLUTIONS]["a_e"][0]
-        u_e = data[pp.ITERATE_SOLUTIONS]["u_e"][0]
-        u_h = data[pp.ITERATE_SOLUTIONS]["u"][0]
+        u_e = get_solution_values(name="u_e", data=data, iterate_index=0)
+        u_h = get_solution_values(name="u", data=data, iterate_index=0)
+        v_e = get_solution_values(name="v_e", data=data, iterate_index=0)
+        v_h = get_solution_values(name="velocity", data=data, iterate_index=0)
+        a_e = get_solution_values(name="a_e", data=data, iterate_index=0)
+        a_h = get_solution_values(name="acceleration", data=data, iterate_index=0)
 
         cell_volumes = sd.cell_volumes
 
@@ -177,7 +189,6 @@ class Source:
         print("u_er =", error_u)
         print("v_er =", error_v)
         print("a_er =", error_a)
-        a = 5
 
 
 class MyMomentumBalance(

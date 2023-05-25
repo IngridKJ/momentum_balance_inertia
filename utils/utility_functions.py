@@ -17,6 +17,8 @@ import porepy as pp
 from typing import Optional
 import sympy as sym
 
+# ------------------- Fetching values
+
 
 def get_solution_values(
     name: str,
@@ -92,8 +94,98 @@ def acceleration_velocity_displacement(
     return a_previous, v_previous, u_previous, u_current
 
 
+# ------------------- Manufactured solution functions
+
+
+def symbolic_representation(model, return_dt=False, return_ddt=False):
+    """Symbolic representation for displacements, velocities and acceleration.
+
+    Parameters:
+        model: The model class.
+        return_dt: Return velocity if True.
+        return_ddt: Return acceleration if True.
+
+    Raises:
+        ValueError if return_dt and return_ddt is True.
+
+    Returns:
+        Tuple of the function (either u, first time derivative of u or second time
+        derivative of u), and the symbols x, y, t.
+    """
+    if return_dt and return_ddt:
+        raise ValueError(
+            "Both return_dt and return_ddt cannot be True. Only one or neither."
+        )
+
+    x, y, t = sym.symbols("x y t")
+
+    manufactured_sol = model.params.get("manufactured_solution", "bubble")
+    if manufactured_sol == "bubble":
+        u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "sin_bubble":
+        u1 = u2 = sym.sin(sym.sqrt(2.0) * np.pi * t) * x * (1 - x) * y * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "cub_cub":
+        u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "quad_time":
+        u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
+        u = [u1, u2]
+    elif manufactured_sol == "cub_time":
+        u1 = u2 = t**3 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
+        u = [u1, u2]
+    elif manufactured_sol == "quad_space":
+        u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
+        u = [u1, u2]
+
+    if return_dt:
+        dt_u = [sym.diff(u[0], t), sym.diff(u[0], t)]
+        return dt_u, x, y, t
+    elif return_ddt:
+        ddt_u = [sym.diff(sym.diff(u[0], t), t), sym.diff(sym.diff(u[0], t), t)]
+        return ddt_u, x, y, t
+
+    # Here symbols are returned to avoid possible issues with references of created
+    # symbols
+    return u, x, y, t
+
+
+def u_func_time(model) -> list:
+    """Lambdified expression of displacement function."""
+    u, x, y, t = symbolic_representation(model=model)
+    u = [
+        sym.lambdify((x, y, t), u[0], "numpy"),
+        sym.lambdify((x, y, t), u[1], "numpy"),
+    ]
+    return u
+
+
+def v_func_time(model) -> list:
+    """Lambdified expression of velocity function."""
+    v, x, y, t = symbolic_representation(model=model, return_dt=True)
+    v = [
+        sym.lambdify((x, y, t), v[0], "numpy"),
+        sym.lambdify((x, y, t), v[1], "numpy"),
+    ]
+    return v
+
+
+def a_func_time(model) -> list:
+    """Lambdified expression of acceleration function."""
+    a, x, y, t = symbolic_representation(model, return_ddt=True)
+    a = [
+        sym.lambdify((x, y, t), a[0], "numpy"),
+        sym.lambdify((x, y, t), a[1], "numpy"),
+    ]
+    return a
+
+
+# ------------------- Body force functions
+
+
 def body_force_func(model) -> list:
-    """Function for calculating rhs corresponding to a manufactured solution, 2D."""
+    """Function for calculating rhs corresponding to a static manufactured solution, 2D."""
     lam = model.solid.lame_lambda()
     mu = model.solid.shear_modulus()
 
@@ -137,65 +229,13 @@ def body_force_func(model) -> list:
     ]
 
 
-def u_func_time(model):
-    x, y, t = sym.symbols("x y t")
-    u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
-    u = [u1, u2]
-    u = [
-        sym.lambdify((x, y, t), u[0], "numpy"),
-        sym.lambdify((x, y, t), u[1], "numpy"),
-    ]
-    return u
-
-
-def v_func_time(model):
-    x, y, t = sym.symbols("x y t")
-    v1 = v2 = 2 * t * x * (1 - x) * y * (1 - y)
-    v = [v1, v2]
-    v = [
-        sym.lambdify((x, y, t), v[0], "numpy"),
-        sym.lambdify((x, y, t), v[1], "numpy"),
-    ]
-    return v
-
-
-def a_func_time(model):
-    x, y, t = sym.symbols("x y t")
-    a1 = a2 = 2 * x * (1 - x) * y * (1 - y)
-    a = [a1, a2]
-    a = [
-        sym.lambdify((x, y, t), a[0], "numpy"),
-        sym.lambdify((x, y, t), a[1], "numpy"),
-    ]
-    return a
-
-
 def body_force_func_time(model) -> list:
     """Function for calculating rhs corresponding to a manufactured solution, 2D."""
     lam = model.solid.lame_lambda()
     mu = model.solid.shear_modulus()
     rho = model.solid.density()
 
-    x, y, t = sym.symbols("x y t")
-
-    manufactured_sol = model.params.get("manufactured_solution", "bubble")
-    if manufactured_sol == "bubble":
-        # Manufactured solution (bubble<3)
-        u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "cub_cub":
-        u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "quad_time":
-        u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-        u = [u1, u2]
-    elif manufactured_sol == "cub_time":
-        u1 = u2 = t**3 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-        u = [u1, u2]
-    elif manufactured_sol == "quad_space":
-        # u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(2 * np.pi * t)
-        u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
-        u = [u1, u2]
+    u, x, y, t = symbolic_representation(model=model)
 
     ddt_u = [
         sym.diff(sym.diff(u[0], t), t),
