@@ -1,0 +1,7 @@
+*.pvd
+*.vtu
+*.pyc
+*.json
+*.msh
+*.geo_unrolled
+*.txt
