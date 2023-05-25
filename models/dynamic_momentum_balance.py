@@ -188,6 +188,15 @@ class MySolutionStrategy:
             + a_previous * (1 - gamma - (gamma * (1 - 2 * beta)) / (2 * beta)) * dt
             + (u_current - u_previous) * gamma / (beta * dt)
         )
+
+        # Just for calculating rates.
+        v_e = data[pp.ITERATE_SOLUTIONS]["v_e"][0]
+        u_e = data[pp.ITERATE_SOLUTIONS]["u_e"][0]
+        u_h = data[pp.ITERATE_SOLUTIONS]["u"][0]
+        diff = v - v_e
+        nor_v = np.linalg.norm(diff)
+        diff = u_e - u_h
+        nor_u = np.linalg.norm(diff)
         return v
 
     def acceleration_values(self, subdomain: pp.Grid) -> np.ndarray:
@@ -219,6 +228,10 @@ class MySolutionStrategy:
             - a_previous * (1 - 2 * beta) / (2 * beta)
         )
 
+        # Just for calculating rates.
+        a_e = data[pp.ITERATE_SOLUTIONS]["a_e"][0]
+        diff = a - a_e
+        nor = np.linalg.norm(diff)
         return a
 
     def update_time_dependent_ad_arrays(self, initial: bool) -> None:
@@ -234,12 +247,10 @@ class MySolutionStrategy:
         """
         super().update_time_dependent_ad_arrays(initial)
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
-            dofs = sd.num_cells
+            vals_acceleration = self.acceleration_values([sd])
+            vals_velocity = self.velocity_values([sd])
             if initial:
                 if self.time_manager.time_index != 0:
-                    vals_velocity = self.velocity_values([sd])
-                    vals_acceleration = self.acceleration_values([sd])
-
                     pp.set_solution_values(
                         name=self.velocity_key,
                         values=vals_velocity,
@@ -254,21 +265,21 @@ class MySolutionStrategy:
                     )
             else:
                 # Copy old values from iterate to the solution.
-                vals_velocity = get_solution_values(
+                vals_velocity_it = get_solution_values(
                     name=self.velocity_key, data=data, iterate_index=0
                 )
-                vals_acceleration = get_solution_values(
+                vals_acceleration_it = get_solution_values(
                     name=self.acceleration_key, data=data, iterate_index=0
                 )
                 pp.set_solution_values(
                     name=self.velocity_key,
-                    values=vals_velocity,
+                    values=vals_velocity_it,
                     data=data,
                     time_step_index=0,
                 )
                 pp.set_solution_values(
                     name=self.acceleration_key,
-                    values=vals_acceleration,
+                    values=vals_acceleration_it,
                     data=data,
                     time_step_index=0,
                 )
@@ -276,12 +287,12 @@ class MySolutionStrategy:
             if self.time_manager.time_index != 0:
                 # Brute force fix of a bug. Earlier, acceleration and velocity were
                 # updated twice in the initial call. Figure out wth to do here.
-                vals_velocity = get_solution_values(
-                    name=self.velocity_key, data=data, time_step_index=0
-                )
-                vals_acceleration = get_solution_values(
-                    name=self.acceleration_key, data=data, time_step_index=0
-                )
+                # vals_velocity = get_solution_values(
+                #     name=self.velocity_key, data=data, time_step_index=0
+                # )
+                # vals_acceleration = get_solution_values(
+                #     name=self.acceleration_key, data=data, time_step_index=0
+                # )
 
                 pp.set_solution_values(
                     name=self.velocity_key,
