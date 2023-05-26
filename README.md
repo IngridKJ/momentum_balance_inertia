@@ -1,5 +1,5 @@
 # momentum_balance_inertia
-Code for including inertia term to momentum balance equation in PorePy.
+Code for including inertia term to momentum balance equation in PorePy (still work in progress).
 
 Runscripts:
 * [run.py](./runscripts/run.py) is for running the momentum balance as is in PorePy. The geometry is only slightly changed.
