@@ -8,6 +8,7 @@ from utils import u_func_time
 from utils import v_func_time
 from utils import a_func_time
 from utils import get_solution_values
+from utils import cell_center_function_evaluation
 
 
 """
@@ -42,7 +43,7 @@ class MyGeometry:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.25 / 1.0 / self.units.m}
         return mesh_args
 
 
@@ -55,6 +56,38 @@ class BoundaryAndInitialCond:
             "dir",
         )
         return bc
+
+    def initial_displacement(self, dofs: int) -> np.ndarray:
+        """Initial displacement values."""
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        displacement_function = u_func_time(self)
+        vals[0] = displacement_function[0](x, y, t)
+        vals[1] = displacement_function[1](x, y, t)
+
+        return vals.ravel("F")
+
+    def initial_velocity(self, dofs: int) -> np.ndarray:
+        """Initial velocity values."""
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        velocity_function = v_func_time(self)
+        vals[0] = velocity_function[0](x, y, t)
+        vals[1] = velocity_function[1](x, y, t)
+
+        return vals.ravel("F")
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
@@ -94,9 +127,9 @@ class Source:
 
         mech_source = self.source_values(source_func, sd, t)
 
-        u_vals = self.cell_center_function_evaluation(u_func, sd, t)
-        v_vals = self.cell_center_function_evaluation(v_func, sd, t)
-        a_vals = self.cell_center_function_evaluation(a_func, sd, t)
+        u_vals = cell_center_function_evaluation(self, u_func, sd, t)
+        v_vals = cell_center_function_evaluation(self, v_func, sd, t)
+        a_vals = cell_center_function_evaluation(self, a_func, sd, t)
 
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
@@ -166,7 +199,7 @@ class Source:
         data = self.mdg.subdomain_data(sd)
 
         u_e = get_solution_values(name="u_e", data=data, iterate_index=0)
-        u_h = get_solution_values(name="u", data=data, iterate_index=0)
+        u_h = get_solution_values(name="u", data=data, time_step_index=0)
         v_e = get_solution_values(name="v_e", data=data, iterate_index=0)
         v_h = get_solution_values(name="velocity", data=data, iterate_index=0)
         a_e = get_solution_values(name="a_e", data=data, iterate_index=0)
@@ -174,18 +207,28 @@ class Source:
 
         cell_volumes = sd.cell_volumes
 
+        nc = len(cell_volumes)
+
+        u_e = np.array(np.split(u_e, nc)).T
+        u_h = np.array(np.split(u_h, nc)).T
+        v_e = np.array(np.split(v_e, nc)).T
+        v_h = np.array(np.split(v_h, nc)).T
+        a_e = np.array(np.split(a_e, nc)).T
+        a_h = np.array(np.split(a_h, nc)).T
+
         norm_u_e = np.sqrt(np.sum(np.sum(u_e * u_e, axis=0) * cell_volumes))
         du = u_h - u_e
-        error_u = np.sqrt(np.sum(np.sum(du * du, axis=0) * cell_volumes)) / norm_u_e
+        error_u = np.sqrt(np.sum(np.sum(du * du, axis=0) * cell_volumes))  # / norm_u_e
 
         norm_v_e = np.sqrt(np.sum(np.sum(v_e * v_e, axis=0) * cell_volumes))
         dv = v_h - v_e
-        error_v = np.sqrt(np.sum(np.sum(dv * dv, axis=0) * cell_volumes)) / norm_v_e
+        error_v = np.sqrt(np.sum(np.sum(dv * dv, axis=0) * cell_volumes))  # / norm_v_e
 
         norm_a_e = np.sqrt(np.sum(np.sum(a_e * a_e, axis=0) * cell_volumes))
         da = a_h - a_e
-        error_a = np.sqrt(np.sum(np.sum(da * da, axis=0) * cell_volumes)) / norm_a_e
+        error_a = np.sqrt(np.sum(np.sum(da * da, axis=0) * cell_volumes))  # / norm_a_e
 
+        print("Errors at time =", self.time_manager.time)
         print("u_er =", error_u)
         print("v_er =", error_v)
         print("a_er =", error_a)
@@ -201,9 +244,13 @@ class MyMomentumBalance(
     ...
 
 
+t_shift = 0.0
+dt = 1.0 / 1.0
+tf = 1.0
+
 time_manager = pp.TimeManager(
-    schedule=[0, 1.0],
-    dt_init=0.05 / 2,
+    schedule=[0.0 + t_shift, tf + t_shift],
+    dt_init=dt,
     constant_dt=True,
     iter_max=10,
     print_info=True,
@@ -225,7 +272,7 @@ params = {
     "grid_type": "simplex",
     "material_constants": material_constants,
     "folder_name": "test_convergence_viz",
-    "manufactured_solution": "bubble",
+    "manufactured_solution": "sin_bubble",
 }
 model = MyMomentumBalance(params)
 

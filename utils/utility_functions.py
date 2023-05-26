@@ -17,7 +17,7 @@ import porepy as pp
 from typing import Optional
 import sympy as sym
 
-# ------------------- Fetching values
+# ------------------- Fetching/Computing values
 
 
 def get_solution_values(
@@ -94,6 +94,32 @@ def acceleration_velocity_displacement(
     return a_previous, v_previous, u_previous, u_current
 
 
+def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
+    """Function for computing cell center values for a given function.
+
+    Parameters:
+        f: Function depending on time and space.
+        sd: Subdomain where cell center values are to be computed.
+        t: Current time in the time-stepping.
+
+    Returns:
+        An array of function values.
+
+    """
+    vals = np.zeros((model.nd, sd.num_cells))
+
+    x = sd.cell_centers[0, :]
+    y = sd.cell_centers[1, :]
+
+    x_val = f[0](x, y, t)
+    y_val = f[1](x, y, t)
+
+    vals[0] = x_val
+    vals[1] = y_val
+
+    return vals.ravel("F")
+
+
 # ------------------- Manufactured solution functions
 
 
@@ -124,7 +150,7 @@ def symbolic_representation(model, return_dt=False, return_ddt=False):
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
     elif manufactured_sol == "sin_bubble":
-        u1 = u2 = sym.sin(sym.sqrt(2.0) * np.pi * t) * x * (1 - x) * y * (1 - y)
+        u1 = u2 = sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
     elif manufactured_sol == "cub_cub":
         u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
@@ -140,10 +166,10 @@ def symbolic_representation(model, return_dt=False, return_ddt=False):
         u = [u1, u2]
 
     if return_dt:
-        dt_u = [sym.diff(u[0], t), sym.diff(u[0], t)]
+        dt_u = [sym.diff(u[0], t), sym.diff(u[1], t)]
         return dt_u, x, y, t
     elif return_ddt:
-        ddt_u = [sym.diff(sym.diff(u[0], t), t), sym.diff(sym.diff(u[0], t), t)]
+        ddt_u = [sym.diff(sym.diff(u[0], t), t), sym.diff(sym.diff(u[1], t), t)]
         return ddt_u, x, y, t
 
     # Here symbols are returned to avoid possible issues with references of created
