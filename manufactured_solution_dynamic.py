@@ -16,6 +16,10 @@ from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
 from porepy.viz.data_saving_model_mixin import VerificationDataSaving
 
+from utils import symbolic_representation
+from utils import a_func_time
+from utils import v_func_time
+from utils import u_func_time
 
 # PorePy typings
 number = pp.number
@@ -137,28 +141,8 @@ class ManuMechExactSolution2d:
         rho = setup.solid.density()
 
         # Symbolic variables
-        x, y, t = sym.symbols("x y t")
-        pi = sym.pi
-        manufactured_sol = setup.params.get("manufactured_solution", "bubble")
-        # Exact displacement solution
-        if manufactured_sol == "bubble":
-            u1 = u2 = t**2 * x * y * (1 - x) * (1 - y)
-            u = [u1, u2]
-        elif manufactured_sol == "cub_cub":
-            u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
-            u = [u1, u2]
-        elif manufactured_sol == "cub_quad":
-            u1 = u2 = t**3 * x * y * (1 - x) * (1 - y)
-            u = [u1, u2]
-        elif manufactured_sol == "quad_time":
-            u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-            u = [u1, u2]
-        elif manufactured_sol == "cub_time":
-            u1 = u2 = t**3 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-            u = [u1, u2]
-        elif manufactured_sol == "quad_space":
-            u1 = u2 = x * y * (1 - y) * (1 - x) * sym.cos(t)
-            u = [u1, u2]
+        u, x, y, t = symbolic_representation(model=setup)
+
         # Exact divergence of the displacement
         div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
 
@@ -498,33 +482,52 @@ class ManuMechSolutionStrategy2d(dynamic_momentum_balance.MySolutionStrategy):
         )
         return bc
 
+    def initial_displacement(self, dofs: int) -> np.ndarray:
+        """Initial displacement values."""
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        displacement_function = u_func_time(self)
+        vals[0] = displacement_function[0](x, y, t)
+        vals[1] = displacement_function[1](x, y, t)
+
+        return vals.ravel("F")
+
+    def initial_velocity(self, dofs: int) -> np.ndarray:
+        """Initial velocity values."""
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        velocity_function = v_func_time(self)
+        vals[0] = velocity_function[0](x, y, t)
+        vals[1] = velocity_function[1](x, y, t)
+
+        return vals.ravel("F")
+
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
+        t = self.time_manager.time
 
         vals = np.zeros((self.nd, sd.num_cells))
-        manufactured_sol = self.params.get("manufactured_solution", "bubble")
-        if manufactured_sol == "bubble":
-            vals[0] = 2 * x * y * (1 - x) * (1 - y)
-            vals[1] = 2 * x * y * (1 - x) * (1 - y)
-        elif manufactured_sol == "cub_cub":
-            vals[0] = 6 * x**2 * y**2 * (1 - x) * (1 - y) * 0
-            vals[1] = 6 * x**2 * y**2 * (1 - x) * (1 - y) * 0
-        elif manufactured_sol == "cub_quad":
-            vals[0] = 6 * x * y * (1 - x) * (1 - y) * 0
-            vals[1] = 6 * x * y * (1 - x) * (1 - y) * 0
-        elif manufactured_sol == "quad_time":
-            vals[0] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
-            vals[1] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y)
-        elif manufactured_sol == "cub_time":
-            vals[0] = 6 * np.sin(np.pi * x) * np.sin(np.pi * y) * 0
-            vals[1] = 6 * np.sin(np.pi * x) * np.sin(np.pi * y) * 0
-        elif manufactured_sol == "quad_space":
-            vals[0] = -x * y * (1 - x) * (1 - y)
-            vals[1] = -x * y * (1 - x) * (1 - y)
+
+        acceleration_function = a_func_time(self)
+
+        vals[0] = acceleration_function[0](x, y, t)
+        vals[1] = acceleration_function[1](x, y, t)
         return vals.ravel("F")
 
 
