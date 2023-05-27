@@ -1,5 +1,5 @@
 # momentum_balance_inertia
-Code for including inertia term to momentum balance equation in PorePy (still work in progress).
+Code for including inertia term to momentum balance equation in PorePy.
 
 Runscripts:
 * [run.py](./runscripts/run.py) is for running the momentum balance as is in PorePy. The geometry is only slightly changed.
@@ -20,13 +20,12 @@ models directory contains models (surprise surprise ...)
 [ParaView](./ParaView/) directory is mainly for .py scripts or .pvsm files for visualization in ParaView.
 
 Convergence analysis:
-Some weird thing happen with the rates. Currently revisiting "everyting"
-* [convergence_runscript_dynamic](./convergence_runscript_dynamic.py) is the runscript for running the convergence analysis.
+* [convergence_runscript_dynamic](./convergence_runscript_dynamic.py) is the runscript for running the convergence analysis. Function "bubble" is used for investigating convergence in space. Function "sine_bubble" is used for investigating convergence in time.
 * [manufactured_solution_dynamic](./manufactured_solution_dynamic.py) is implementation of a verification setup for the dynamic momentum balance. 
 
 Sanity check: Checking convergence rates for static momentum balance
 * [convergence_runscript_static](./convergence_runscript_static.py) is the runscript for running the convergence analysis.
 * [manufactured_solution_static](./manufactured_solution_static.py) is implementation of a verification setup for the static momentum balance. 
 
-Folders wit some visualization files are also found in the main directory. For now this includes the visualization files for
+Folders with some visualization files are also found in the main directory. For now this includes the visualization files for
 * 2D static momentum balance analytical comparison
