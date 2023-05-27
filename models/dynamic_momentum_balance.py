@@ -298,15 +298,6 @@ class MySolutionStrategy:
                 )
 
             if self.time_manager.time_index != 0:
-                # Brute force fix of a bug. Earlier, acceleration and velocity were
-                # updated twice in the initial call. Figure out wth to do here.
-                # vals_velocity = get_solution_values(
-                #     name=self.velocity_key, data=data, time_step_index=0
-                # )
-                # vals_acceleration = get_solution_values(
-                #     name=self.acceleration_key, data=data, time_step_index=0
-                # )
-
                 pp.set_solution_values(
                     name=self.velocity_key,
                     values=vals_velocity,
