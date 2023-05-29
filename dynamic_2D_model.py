@@ -11,11 +11,6 @@ from utils import get_solution_values
 from utils import cell_center_function_evaluation
 
 
-"""
-(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
-"""
-
-
 class NewmarkConstants:
     @property
     def gamma(self) -> float:
@@ -43,7 +38,7 @@ class MyGeometry:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.25 / 1.0 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.25 / 8.0 / self.units.m}
         return mesh_args
 
 
@@ -120,29 +115,26 @@ class Source:
 
         # Mechanics source
         source_func = body_force_func_time(self)
+        mech_source = self.source_values(source_func, sd, t)
+        pp.set_solution_values(
+            name="source_mechanics", values=mech_source, data=data, iterate_index=0
+        )
 
+        # For convergence analysis
         u_func = u_func_time(self)
         v_func = v_func_time(self)
         a_func = a_func_time(self)
-
-        mech_source = self.source_values(source_func, sd, t)
 
         u_vals = cell_center_function_evaluation(self, u_func, sd, t)
         v_vals = cell_center_function_evaluation(self, v_func, sd, t)
         a_vals = cell_center_function_evaluation(self, a_func, sd, t)
 
-        pp.set_solution_values(
-            name="source_mechanics", values=mech_source, data=data, iterate_index=0
-        )
-
         pp.set_solution_values(name="u_e", values=u_vals, data=data, iterate_index=0)
-
         pp.set_solution_values(name="v_e", values=v_vals, data=data, iterate_index=0)
-
         pp.set_solution_values(name="a_e", values=a_vals, data=data, iterate_index=0)
 
     def source_values(self, f, sd, t) -> np.ndarray:
-        """Function for computing the source values.
+        """Computes the integrated source values by the source function.
 
         Parameters:
             f: Function depending on time and space for the source term.
@@ -168,33 +160,13 @@ class Source:
 
         return vals.ravel("F")
 
-    def cell_center_function_evaluation(self, f, sd, t) -> np.ndarray:
-        """Function for computing cell center values for a given function.
+    def after_simulation(self) -> None:
+        """Run at the end of simulation.
 
-        Parameters:
-            f: Function depending on time and space.
-            sd: Subdomain where cell center values are to be computed.
-            t: Current time in the time-stepping.
-
-        Returns:
-            An array of function values.
+        Here only used for computing the error of displacement, velocity and
+        acceleration.
 
         """
-        vals = np.zeros((self.nd, sd.num_cells))
-
-        x = sd.cell_centers[0, :]
-        y = sd.cell_centers[1, :]
-
-        x_val = f[0](x, y, t)
-        y_val = f[1](x, y, t)
-
-        vals[0] = x_val
-        vals[1] = y_val
-
-        return vals.ravel("F")
-
-    def after_simulation(self) -> None:
-        """Run at the end of simulation. Can be used for cleanup etc."""
         sd = self.mdg.subdomains(dim=2)[0]
         data = self.mdg.subdomain_data(sd)
 
@@ -228,10 +200,10 @@ class Source:
         da = a_h - a_e
         error_a = np.sqrt(np.sum(np.sum(da * da, axis=0) * cell_volumes))  # / norm_a_e
 
-        print("Errors at time =", self.time_manager.time)
-        print("u_er =", error_u)
-        print("v_er =", error_v)
-        print("a_er =", error_a)
+        # print("Errors at time =", self.time_manager.time)
+        # print("u_er =", error_u)
+        # print("v_er =", error_v)
+        # print("a_er =", error_a)
 
 
 class MyMomentumBalance(
@@ -245,7 +217,7 @@ class MyMomentumBalance(
 
 
 t_shift = 0.0
-dt = 1.0 / 1.0
+dt = 1.0 / 10.0
 tf = 1.0
 
 time_manager = pp.TimeManager(
@@ -272,7 +244,7 @@ params = {
     "grid_type": "simplex",
     "material_constants": material_constants,
     "folder_name": "test_convergence_viz",
-    "manufactured_solution": "sin_bubble",
+    "manufactured_solution": "bubble",
 }
 model = MyMomentumBalance(params)
 

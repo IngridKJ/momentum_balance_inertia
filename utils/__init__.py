@@ -3,6 +3,7 @@ from .utility_functions import (
     acceleration_velocity_displacement,
     cell_center_function_evaluation,
     body_force_func,
+    symbolic_equation_terms,
     body_force_func_time,
     body_force_func_time_3D,
     symbolic_representation,
