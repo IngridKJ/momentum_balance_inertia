@@ -1,14 +1,24 @@
-"""
-ParaView quad_time analytical solution:
-(time)^2 * (sin(acos(-1) * coords[0]) * sin(acos(-1) * coords[1]) * iHat + sin(acos(-1) * coords[0]) * sin(acos(-1) * coords[1]) * jHat)
+"""This file contains some utility functions used in various files throughout this repo.
 
-ParaView bubble analytical solution:
-(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+In short, functions in this file are called for fetching values from data dictionary and
+for creating source terms corresponding to analytical solutions. These analytical
+solutions are determined by the "manufactured_solution" key value in the params
+dictionary. The latter uses symbolic differentiation provided by sympy. Running other
+manufactured solutions than those already present is easily done by adding the
+expression for it where the manufactured
+solution is defined.
 
-ParaView quad_space analytical solution:
-cos(2*acos(-1)*time) * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+For comparison of the numerical and analytical solution, here are a couple analytical
+solutions in ParaView-calculator-language.
 
-cos(time) * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+ParaView polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1] * (1 -
+coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 -
+coords[1]) * jHat)
+
+ParaView quad time, sine space, analytical solution sin(5.0/2.0 * acos(-1) * time) *
+(coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + sin(5.0/2.0 *
+acos(-1) * time) * (coords[0] * coords[1] * (1 -
+coords[0]) * (1 - coords[1]) * jHat
 
 """
 
@@ -17,7 +27,7 @@ import porepy as pp
 from typing import Optional
 import sympy as sym
 
-# ------------------- Fetching/Computing values
+# -------- Fetching/Computing values
 
 
 def get_solution_values(
@@ -122,11 +132,18 @@ def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
     return vals.ravel("F")
 
 
-# ------------------- Manufactured solution functions
+# -------- Symbolic representation of manufactured solution-related expressions
 
 
 def symbolic_representation(model, return_dt=False, return_ddt=False):
-    """Symbolic representation of displacement, velocities or acceleration.
+    """Symbolic representation of displacement, velocity or acceleration.
+
+    Use of this method is rather simple, as the default analytical solution is that with
+    the name "bubble" which is just a 2D polynomial bubble function. For an other
+    analytical solution one must simply just assign a different value to the key
+    "manufactured_solution" in the model's parameter dictionary. Look into the code for
+    what solutions are accessible, or make new ones if the ones already existing do not
+    suffice.
 
     Parameters:
         model: The model class.
@@ -181,65 +198,19 @@ def symbolic_representation(model, return_dt=False, return_ddt=False):
     return u, x, y, t
 
 
-def u_func_time(model) -> list:
-    """Lambdified expression of displacement function.
-
-    Sometimes the symbolic representation of the displacement function is needed.
-    Therefore, the lambdification of it is kept as a separate method here, and the symbolic representation is fetched from the method symbolic_representation.
-
-    """
-    u, x, y, t = symbolic_representation(model=model)
-    u = [
-        sym.lambdify((x, y, t), u[0], "numpy"),
-        sym.lambdify((x, y, t), u[1], "numpy"),
-    ]
-    return u
-
-
-def v_func_time(model) -> list:
-    """Lambdified expression of velocity function.
-
-    Sometimes the symbolic representation of the velocity function is needed. Therefore,
-    the lambdification of it is kept as a separate method here, and the symbolic
-    representation is fetched from the method symbolic_representation.
-
-    """
-    v, x, y, t = symbolic_representation(model=model, return_dt=True)
-    v = [
-        sym.lambdify((x, y, t), v[0], "numpy"),
-        sym.lambdify((x, y, t), v[1], "numpy"),
-    ]
-    return v
-
-
-def a_func_time(model) -> list:
-    """Lambdified expression of acceleration function.
-
-    Sometimes the symbolic representation of the acceleration function is needed.
-    Therefore, the lambdification of it is kept as a separate method here, and the
-    symbolic representation is fetched from the method symbolic_representation.
-
-    """
-    a, x, y, t = symbolic_representation(model, return_ddt=True)
-    a = [
-        sym.lambdify((x, y, t), a[0], "numpy"),
-        sym.lambdify((x, y, t), a[1], "numpy"),
-    ]
-    return a
-
-
 def symbolic_equation_terms(model, u, x, y, t):
     """Method for symbolic representation of the sub-parts of the momentum balance eqn.
 
     Parameters:
         model: The model class
-        u: Analytical solution from which the source term is found.
+        u: Analytical solution from which the source term is found. As of now, this is
+            defined through a call to the method symbolic_representation.
         x: Symbol for x-coordinate.
         y: Symbol for y-coordinate.
         t: Symbol for time variable.
 
     Returns:
-        A tuple with the full source term sigma and the acceleration term.
+        A tuple with the full source term, sigma and the acceleration term.
 
     """
     lam = model.solid.lame_lambda()
@@ -292,11 +263,62 @@ def symbolic_equation_terms(model, u, x, y, t):
         acceleration_term[1] - div_sigma[1],
     ]
 
-    # The "extra" things returned here are for use in the convergence analysis runs.
+    # The two "extra" things returned here are for use in the convergence analysis runs.
     return source_term, sigma, acceleration_term
 
 
-# ------------------- Body force functions
+# -------- Manufactured solution functions
+
+
+def u_func_time(model) -> list:
+    """Lambdified expression of displacement function.
+
+    Sometimes the symbolic representation of the displacement function is needed.
+    Therefore, the lambdification of it is kept as a separate method here, and the
+    symbolic representation is fetched from the method symbolic_representation.
+
+    """
+    u, x, y, t = symbolic_representation(model=model)
+    u = [
+        sym.lambdify((x, y, t), u[0], "numpy"),
+        sym.lambdify((x, y, t), u[1], "numpy"),
+    ]
+    return u
+
+
+def v_func_time(model) -> list:
+    """Lambdified expression of velocity function.
+
+    Sometimes the symbolic representation of the velocity function is needed. Therefore,
+    the lambdification of it is kept as a separate method here, and the symbolic
+    representation is fetched from the method symbolic_representation.
+
+    """
+    v, x, y, t = symbolic_representation(model=model, return_dt=True)
+    v = [
+        sym.lambdify((x, y, t), v[0], "numpy"),
+        sym.lambdify((x, y, t), v[1], "numpy"),
+    ]
+    return v
+
+
+def a_func_time(model) -> list:
+    """Lambdified expression of acceleration function.
+
+    Sometimes the symbolic representation of the acceleration function is needed.
+    Therefore, the lambdification of it is kept as a separate method here, and the
+    symbolic representation is fetched from the method symbolic_representation.
+
+    """
+    a, x, y, t = symbolic_representation(model, return_ddt=True)
+    a = [
+        sym.lambdify((x, y, t), a[0], "numpy"),
+        sym.lambdify((x, y, t), a[1], "numpy"),
+    ]
+    return a
+
+
+# -------- Body force functions
 
 
 def body_force_func(model) -> list:
@@ -349,10 +371,11 @@ def body_force_func(model) -> list:
 
 
 def body_force_func_time(model) -> list:
-    """Function for calculating rhs corresponding to a manufactured solution, 2D.
+    """Lambdify the source term corresponding to a manufactured solution, 2D.
 
-    Uses symbolic_representation and symbolic_equation_terms methods for fetching the
-    analytical solution, u, and the source term corresponding to u, respectively.
+    Uses the methods symbolic_representation and symbolic_equation_terms. The former is
+    for fetching the symbolic representation of the analytical solution, u, and the
+    latter fetches the source term corresponding to u.
 
     Parameters:
         model: The model class.
@@ -372,9 +395,9 @@ def body_force_func_time(model) -> list:
 
 
 def body_force_func_time_3D(model) -> list:
-    """Function for calculating rhs corresponding to a manufactured solution, 2D.
+    """Lambdify the source term corresponding to a manufactured solution, 3D.
 
-    To be refactored.
+    To be refactored in the same manner as body_force_func_time.
 
     """
     lam = model.solid.lame_lambda()
