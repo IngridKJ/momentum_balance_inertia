@@ -1,14 +1,24 @@
-"""
-ParaView quad_time analytical solution:
-(time)^2 * (sin(acos(-1) * coords[0]) * sin(acos(-1) * coords[1]) * iHat + sin(acos(-1) * coords[0]) * sin(acos(-1) * coords[1]) * jHat)
+"""This file contains some utility functions used in various files throughout this repo.
 
-ParaView bubble analytical solution:
-(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+In short, functions in this file are called for fetching values from data dictionary and
+for creating source terms corresponding to analytical solutions. These analytical
+solutions are determined by the "manufactured_solution" key value in the params
+dictionary. The latter uses symbolic differentiation provided by sympy. Running other
+manufactured solutions than those already present is easily done by adding the
+expression for it where the manufactured
+solution is defined.
 
-ParaView quad_space analytical solution:
-cos(2*acos(-1)*time) * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+For comparison of the numerical and analytical solution, here are a couple analytical
+solutions in ParaView-calculator-language.
 
-cos(time) * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
+ParaView polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1] * (1 -
+coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 -
+coords[1]) * jHat)
+
+ParaView quad time, sine space, analytical solution sin(5.0/2.0 * acos(-1) * time) *
+(coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + sin(5.0/2.0 *
+acos(-1) * time) * (coords[0] * coords[1] * (1 -
+coords[0]) * (1 - coords[1]) * jHat
 
 """
 
@@ -17,7 +27,7 @@ import porepy as pp
 from typing import Optional
 import sympy as sym
 
-# ------------------- Fetching/Computing values
+# -------- Fetching/Computing values
 
 
 def get_solution_values(
@@ -97,6 +107,8 @@ def acceleration_velocity_displacement(
 def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
     """Function for computing cell center values for a given function.
 
+    This is hard-coded for a two-dimensional function.
+
     Parameters:
         f: Function depending on time and space.
         sd: Subdomain where cell center values are to be computed.
@@ -120,16 +132,24 @@ def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
     return vals.ravel("F")
 
 
-# ------------------- Manufactured solution functions
+# -------- Symbolic representation of manufactured solution-related expressions
 
 
 def symbolic_representation(model, return_dt=False, return_ddt=False):
-    """Symbolic representation for displacements, velocities and acceleration.
+    """Symbolic representation of displacement, velocity or acceleration.
+
+    Use of this method is rather simple, as the default analytical solution is that with
+    the name "bubble" which is just a 2D polynomial bubble function. For an other
+    analytical solution one must simply just assign a different value to the key
+    "manufactured_solution" in the model's parameter dictionary. Look into the code for
+    what solutions are accessible, or make new ones if the ones already existing do not
+    suffice.
 
     Parameters:
         model: The model class.
-        return_dt: Return velocity if True.
-        return_ddt: Return acceleration if True.
+        return_dt: Flag for wether velocity is returned. Return velocity if True.
+        return_ddt: Flag for whether acceleration is returned. Return acceleration if
+            True.
 
     Raises:
         ValueError if return_dt and return_ddt is True.
@@ -137,6 +157,7 @@ def symbolic_representation(model, return_dt=False, return_ddt=False):
     Returns:
         Tuple of the function (either u, first time derivative of u or second time
         derivative of u), and the symbols x, y, t.
+
     """
     if return_dt and return_ddt:
         raise ValueError(
@@ -177,8 +198,86 @@ def symbolic_representation(model, return_dt=False, return_ddt=False):
     return u, x, y, t
 
 
+def symbolic_equation_terms(model, u, x, y, t):
+    """Method for symbolic representation of the sub-parts of the momentum balance eqn.
+
+    Parameters:
+        model: The model class
+        u: Analytical solution from which the source term is found. As of now, this is
+            defined through a call to the method symbolic_representation.
+        x: Symbol for x-coordinate.
+        y: Symbol for y-coordinate.
+        t: Symbol for time variable.
+
+    Returns:
+        A tuple with the full source term, sigma and the acceleration term.
+
+    """
+    lam = model.solid.lame_lambda()
+    mu = model.solid.shear_modulus()
+    rho = model.solid.density()
+
+    # Exact acceleration
+    ddt_u = [
+        sym.diff(sym.diff(u[0], t), t),
+        sym.diff(sym.diff(u[1], t), t),
+    ]
+
+    # Exact gradient of u and transpose of gradient of u
+    grad_u = [
+        [sym.diff(u[0], x), sym.diff(u[0], y)],
+        [sym.diff(u[1], x), sym.diff(u[1], y)],
+    ]
+
+    grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
+
+    # Trace of gradient of u, in the linear algebra sense
+    trace_grad_u = grad_u[0][0] + grad_u[1][1]
+
+    # Exact strain (\epsilon(u))
+    strain = 0.5 * np.array(
+        [
+            [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
+            [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
+        ]
+    )
+
+    # Exact stress tensor (\sigma(\epsilon(u)))
+    sigma = [
+        [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
+        [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
+    ]
+
+    # Divergence of sigma
+    div_sigma = [
+        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
+        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
+    ]
+
+    # Full acceleration term
+    acceleration_term = [rho * ddt_u[0], rho * ddt_u[1]]
+
+    # Finally, the source term
+    source_term = [
+        acceleration_term[0] - div_sigma[0],
+        acceleration_term[1] - div_sigma[1],
+    ]
+
+    # The two "extra" things returned here are for use in the convergence analysis runs.
+    return source_term, sigma, acceleration_term
+
+
+# -------- Manufactured solution functions
+
+
 def u_func_time(model) -> list:
-    """Lambdified expression of displacement function."""
+    """Lambdified expression of displacement function.
+
+    Sometimes the symbolic representation of the displacement function is needed.
+    Therefore, the lambdification of it is kept as a separate method here, and the
+    symbolic representation is fetched from the method symbolic_representation.
+
+    """
     u, x, y, t = symbolic_representation(model=model)
     u = [
         sym.lambdify((x, y, t), u[0], "numpy"),
@@ -188,7 +287,13 @@ def u_func_time(model) -> list:
 
 
 def v_func_time(model) -> list:
-    """Lambdified expression of velocity function."""
+    """Lambdified expression of velocity function.
+
+    Sometimes the symbolic representation of the velocity function is needed. Therefore,
+    the lambdification of it is kept as a separate method here, and the symbolic
+    representation is fetched from the method symbolic_representation.
+
+    """
     v, x, y, t = symbolic_representation(model=model, return_dt=True)
     v = [
         sym.lambdify((x, y, t), v[0], "numpy"),
@@ -198,7 +303,13 @@ def v_func_time(model) -> list:
 
 
 def a_func_time(model) -> list:
-    """Lambdified expression of acceleration function."""
+    """Lambdified expression of acceleration function.
+
+    Sometimes the symbolic representation of the acceleration function is needed.
+    Therefore, the lambdification of it is kept as a separate method here, and the
+    symbolic representation is fetched from the method symbolic_representation.
+
+    """
     a, x, y, t = symbolic_representation(model, return_ddt=True)
     a = [
         sym.lambdify((x, y, t), a[0], "numpy"),
@@ -207,11 +318,15 @@ def a_func_time(model) -> list:
     return a
 
 
-# ------------------- Body force functions
+# -------- Body force functions
 
 
 def body_force_func(model) -> list:
-    """Function for calculating rhs corresponding to a static manufactured solution, 2D."""
+    """Function for calculating rhs corresponding to a static manufactured solution, 2D.
+
+    Might be deprecated.
+
+    """
     lam = model.solid.lame_lambda()
     mu = model.solid.shear_modulus()
 
@@ -256,61 +371,35 @@ def body_force_func(model) -> list:
 
 
 def body_force_func_time(model) -> list:
-    """Function for calculating rhs corresponding to a manufactured solution, 2D."""
-    lam = model.solid.lame_lambda()
-    mu = model.solid.shear_modulus()
-    rho = model.solid.density()
+    """Lambdify the source term corresponding to a manufactured solution, 2D.
+
+    Uses the methods symbolic_representation and symbolic_equation_terms. The former is
+    for fetching the symbolic representation of the analytical solution, u, and the
+    latter fetches the source term corresponding to u.
+
+    Parameters:
+        model: The model class.
+
+    Returns:
+        A (lambdified) function to be used as the source term function.
+
+    """
 
     u, x, y, t = symbolic_representation(model=model)
-
-    ddt_u = [
-        sym.diff(sym.diff(u[0], t), t),
-        sym.diff(sym.diff(u[1], t), t),
-    ]
-
-    grad_u = [
-        [sym.diff(u[0], x), sym.diff(u[0], y)],
-        [sym.diff(u[1], x), sym.diff(u[1], y)],
-    ]
-
-    grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
-
-    div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
-
-    trace_grad_u = grad_u[0][0] + grad_u[1][1]
-
-    strain = 0.5 * np.array(
-        [
-            [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
-            [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
-        ]
-    )
-
-    sigma = [
-        [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
-        [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
-    ]
-
-    div_sigma = [
-        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
-        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
-    ]
-
-    acceleration_term = [rho * ddt_u[0], rho * ddt_u[1]]
-
-    full_eqn = [
-        acceleration_term[0] - div_sigma[0],
-        acceleration_term[1] - div_sigma[1],
-    ]
+    source, _, _ = symbolic_equation_terms(model=model, u=u, x=x, y=y, t=t)
 
     return [
-        sym.lambdify((x, y, t), full_eqn[0], "numpy"),
-        sym.lambdify((x, y, t), full_eqn[1], "numpy"),
+        sym.lambdify((x, y, t), source[0], "numpy"),
+        sym.lambdify((x, y, t), source[1], "numpy"),
     ]
 
 
 def body_force_func_time_3D(model) -> list:
-    """Function for calculating rhs corresponding to a manufactured solution, 2D."""
+    """Lambdify the source term corresponding to a manufactured solution, 3D.
+
+    To be refactored in the same manner as body_force_func_time.
+
+    """
     lam = model.solid.lame_lambda()
     mu = model.solid.shear_modulus()
     rho = model.solid.density()

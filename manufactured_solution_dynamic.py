@@ -1,4 +1,3 @@
-"""Most of this is shamelessly stolen from manu_flow_poromech_nofrac_2d.py"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,17 +8,14 @@ import sympy as sym
 
 import porepy as pp
 
-from models import DynamicMomentumBalance
-from models import dynamic_momentum_balance
+from dynamic_2D_model import MyMomentumBalance
 
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
 from porepy.viz.data_saving_model_mixin import VerificationDataSaving
 
 from utils import symbolic_representation
-from utils import a_func_time
-from utils import v_func_time
-from utils import u_func_time
+from utils import symbolic_equation_terms
 
 # PorePy typings
 number = pp.number
@@ -134,83 +130,17 @@ class ManuMechExactSolution2d:
 
     def __init__(self, setup):
         """Constructor of the class."""
-
-        # Physical parameters
-        lame_lmbda = setup.solid.lame_lambda()  # [Pa] Lamé parameter
-        lame_mu = setup.solid.shear_modulus()  # [Pa] Lamé parameter
-        rho = setup.solid.density()
-
         # Symbolic variables
         u, x, y, t = symbolic_representation(model=setup)
-
-        # Exact divergence of the displacement
-        div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
-
-        # Exact gradient of the displacement
-        grad_u = [
-            [sym.diff(u[0], x), sym.diff(u[0], y)],
-            [sym.diff(u[1], x), sym.diff(u[1], y)],
-        ]
-
-        # Exact transpose of the gradient of the displacement
-        trans_grad_u = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
-
-        # Exact strain
-        epsilon = [
-            [
-                0.5 * (grad_u[0][0] + trans_grad_u[0][0]),
-                0.5 * (grad_u[0][1] + trans_grad_u[0][1]),
-            ],
-            [
-                0.5 * (grad_u[1][0] + trans_grad_u[1][0]),
-                0.5 * (grad_u[1][1] + trans_grad_u[1][1]),
-            ],
-        ]
-
-        # Exact trace (in the linear algebra sense) of the strain
-        tr_epsilon = epsilon[0][0] + epsilon[1][1]
-
-        # Exact elastic stress
-        sigma_elas = [
-            [
-                lame_lmbda * tr_epsilon + 2 * lame_mu * epsilon[0][0],
-                2 * lame_mu * epsilon[0][1],
-            ],
-            [
-                2 * lame_mu * epsilon[1][0],
-                lame_lmbda * tr_epsilon + 2 * lame_mu * epsilon[1][1],
-            ],
-        ]
-
-        # Exact elastic stress
-        sigma_total = [
-            [sigma_elas[0][0], sigma_elas[0][1]],
-            [sigma_elas[1][0], sigma_elas[1][1]],
-        ]
-
-        # Exact acceleration term
-        ddt_u = [
-            sym.diff(sym.diff(u[0], t), t),
-            sym.diff(sym.diff(u[1], t), t),
-        ]
-
-        acceleration_term = [rho * ddt_u[0], rho * ddt_u[1]]
-
-        # Mechanics source term
-        div_sigma = [
-            sym.diff(sigma_total[0][0], x) + sym.diff(sigma_total[0][1], y),
-            sym.diff(sigma_total[1][0], x) + sym.diff(sigma_total[1][1], y),
-        ]
-
-        source_mech = [
-            acceleration_term[0] - div_sigma[0],
-            acceleration_term[1] - div_sigma[1],
-        ]
+        (
+            source_mech,
+            sigma_total,
+            acceleration_term,
+        ) = symbolic_equation_terms(model=setup, u=u, x=x, y=y, t=t)
 
         # Public attributes
         self.u = u  # displacement
-        self.sigma_elas = sigma_elas  # elastic stress
-        self.sigma_total = sigma_total  # elastic (total) stress
+        self.sigma_total = sigma_total  # elastic stress
         self.source_mech = source_mech  # Source term entering the momentum balance
         self.acceleration_term = acceleration_term  # Acceleration term entering mom bal
 
@@ -277,11 +207,6 @@ class ManuMechExactSolution2d:
         fc = sd.face_centers
         fn = sd.face_normals
 
-        # sigma_total = [
-        #     [sigma_elas[0][0], sigma_elas[0][1]],
-        #     [sigma_elas[1][0], sigma_elas[1][1]],
-        # ]
-
         # Lambdify expression
         sigma_total_fun: list[list[Callable]] = [
             [
@@ -347,8 +272,6 @@ class ManuMechExactSolution2d:
         # Flatten array
         source_mech_flat: np.ndarray = np.asarray(source_mech).ravel("F")
 
-        # Invert sign according to sign convention.
-        # ???
         return source_mech_flat
 
 
@@ -401,23 +324,8 @@ class UnitSquareGrid:
         return self.params.get("meshing_arguments", default_mesh_arguments)
 
 
-# -----> Balance equations
-class ManuMechEquations(
-    DynamicMomentumBalance,
-):
-    """Mixer class for modified mechanics equations."""
-
-    def set_equations(self):
-        """Set the equations for the modified mechanics problem.
-
-        Call both parent classes' `set_equations` methods.
-
-        """
-        DynamicMomentumBalance.set_equations(self)
-
-
 # -----> Solution strategy
-class ManuMechSolutionStrategy2d(dynamic_momentum_balance.MySolutionStrategy):
+class ManuMechSolutionStrategy2d:
     """Solution strategy for the verification setup."""
 
     exact_sol: ManuMechExactSolution2d
@@ -473,74 +381,16 @@ class ManuMechSolutionStrategy2d(dynamic_momentum_balance.MySolutionStrategy):
         if self.params.get("plot_results", False):
             self.plot_results()
 
-    def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        bounds = self.domain_boundary_sides(sd)
-        bc = pp.BoundaryConditionVectorial(
-            sd,
-            bounds.north + bounds.south + bounds.east + bounds.west,
-            "dir",
-        )
-        return bc
-
-    def initial_displacement(self, dofs: int) -> np.ndarray:
-        """Initial displacement values."""
-        sd = self.mdg.subdomains()[0]
-
-        x = sd.cell_centers[0, :]
-        y = sd.cell_centers[1, :]
-        t = self.time_manager.time
-
-        vals = np.zeros((self.nd, sd.num_cells))
-
-        displacement_function = u_func_time(self)
-        vals[0] = displacement_function[0](x, y, t)
-        vals[1] = displacement_function[1](x, y, t)
-
-        return vals.ravel("F")
-
-    def initial_velocity(self, dofs: int) -> np.ndarray:
-        """Initial velocity values."""
-        sd = self.mdg.subdomains()[0]
-
-        x = sd.cell_centers[0, :]
-        y = sd.cell_centers[1, :]
-        t = self.time_manager.time
-
-        vals = np.zeros((self.nd, sd.num_cells))
-
-        velocity_function = v_func_time(self)
-        vals[0] = velocity_function[0](x, y, t)
-        vals[1] = velocity_function[1](x, y, t)
-
-        return vals.ravel("F")
-
-    def initial_acceleration(self, dofs: int) -> np.ndarray:
-        """Initial acceleration values."""
-        sd = self.mdg.subdomains()[0]
-
-        x = sd.cell_centers[0, :]
-        y = sd.cell_centers[1, :]
-        t = self.time_manager.time
-
-        vals = np.zeros((self.nd, sd.num_cells))
-
-        acceleration_function = a_func_time(self)
-
-        vals[0] = acceleration_function[0](x, y, t)
-        vals[1] = acceleration_function[1](x, y, t)
-        return vals.ravel("F")
-
 
 # -----> Mixer class
 class ManuMechSetup2d(  # type: ignore[misc]
     UnitSquareGrid,
-    ManuMechEquations,
     ManuMechSolutionStrategy2d,
     ManuMechUtils,
     ManuMechDataSaving,
-    DynamicMomentumBalance,
+    MyMomentumBalance,
 ):
     """
-    Mixer class for the two-dimensional non-linear Mechanics verification setup.
+    Mixer class for the two-dimensional mechanics verification setup.
 
     """
