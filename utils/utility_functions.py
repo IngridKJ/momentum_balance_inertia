@@ -453,13 +453,6 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
     # The two "extra" things returned here are for use in the convergence analysis runs.
     return source_term, sigma, acceleration_term
 
-    # Lambdifying happens in other method now, but keep for a sec just in case.
-    # return [
-    #     sym.lambdify((x, y, z, t), source_term[0], "numpy"),
-    #     sym.lambdify((x, y, z, t), source_term[1], "numpy"),
-    #     sym.lambdify((x, y, z, t), source_term[2], "numpy"),
-    # ]
-
 
 # -------- Wrap for displacement, velocity and acceleration lambdified function.
 
@@ -467,6 +460,16 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
 def u_v_a_wrap(
     model, is_2D: bool = True, return_dt: bool = False, return_ddt=False
 ) -> list:
+    """Wrapper functoin for displacement, velocity and acceleration function fetching.
+
+    Parameters:
+        is_2D: Whether the problem is in 2D or 3D. Defaults to True (is 2D).
+        return_dt: True if velocity is to be returned instead of displacement. Defaults
+            to False.
+        return_ddt: True if acceleration is to be returned instead of displacement.
+            Defaults to False.
+
+    """
     if is_2D:
         if not return_dt and not return_ddt:
             return _displacement_function_2D(model)
@@ -496,7 +499,7 @@ def _displacement_function_2D(model) -> list:
     symbolic representation is fetched from the method symbolic_representation.
 
     """
-    u, x, y, t = _symbolic_representation_2D(model=model)
+    u, x, y, t = symbolic_representation(model=model)
     u = [
         sym.lambdify((x, y, t), u[0], "numpy"),
         sym.lambdify((x, y, t), u[1], "numpy"),
@@ -512,7 +515,7 @@ def _velocity_function_2D(model) -> list:
     representation is fetched from the method symbolic_representation.
 
     """
-    v, x, y, t = _symbolic_representation_2D(model=model, return_dt=True)
+    v, x, y, t = symbolic_representation(model=model, return_dt=True)
     v = [
         sym.lambdify((x, y, t), v[0], "numpy"),
         sym.lambdify((x, y, t), v[1], "numpy"),
@@ -528,7 +531,7 @@ def _acceleration_function_2D(model) -> list:
     symbolic representation is fetched from the method symbolic_representation.
 
     """
-    a, x, y, t = _symbolic_representation_2D(model, return_ddt=True)
+    a, x, y, t = symbolic_representation(model=model, return_ddt=True)
     a = [
         sym.lambdify((x, y, t), a[0], "numpy"),
         sym.lambdify((x, y, t), a[1], "numpy"),
@@ -547,7 +550,7 @@ def _displacement_function_3D(model) -> list:
     symbolic representation is fetched from the method symbolic_representation.
 
     """
-    u, x, y, z, t = _symbolic_representation_3D(model=model)
+    u, x, y, z, t = symbolic_representation(model=model, is_2D=False)
     u = [
         sym.lambdify((x, y, z, t), u[0], "numpy"),
         sym.lambdify((x, y, z, t), u[1], "numpy"),
@@ -564,7 +567,7 @@ def _velocity_function_3D(model) -> list:
     representation is fetched from the method symbolic_representation.
 
     """
-    v, x, y, z, t = _symbolic_representation_3D(model=model, return_dt=True)
+    v, x, y, z, t = symbolic_representation(model=model, is_2D=False, return_dt=True)
     v = [
         sym.lambdify((x, y, z, t), v[0], "numpy"),
         sym.lambdify((x, y, z, t), v[1], "numpy"),
@@ -581,7 +584,7 @@ def _acceleration_function_3D(model) -> list:
     symbolic representation is fetched from the method symbolic_representation.
 
     """
-    a, x, y, z, t = _symbolic_representation_3D(model, return_ddt=True)
+    a, x, y, z, t = symbolic_representation(model=model, is_2D=False, return_ddt=True)
     a = [
         sym.lambdify((x, y, z, t), a[0], "numpy"),
         sym.lambdify((x, y, z, t), a[1], "numpy"),
@@ -594,6 +597,11 @@ def _acceleration_function_3D(model) -> list:
 
 
 def body_force_function(model, is_2D: bool = True) -> list:
+    """Wrapper function for the body forces in 2D and 3D.
+
+    See the sub-methods for documentation.
+
+    """
     if is_2D:
         return _body_force_func_2D(model)
     else:
@@ -618,8 +626,8 @@ def _body_force_func_2D(model) -> list:
 
     """
 
-    u, x, y, t = _symbolic_representation_2D(model=model)
-    source, _, _ = _symbolic_equation_terms_2D(model=model, u=u, x=x, y=y, t=t)
+    u, x, y, t = symbolic_representation(model=model)
+    source, _, _ = symbolic_equation_terms(model=model, u=u, x=x, y=y, t=t)
 
     return [
         sym.lambdify((x, y, t), source[0], "numpy"),
@@ -642,8 +650,10 @@ def _body_force_func_3D(model) -> list:
 
     """
 
-    u, x, y, z, t = _symbolic_representation_3D(model=model)
-    source, _, _ = _symbolic_equation_terms_3D(model=model, u=u, x=x, y=y, z=z, t=t)
+    u, x, y, z, t = symbolic_representation(model=model, is_2D=False)
+    source, _, _ = symbolic_equation_terms(
+        model=model, is_2D=False, u=u, x=x, y=y, z=z, t=t
+    )
 
     return [
         sym.lambdify((x, y, z, t), source[0], "numpy"),
