@@ -7,12 +7,6 @@ from utils import body_force_function
 from utils import u_v_a_wrap
 
 
-"""
-ParaView 3D bubble analytical:
-(time)^2 * (coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * iHat + coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * jHat + coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * kHat)
-"""
-
-
 class NewmarkConstants:
     @property
     def gamma(self) -> float:

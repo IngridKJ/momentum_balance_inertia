@@ -11,14 +11,19 @@ solution is defined.
 For comparison of the numerical and analytical solution, here are a couple analytical
 solutions in ParaView-calculator-language.
 
+2D: 
 ParaView polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1] * (1 -
 coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 -
 coords[1]) * jHat)
 
-ParaView quad time, sine space, analytical solution sin(5.0/2.0 * acos(-1) * time) *
+ParaView quad time, sine space, analytical solution: sin(5.0/2.0 * acos(-1) * time) *
 (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + sin(5.0/2.0 *
 acos(-1) * time) * (coords[0] * coords[1] * (1 -
 coords[0]) * (1 - coords[1]) * jHat
+
+
+3D:
+ParaView 3D polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * iHat + coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * jHat + coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * kHat)
 
 """
 
