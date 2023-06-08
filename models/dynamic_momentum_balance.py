@@ -28,6 +28,14 @@ class NamesAndConstants:
         """Key for acceleration in the time step and iterate dictionaries."""
         return "acceleration"
 
+    @property
+    def bc_values_mechanics_key(self) -> str:
+        """Key for mechanical boundary conditions in the time step and iterate
+        dictionaries.
+
+        """
+        return "bc_values_mechanics"
+
 
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
@@ -118,7 +126,7 @@ class MySolutionStrategy:
         return np.zeros(dofs * self.nd)
 
     def initial_condition(self):
-        """Assigning initial velocity and acceleration values."""
+        """Assigning initial displacement, velocity and acceleration values."""
         super().initial_condition()
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
@@ -152,6 +160,7 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
+        # Be careful about this one.
         # self.update_time_dependent_ad_arrays(initial=True)
 
     def before_nonlinear_loop(self) -> None:
@@ -240,11 +249,10 @@ class MySolutionStrategy:
         """Update the time dependent arrays for the velocity and acceleration.
 
         Parameters:
-            initial: (Outdated because I messed with it to fix a bug) If True, the
-                array generating method is called for both the stored time steps and the
-                stored iterates. If False, the array generating method is called only
-                for the iterate, and the time step solution is updated by copying the
-                iterate.
+            initial: If True, the array generating method is called for both the stored
+                time steps and the stored iterates. If False, the array generating
+                method is called only for the iterate, and the time step solution is
+                updated by copying the iterate.
 
         """
         super().update_time_dependent_ad_arrays(initial)
@@ -252,19 +260,19 @@ class MySolutionStrategy:
             vals_acceleration = self.acceleration_values([sd])
             vals_velocity = self.velocity_values([sd])
             if initial:
-                if self.time_manager.time_index != 0:
-                    pp.set_solution_values(
-                        name=self.velocity_key,
-                        values=vals_velocity,
-                        data=data,
-                        time_step_index=0,
-                    )
-                    pp.set_solution_values(
-                        name=self.acceleration_key,
-                        values=vals_acceleration,
-                        data=data,
-                        time_step_index=0,
-                    )
+                # if self.time_manager.time_index != 0:
+                pp.set_solution_values(
+                    name=self.velocity_key,
+                    values=vals_velocity,
+                    data=data,
+                    time_step_index=0,
+                )
+                pp.set_solution_values(
+                    name=self.acceleration_key,
+                    values=vals_acceleration,
+                    data=data,
+                    time_step_index=0,
+                )
             else:
                 # Copy old values from iterate to the solution.
                 vals_velocity_it = get_solution_values(
@@ -286,19 +294,19 @@ class MySolutionStrategy:
                     time_step_index=0,
                 )
 
-            if self.time_manager.time_index != 0:
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity,
-                    data=data,
-                    iterate_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration,
-                    data=data,
-                    iterate_index=0,
-                )
+            # if self.time_manager.time_index != 0:
+            pp.set_solution_values(
+                name=self.velocity_key,
+                values=vals_velocity,
+                data=data,
+                iterate_index=0,
+            )
+            pp.set_solution_values(
+                name=self.acceleration_key,
+                values=vals_acceleration,
+                data=data,
+                iterate_index=0,
+            )
 
     def after_nonlinear_convergence(
         self, solution: np.ndarray, errors: float, iteration_counter: int

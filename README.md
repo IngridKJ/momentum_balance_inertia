@@ -11,7 +11,7 @@ Models are found within the [models](./models/) directory:
 * [momentum balance](./models/no_inertia_momentum_balance.py) (i.e. just a call to and slight modification of the built-in PorePy model).
 
 
-## Runscripts
+## Runscripts and modified models
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
 * [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).

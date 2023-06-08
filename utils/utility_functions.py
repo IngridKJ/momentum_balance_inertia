@@ -217,6 +217,8 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     elif manufactured_sol == "quad_space":
         u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
         u = [u1, u2]
+    elif manufactured_sol == "simply_zero":
+        u = [0, 0]
 
     if return_dt:
         dt_u = [sym.diff(u[0], t), sym.diff(u[1], t)]
@@ -611,11 +613,15 @@ def _acceleration_function_3D(model) -> list:
 def body_force_function(model, is_2D: bool = True) -> list:
     """Wrapper function for the body forces in 2D and 3D.
 
-    See the sub-methods for documentation.
+    See the sub-methods for documentation. For now only used for constructing the force
+    from a known analytical solution.
 
     Parameters:
         model: model class
         is_2D: flag for whether model is for 2D or 3D domain.
+
+    Returns:
+        A (lambdified) function to be used as the source term function.
 
     """
     if is_2D:
