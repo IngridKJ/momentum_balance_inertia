@@ -3,10 +3,8 @@ import numpy as np
 
 from models import DynamicMomentumBalance
 
-from utils import body_force_func_time
-from utils import u_func_time
-from utils import v_func_time
-from utils import a_func_time
+from utils import body_force_function
+from utils import u_v_a_wrap
 from utils import get_solution_values
 from utils import cell_center_function_evaluation
 
@@ -23,6 +21,7 @@ class NewmarkConstants:
 
 class MyGeometry:
     def nd_rect_domain(self, x, y) -> pp.Domain:
+        # 2D hardcoded
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
 
         box.update({"ymin": 0, "ymax": y})
@@ -30,6 +29,7 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
+        # 2D hardcoded
         x = 1 / self.units.m
         y = 1 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
@@ -44,6 +44,7 @@ class MyGeometry:
 
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
+        # 2D hardcoded
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,
@@ -54,6 +55,7 @@ class BoundaryAndInitialCond:
 
     def initial_displacement(self, dofs: int) -> np.ndarray:
         """Initial displacement values."""
+        # 2D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
@@ -62,7 +64,7 @@ class BoundaryAndInitialCond:
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        displacement_function = u_func_time(self)
+        displacement_function = u_v_a_wrap(self)
         vals[0] = displacement_function[0](x, y, t)
         vals[1] = displacement_function[1](x, y, t)
 
@@ -70,6 +72,7 @@ class BoundaryAndInitialCond:
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
         """Initial velocity values."""
+        # 2D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
@@ -78,7 +81,7 @@ class BoundaryAndInitialCond:
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        velocity_function = v_func_time(self)
+        velocity_function = u_v_a_wrap(self, return_dt=True)
         vals[0] = velocity_function[0](x, y, t)
         vals[1] = velocity_function[1](x, y, t)
 
@@ -86,6 +89,7 @@ class BoundaryAndInitialCond:
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
+        # 2D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
@@ -94,7 +98,7 @@ class BoundaryAndInitialCond:
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        acceleration_function = a_func_time(self)
+        acceleration_function = u_v_a_wrap(self, return_ddt=True)
         vals[0] = acceleration_function[0](x, y, t)
         vals[1] = acceleration_function[1](x, y, t)
 
@@ -114,16 +118,16 @@ class Source:
         t = self.time_manager.time
 
         # Mechanics source
-        source_func = body_force_func_time(self)
+        source_func = body_force_function(self)
         mech_source = self.source_values(source_func, sd, t)
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
 
         # For convergence analysis
-        u_func = u_func_time(self)
-        v_func = v_func_time(self)
-        a_func = a_func_time(self)
+        u_func = u_v_a_wrap(self)
+        v_func = u_v_a_wrap(self, return_dt=True)
+        a_func = u_v_a_wrap(self, return_ddt=True)
 
         u_vals = cell_center_function_evaluation(self, u_func, sd, t)
         v_vals = cell_center_function_evaluation(self, v_func, sd, t)
@@ -145,6 +149,7 @@ class Source:
             An array of source values.
 
         """
+        # 2D hardcoded
         vals = np.zeros((self.nd, sd.num_cells))
 
         x = sd.cell_centers[0, :]

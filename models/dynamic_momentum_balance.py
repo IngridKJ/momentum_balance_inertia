@@ -156,6 +156,7 @@ class MySolutionStrategy:
 
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources."""
+        # Equidimensional domain hardcode
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
@@ -166,6 +167,8 @@ class MySolutionStrategy:
 
         vals[0] *= cell_volume
         vals[1] *= cell_volume
+        if self.nd == 3:
+            vals[2] *= cell_volume
 
         vals = vals.ravel("F")
 

@@ -3,12 +3,8 @@ import numpy as np
 
 from models import DynamicMomentumBalance
 
-from utils import body_force_func_time_3D
-
-
-"""
-(time)^2 * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
-"""
+from utils import body_force_function
+from utils import u_v_a_wrap
 
 
 class NewmarkConstants:
@@ -31,16 +27,22 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1 / self.units.m
-        y = 2 / self.units.m
-        z = 1 / self.units.m
+        x = 1
+        y = 1
+        z = 1
+
+        x = self.solid.convert_units(x, "m")
+        y = self.solid.convert_units(y, "m")
+        z = self.solid.convert_units(z, "m")
+
         self._domain = self.nd_rect_domain(x, y, z)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        cell_size = self.solid.convert_units(0.1, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
@@ -49,7 +51,12 @@ class BoundaryAndInitialCond:
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,
-            bounds.north + bounds.south,
+            bounds.north
+            + bounds.south
+            + bounds.west
+            + bounds.east
+            + bounds.top
+            + bounds.bottom,
             "dir",
         )
         return bc
@@ -60,7 +67,7 @@ class BoundaryAndInitialCond:
             bounds = self.domain_boundary_sides(sd)
             val_loc = np.zeros((self.nd, sd.num_faces))
             value = 1
-            val_loc[1, bounds.north] = -value * 1e-5
+            val_loc[1, bounds.north] = -value * 1e-5 * 0
             val_loc[1, bounds.south] = value * 1e-5 * 0
 
             values.append(val_loc)
@@ -71,25 +78,60 @@ class BoundaryAndInitialCond:
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
+        # 3D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
         z = sd.cell_centers[2, :]
+        t = self.time_manager.time
 
         vals = np.zeros((self.nd, sd.num_cells))
-        manufactured_sol = self.params.get("manufactured_solution", "bubble")
-        if manufactured_sol == "bubble":
-            vals[0] = 2 * x * y * z * (1 - x) * (1 - y) * (1 - z)
-            vals[1] = 2 * x * y * z * (1 - x) * (1 - y) * (1 - z)
-            vals[2] = 2 * x * y * z * (1 - x) * (1 - y) * (1 - z)
-        elif manufactured_sol == "quad_time":
-            vals[0] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y) * np.sin(np.pi * z)
-            vals[1] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y) * np.sin(np.pi * z)
-            vals[2] = 2 * np.sin(np.pi * x) * np.sin(np.pi * y) * np.sin(np.pi * z)
-        elif manufactured_sol == "quad_space":
-            raise NotImplementedError
-        return vals.ravel("F") * 0
+
+        acceleration_function = u_v_a_wrap(self, is_2D=False, return_ddt=True)
+        vals[0] = acceleration_function[0](x, y, z, t)
+        vals[1] = acceleration_function[1](x, y, z, t)
+        vals[2] = acceleration_function[1](x, y, z, t)
+
+        return vals.ravel("F")
+
+    def initial_velocity(self, dofs: int) -> np.ndarray:
+        """Initial acceleration values."""
+        # 3D hardcoded
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+        z = sd.cell_centers[2, :]
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        velocity_function = u_v_a_wrap(self, is_2D=False, return_dt=True)
+        vals[0] = velocity_function[0](x, y, z, t)
+        vals[1] = velocity_function[1](x, y, z, t)
+        vals[2] = velocity_function[1](x, y, z, t)
+
+        return vals.ravel("F")
+
+    def initial_displacement(self, dofs: int) -> np.ndarray:
+        """Initial displacement values."""
+        # 3D hardcoded
+        sd = self.mdg.subdomains()[0]
+
+        x = sd.cell_centers[0, :]
+        y = sd.cell_centers[1, :]
+        z = sd.cell_centers[2, :]
+        t = self.time_manager.time
+
+        vals = np.zeros((self.nd, sd.num_cells))
+
+        displacement_function = u_v_a_wrap(self, is_2D=False)
+        vals[0] = displacement_function[0](x, y, z, t)
+        vals[1] = displacement_function[1](x, y, z, t)
+        vals[2] = displacement_function[1](x, y, z, t)
+
+        return vals.ravel("F")
 
 
 class Source:
@@ -100,11 +142,11 @@ class Source:
         t = self.time_manager.time
 
         # Mechanics source
-        source_func = body_force_func_time_3D(self)
+        source_func = body_force_function(self, is_2D=False)
         mech_source = self.source_values(source_func, sd, t)
 
         pp.set_solution_values(
-            name="source_mechanics", values=mech_source * 0, data=data, iterate_index=0
+            name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
 
     def source_values(self, f, sd, t) -> np.ndarray:
@@ -135,7 +177,7 @@ class Source:
         vals[1] = y_val * cell_volume
         vals[2] = z_val * cell_volume
 
-        return vals.ravel("F") * 0
+        return vals.ravel("F")
 
 
 class MyMomentumBalance(
@@ -149,7 +191,7 @@ class MyMomentumBalance(
 
 
 time_manager = pp.TimeManager(
-    schedule=[0, 4e0],
+    schedule=[0, 1e-1],
     dt_init=0.5e-2,
     constant_dt=True,
     iter_max=10,

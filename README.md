@@ -12,26 +12,15 @@ Models are found within the [models](./models/) directory:
 
 
 ## Runscripts
-* [run.py](./runscripts/run.py) is for running the momentum balance as is in PorePy. Only the geometry is slightly modified.
-* [run_dynamic_1D.py](./runscripts/run_dynamic_1D.py) is for running the dynamic momentum balance in quasi 1D, meaning 3D but only one cell in two of the three directions.
-* [run_dynamic_2D.py](./runscripts/run_dynamic_2D.py) is for running the dynamic momentum balance in 2D.
-* [run_dynamic_3D.py](./runscripts/run_dynamic_3D.py) is for running the dynamic momentum balance in 3D.
-
-Note that these scripts are mostly used as example runs. 
-The initial velocity/acceleration are as of now only set arbitrary values.
-
-
-## Runscripts for analytical comparison
-Runscripts first made for "visual" analytical comparison:
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
-* [3D_dynamic_time_dep_source](./3D_dynamic_time_dep_source.py) is for dynamic momentum balance (3D).
+* [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
 
 
 ## Actual verification setup
 Convergence analysis is only done in 2D, but 3D should be no different. 
 The setup is as follows:
-* [convergence_runscript_dynamic](./convergence_runscript_dynamic.py) is the runscript for running the convergence analysis. Function "bubble" is used for investigating convergence in space. Function "sine_bubble" is used for investigating convergence in time.
+* [runscript_convergence_analysis](./runscript_convergence_analysis.py) is the runscript for running the convergence analysis. Function "bubble" is used for investigating convergence in space. Function "sine_bubble" is used for investigating convergence in time.
 * [manufactured_solution_dynamic](./manufactured_solution_dynamic.py) is implementation of a verification setup for the dynamic momentum balance.
 
 This verification setup takes use of the model defined within [dynamic_2D_model](./dynamic_2D_model.py).
