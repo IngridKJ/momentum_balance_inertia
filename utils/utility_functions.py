@@ -32,6 +32,7 @@ import porepy as pp
 from typing import Optional
 import sympy as sym
 
+
 # -------- Fetching/Computing values
 
 
@@ -112,7 +113,8 @@ def acceleration_velocity_displacement(
 def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
     """Function for computing cell center values for a given function.
 
-    This is hard-coded for a two-dimensional function.
+    This is hard-coded for a two-dimensional function. As of now only used for computing
+    error (analytical vs. numerical solution).
 
     Parameters:
         f: Function depending on time and space.
@@ -169,7 +171,7 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     """Symbolic representation of displacement, velocity or acceleration.
 
     Use of this method is rather simple, as the default analytical solution is that with
-    the name "bubble" which is just a 2D polynomial bubble function. For an other
+    the name "bubble" which is just a 2D polynomial bubble function. For another
     analytical solution one must simply just assign a different value to the key
     "manufactured_solution" in the model's parameter dictionary. Look into the code for
     what solutions are accessible, or make new ones if the ones already existing do not
@@ -229,7 +231,7 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
 
 
 def _symbolic_equation_terms_2D(model, u, x, y, t):
-    """Method for symbolic representation of the sub-parts of the momentum balance eqn.
+    """Symbolic representation of the momentum balance eqn. terms in 3D.
 
     Parameters:
         model: The model class
@@ -359,9 +361,19 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
 
 
 def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
-    """Lambdify the source term corresponding to a manufactured solution, 3D.
+    """Symbolic representation of the momentum balance eqn. terms in 3D.
 
-    To be refactored in the same manner as body_force_func_time.
+    Parameters:
+        model: The model class
+        u: Analytical solution from which the source term is found. As of now, this is
+            defined through a call to the method symbolic_representation.
+        x: Symbol for x-coordinate.
+        y: Symbol for y-coordinate.
+        z: Symbol for z-coordinate.
+        t: Symbol for time variable.
+
+    Returns:
+        A tuple with the full source term, sigma and the acceleration term.
 
     """
     lam = model.solid.lame_lambda()
@@ -460,7 +472,7 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
 def u_v_a_wrap(
     model, is_2D: bool = True, return_dt: bool = False, return_ddt=False
 ) -> list:
-    """Wrapper functoin for displacement, velocity and acceleration function fetching.
+    """Wrapper function for displacement, velocity and acceleration function fetching.
 
     Parameters:
         is_2D: Whether the problem is in 2D or 3D. Defaults to True (is 2D).
@@ -600,6 +612,10 @@ def body_force_function(model, is_2D: bool = True) -> list:
     """Wrapper function for the body forces in 2D and 3D.
 
     See the sub-methods for documentation.
+
+    Parameters:
+        model: model class
+        is_2D: flag for whether model is for 2D or 3D domain.
 
     """
     if is_2D:
