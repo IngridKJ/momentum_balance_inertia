@@ -36,6 +36,35 @@ class NamesAndConstants:
         """
         return "bc_values_mechanics"
 
+    @property
+    def primary_wave_speed(self):
+        """Primary wave speed (c_P).
+
+        Speed of the compressive elastic waves.
+
+        Returns:
+            The value of the compressive elastic waves.
+
+        """
+        lam = self.solid.lame_lambda()
+        mu = self.solid.shear_modulus()
+        rho = self.solid.density()
+        return np.sqrt((lam + 2 * mu) / rho)
+
+    @property
+    def secondary_wave_speed(self):
+        """Secondary wave speed (c_S).
+
+        Speed of the shear elastic waves.
+
+        Returns:
+            The value of the shear elastic waves.
+
+        """
+        mu = self.solid.shear_modulus()
+        rho = self.solid.density()
+        return np.sqrt(mu / rho)
+
 
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):

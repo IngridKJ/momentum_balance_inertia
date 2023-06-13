@@ -165,50 +165,50 @@ class Source:
 
         return vals.ravel("F")
 
-    def after_simulation(self) -> None:
-        """Run at the end of simulation.
+    # def after_simulation(self) -> None:
+    #     """Run at the end of simulation.
 
-        Here only used for computing the error of displacement, velocity and
-        acceleration.
+    #     Here only used for computing the error of displacement, velocity and
+    #     acceleration.
 
-        """
-        sd = self.mdg.subdomains(dim=2)[0]
-        data = self.mdg.subdomain_data(sd)
+    #     """
+    #     sd = self.mdg.subdomains(dim=2)[0]
+    #     data = self.mdg.subdomain_data(sd)
 
-        u_e = get_solution_values(name="u_e", data=data, iterate_index=0)
-        u_h = get_solution_values(name="u", data=data, time_step_index=0)
-        v_e = get_solution_values(name="v_e", data=data, iterate_index=0)
-        v_h = get_solution_values(name="velocity", data=data, iterate_index=0)
-        a_e = get_solution_values(name="a_e", data=data, iterate_index=0)
-        a_h = get_solution_values(name="acceleration", data=data, iterate_index=0)
+    #     u_e = get_solution_values(name="u_e", data=data, iterate_index=0)
+    #     u_h = get_solution_values(name="u", data=data, time_step_index=0)
+    #     v_e = get_solution_values(name="v_e", data=data, iterate_index=0)
+    #     v_h = get_solution_values(name="velocity", data=data, iterate_index=0)
+    #     a_e = get_solution_values(name="a_e", data=data, iterate_index=0)
+    #     a_h = get_solution_values(name="acceleration", data=data, iterate_index=0)
 
-        cell_volumes = sd.cell_volumes
+    #     cell_volumes = sd.cell_volumes
 
-        nc = len(cell_volumes)
+    #     nc = len(cell_volumes)
 
-        u_e = np.array(np.split(u_e, nc)).T
-        u_h = np.array(np.split(u_h, nc)).T
-        v_e = np.array(np.split(v_e, nc)).T
-        v_h = np.array(np.split(v_h, nc)).T
-        a_e = np.array(np.split(a_e, nc)).T
-        a_h = np.array(np.split(a_h, nc)).T
+    #     u_e = np.array(np.split(u_e, nc)).T
+    #     u_h = np.array(np.split(u_h, nc)).T
+    #     v_e = np.array(np.split(v_e, nc)).T
+    #     v_h = np.array(np.split(v_h, nc)).T
+    #     a_e = np.array(np.split(a_e, nc)).T
+    #     a_h = np.array(np.split(a_h, nc)).T
 
-        norm_u_e = np.sqrt(np.sum(np.sum(u_e * u_e, axis=0) * cell_volumes))
-        du = u_h - u_e
-        error_u = np.sqrt(np.sum(np.sum(du * du, axis=0) * cell_volumes))  # / norm_u_e
+    #     norm_u_e = np.sqrt(np.sum(np.sum(u_e * u_e, axis=0) * cell_volumes))
+    #     du = u_h - u_e
+    #     error_u = np.sqrt(np.sum(np.sum(du * du, axis=0) * cell_volumes))  # / norm_u_e
 
-        norm_v_e = np.sqrt(np.sum(np.sum(v_e * v_e, axis=0) * cell_volumes))
-        dv = v_h - v_e
-        error_v = np.sqrt(np.sum(np.sum(dv * dv, axis=0) * cell_volumes))  # / norm_v_e
+    #     norm_v_e = np.sqrt(np.sum(np.sum(v_e * v_e, axis=0) * cell_volumes))
+    #     dv = v_h - v_e
+    #     error_v = np.sqrt(np.sum(np.sum(dv * dv, axis=0) * cell_volumes))  # / norm_v_e
 
-        norm_a_e = np.sqrt(np.sum(np.sum(a_e * a_e, axis=0) * cell_volumes))
-        da = a_h - a_e
-        error_a = np.sqrt(np.sum(np.sum(da * da, axis=0) * cell_volumes))  # / norm_a_e
+    #     norm_a_e = np.sqrt(np.sum(np.sum(a_e * a_e, axis=0) * cell_volumes))
+    #     da = a_h - a_e
+    #     error_a = np.sqrt(np.sum(np.sum(da * da, axis=0) * cell_volumes))  # / norm_a_e
 
-        # print("Errors at time =", self.time_manager.time)
-        # print("u_er =", error_u)
-        # print("v_er =", error_v)
-        # print("a_er =", error_a)
+    #     # print("Errors at time =", self.time_manager.time)
+    #     # print("u_er =", error_u)
+    #     # print("v_er =", error_v)
+    #     # print("a_er =", error_a)
 
 
 class MyMomentumBalance(
@@ -253,4 +253,6 @@ params = {
 }
 model = MyMomentumBalance(params)
 
-pp.run_time_dependent_model(model, params)
+if __name__ == "__main__":
+    pp.run_time_dependent_model(model, params)
+    a = 5
