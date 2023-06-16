@@ -14,6 +14,7 @@ Models are found within the [models](./models/) directory:
 ## Runscripts and modified models
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
+* [dynamic_2D_model_time_dep_BC](./dynamic_2D_model_time_dep_BC.py) is for dynamic momentum balance with time dependent boundary conditions.
 * [dynamic_2D_model_ABC](./dynamic_2D_model_ABC.py) is for dynamic momentum balance with absorbing boundary conditions (ABCs).
 * [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
 
