@@ -283,82 +283,11 @@ class MyConstitutiveLaws:
         return boundary_displacement
 
 
-class RandomUtils:
-    def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarray:
-        """Grab cell indices of a certain side of a subdomain.
-
-        This might already exist within PorePy, but I couldn't find it ...
-
-        Parameters:
-            sd: The subdomain we are interested in grabbing cells for.
-            coord: Either "x", "y" or "z" depending on what coordinate direction is
-                relevant for choosing the boundary cells. E.g., for an east boundary it
-                is "x", for a north boundary it is "y".
-            extreme: Whether it is the lower or upper "extreme" of the coord-value.
-                East corresponds to "xmax" and west corresponds to "xmin".
-
-        Returns:
-            An array with the indices of the boundary cells of a certain domain side.
-
-        """
-        if coord == "x":
-            coord = 0
-        elif coord == "y":
-            coord = 1
-        elif coord == "z":
-            coord = 3
-
-        faces = sd.get_all_boundary_faces()
-        face_centers = sd.face_centers
-        face_indices = [
-            f
-            for f in faces
-            if face_centers[coord][f] == self.domain.bounding_box[extreme]
-        ]
-
-        boundary_cells = sd.signs_and_cells_of_boundary_faces(
-            faces=np.array(face_indices)
-        )[1]
-
-        return boundary_cells
-
-    def get_boundary_cells(self, sd: pp.Grid, side: str) -> np.ndarray:
-        """Grabs the cell indices of a certain subdomain side.
-
-        Wrapper-like function for fetching boundary cell indices.
-
-        This might already exist within PorePy, but I couldn't find it ...
-
-        Parameters:
-            sd: The subdomain
-            side: The side we want the cell indices for. Should take values "south",
-                "north", "west", "east", "top" or "bottom".
-
-        Returns:
-            An array with the indices of the boundary cells of a certain domain side.
-
-        """
-        if side == "south":
-            cells = self._get_boundary_cells(sd=sd, coord="y", extreme="ymin")
-        elif side == "north":
-            cells = self._get_boundary_cells(sd=sd, coord="y", extreme="ymax")
-        elif side == "west":
-            cells = self._get_boundary_cells(sd=sd, coord="x", extreme="xmin")
-        elif side == "east":
-            cells = self._get_boundary_cells(sd=sd, coord="x", extreme="xmax")
-        elif side == "top":
-            cells = self._get_boundary_cells(sd=sd, coord="z", extreme="zmax")
-        elif side == "bottom":
-            cells = self._get_boundary_cells(sd=sd, coord="z", extreme="zmin")
-        return cells
-
-
 class MyMomentumBalance(
     BoundaryAndInitialCond,
     MyGeometry,
     SolutionStrategySourceBC,
     MyConstitutiveLaws,
-    RandomUtils,
     MyMomentumBalance,
 ):
     ...
@@ -366,7 +295,7 @@ class MyMomentumBalance(
 
 t_shift = 0.0
 tf = 0.1
-dt = tf / 10.0
+dt = tf / 100.0
 
 time_manager = pp.TimeManager(
     schedule=[0.0 + t_shift, tf + t_shift],
@@ -398,4 +327,3 @@ model = MyMomentumBalance(params)
 
 
 pp.run_time_dependent_model(model, params)
-a = 5
