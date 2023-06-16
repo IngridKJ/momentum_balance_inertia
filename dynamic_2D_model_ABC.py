@@ -22,9 +22,11 @@ class BoundaryAndInitialCond:
         dt = self.time_manager.dt
         cp = self.primary_wave_speed
         cs = self.secondary_wave_speed
+        lam = self.solid.lame_lambda()
+        mu = self.solid.shear_modulus()
 
-        robin_weight_tensile = 1 / (dt * cp)
-        robin_weight_shear = 1 / (dt * cs)
+        robin_weight_tensile = (lam + 2 * mu) / (dt * cp)
+        robin_weight_shear = (mu) / (dt * cs)
 
         bounds = self.domain_boundary_sides(sd)
 
@@ -35,25 +37,30 @@ class BoundaryAndInitialCond:
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
-        value[0][0][bounds.west] *= -robin_weight_tensile
-        value[1][1][bounds.west] *= -robin_weight_shear
+        # value[0][0][bounds.west] *= -robin_weight_tensile
+        # value[1][1][bounds.west] *= -robin_weight_shear
 
-        value[0][0][bounds.north] *= robin_weight_shear
-        value[1][1][bounds.north] *= robin_weight_tensile
+        # value[0][0][bounds.north] *= robin_weight_shear
+        # value[1][1][bounds.north] *= robin_weight_tensile
 
-        value[0][0][bounds.south] *= -robin_weight_shear
-        value[1][1][bounds.south] *= -robin_weight_tensile
+        value[0][0][bounds.south] *= robin_weight_shear
+        value[1][1][bounds.south] *= robin_weight_tensile
 
-        value[0][0][bounds.east] *= robin_weight_tensile
-        value[1][1][bounds.east] *= robin_weight_shear
+        # value[0][0][bounds.east] *= robin_weight_tensile
+        # value[1][1][bounds.east] *= robin_weight_shear
 
         # Choosing type of boundary condition for the different domain sides.
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,
-            bounds.north + bounds.south + bounds.east + bounds.west,
+            bounds.south,
             "rob",
         )
+        # bc = pp.BoundaryConditionVectorial(
+        #     sd,
+        #     bounds.north + bounds.south + bounds.east + bounds.west,
+        #     "rob",
+        # )
 
         bc.robin_weight = value
         return bc
@@ -88,47 +95,57 @@ class BoundaryAndInitialCond:
         """
         assert len(subdomains) == 1
         sd = subdomains[0]
-        data = self.mdg.subdomain_data(sd)
         values = np.zeros((self.nd, sd.num_faces))
+        displacement_values = np.zeros((self.nd, sd.num_faces))
 
         dt = self.time_manager.dt
         cp = self.primary_wave_speed
         cs = self.secondary_wave_speed
+        lam = self.solid.lame_lambda()
+        mu = self.solid.shear_modulus()
 
-        # robin_weight_tensile = 1
-        # robin_weight_shear = 1
-
-        robin_weight_tensile = 1 / (dt * cp)
-        robin_weight_shear = 1 / (dt * cs)
+        robin_weight_tensile = (lam + 2 * mu) / (dt * cp)
+        robin_weight_shear = (mu) / (dt * cs)
 
         bounds = self.domain_boundary_sides(sd)
+        if self.time_manager.time_index > 1:
+            displacement_boundary_operator = self.boundary_displacement([sd])
+            displacement_values = displacement_boundary_operator.evaluate(
+                self.equation_system
+            ).val
 
-        # Fetch indices of boundary cells (could not find a method for it so I made one
-        # that's put in RandomUtils mixin further down in this file.)
-        east_cells = self.get_boundary_cells(sd=sd, side="east")
-        west_cells = self.get_boundary_cells(sd=sd, side="west")
-        north_cells = self.get_boundary_cells(sd=sd, side="north")
-        south_cells = self.get_boundary_cells(sd=sd, side="south")
+            # Reshape for further use
+            displacement_values = np.reshape(
+                displacement_values, (self.nd, sd.num_faces)
+            )
 
-        # Fetching previous displacement values and reshaping for further use.
-        previous_vals = get_solution_values(
-            name=self.displacement_variable, data=data, time_step_index=0
+        # values[0][bounds.east] += (
+        #     robin_weight_tensile * displacement_values[0][bounds.east]
+        # )
+        # values[1][bounds.east] += (
+        #     robin_weight_shear * displacement_values[1][bounds.east]
+        # )
+
+        # values[0][bounds.west] += -(
+        #     robin_weight_tensile * displacement_values[0][bounds.west]
+        # )
+        # values[1][bounds.west] += -(
+        #     robin_weight_shear * displacement_values[1][bounds.west]
+        # )
+
+        # values[0][bounds.north] += (
+        #     robin_weight_shear * displacement_values[0][bounds.north]
+        # )
+        # values[1][bounds.north] += (
+        #     robin_weight_tensile * displacement_values[1][bounds.north]
+        # )
+
+        values[0][bounds.south] += (
+            robin_weight_shear * displacement_values[0][bounds.south]
         )
-        previous_vals = np.reshape(previous_vals, (self.nd, sd.num_cells))
-
-        # Assigning the previous time step solution on the boundary cells as boundary
-        # values.
-        values[0][bounds.west] += -robin_weight_tensile * previous_vals[0][west_cells]
-        values[1][bounds.west] += -robin_weight_shear * previous_vals[1][west_cells]
-
-        values[0][bounds.east] += robin_weight_tensile * previous_vals[0][east_cells]
-        values[1][bounds.east] += robin_weight_shear * previous_vals[1][east_cells]
-
-        values[0][bounds.north] += robin_weight_shear * previous_vals[0][north_cells]
-        values[1][bounds.north] += robin_weight_tensile * previous_vals[1][north_cells]
-
-        values[0][bounds.south] += -robin_weight_shear * previous_vals[0][south_cells]
-        values[1][bounds.south] += -robin_weight_tensile * previous_vals[1][south_cells]
+        values[1][bounds.south] += (
+            robin_weight_tensile * displacement_values[1][bounds.south]
+        )
 
         return values.ravel("F")
 
@@ -201,19 +218,8 @@ class SolutionStrategySourceBC:
         # 2D hardcoded
         vals = np.zeros((self.nd, sd.num_cells))
 
-        vals[0][527:528] = 1
-        vals[1][527:528] = 1
-
-        # x = sd.cell_centers[0, :]
-        # y = sd.cell_centers[1, :]
-
-        # x_val = f[0](x, y, t)
-        # y_val = f[1](x, y, t)
-
-        # cell_volume = sd.cell_volumes
-
-        # vals[0] = x_val * cell_volume
-        # vals[1] = y_val * cell_volume
+        vals[0][2527:2528] = 1
+        vals[1][2527:2528] = 1
 
         if self.time_manager.time_index <= 1:
             return vals.ravel("F") * 1e-8
@@ -241,9 +247,47 @@ class SolutionStrategySourceBC:
         self.update_time_dependent_bc(initial=False)
 
 
+class MyConstitutiveLaws:
+    def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        """Method for reconstructing the boundary displacement.
+
+        Note: This is for the pure mechanical problem - even without faults.
+            Modifications are needed when a coupling to fluid flow is introduced at some
+            later point.
+
+        Parameters:
+            subdomains: List of subdomains. Should be of co-dimension 0.
+
+        Returns:
+            Ad operator representing the displacement on grid faces of the subdomains.
+
+        """
+        # No need to facilitate changing of stress discretization, only one is
+        # available at the moment.
+        discr = self.stress_discretization(subdomains)
+
+        # Boundary conditions on external boundaries
+        bc = self.bc_values_mechanics(subdomains)
+
+        # Displacement
+        displacement = self.displacement(subdomains)
+
+        # The boundary displacement is the sum of the boundary cell displacement and the
+        # boundary face displacement?
+        boundary_displacement = (
+            discr.bound_displacement_cell @ displacement
+            + discr.bound_displacement_face @ bc
+        )
+
+        boundary_displacement.set_name("boundary_displacement")
+        return boundary_displacement
+
+
 class RandomUtils:
     def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarray:
         """Grab cell indices of a certain side of a subdomain.
+
+        This might already exist within PorePy, but I couldn't find it ...
 
         Parameters:
             sd: The subdomain we are interested in grabbing cells for.
@@ -283,6 +327,8 @@ class RandomUtils:
 
         Wrapper-like function for fetching boundary cell indices.
 
+        This might already exist within PorePy, but I couldn't find it ...
+
         Parameters:
             sd: The subdomain
             side: The side we want the cell indices for. Should take values "south",
@@ -311,6 +357,7 @@ class MyMomentumBalance(
     BoundaryAndInitialCond,
     MyGeometry,
     SolutionStrategySourceBC,
+    MyConstitutiveLaws,
     RandomUtils,
     MyMomentumBalance,
 ):
@@ -318,8 +365,8 @@ class MyMomentumBalance(
 
 
 t_shift = 0.0
-dt = 1 / 100.0
-tf = 1
+tf = 0.1
+dt = tf / 10.0
 
 time_manager = pp.TimeManager(
     schedule=[0.0 + t_shift, tf + t_shift],
@@ -351,3 +398,4 @@ model = MyMomentumBalance(params)
 
 
 pp.run_time_dependent_model(model, params)
+a = 5

@@ -5,8 +5,11 @@ for creating source terms corresponding to analytical solutions. These analytica
 solutions are determined by the "manufactured_solution" key value in the params
 dictionary. The latter uses symbolic differentiation provided by sympy. Running other
 manufactured solutions than those already present is easily done by adding the
-expression for it where the manufactured
-solution is defined.
+expression for it where the manufactured solution is defined.
+
+In addition to this there is a function for fetching cell indices of boundary cells. It
+might be done in a brute force way, and the functionality may already lie within PorePy,
+but I failed to find it.
 
 For comparison of the numerical and analytical solution, here are a couple analytical
 solutions in ParaView-calculator-language.
@@ -732,3 +735,74 @@ def body_force_func(model) -> list:
         sym.lambdify((x, y), div_sigma[0], "numpy"),
         sym.lambdify((x, y), div_sigma[1], "numpy"),
     ]
+
+
+# -------- Functions related to subdomains
+
+
+def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarray:
+    """Grab cell indices of a certain side of a subdomain.
+
+    This might already exist within PorePy, but I couldn't find it ...
+
+    Parameters:
+        sd: The subdomain we are interested in grabbing cells for.
+        coord: Either "x", "y" or "z" depending on what coordinate direction is
+            relevant for choosing the boundary cells. E.g., for an east boundary it
+            is "x", for a north boundary it is "y".
+        extreme: Whether it is the lower or upper "extreme" of the coord-value.
+            East corresponds to "xmax" and west corresponds to "xmin".
+
+    Returns:
+        An array with the indices of the boundary cells of a certain domain side.
+
+    """
+    if coord == "x":
+        coord = 0
+    elif coord == "y":
+        coord = 1
+    elif coord == "z":
+        coord = 3
+
+    faces = sd.get_all_boundary_faces()
+    face_centers = sd.face_centers
+    face_indices = [
+        f for f in faces if face_centers[coord][f] == self.domain.bounding_box[extreme]
+    ]
+
+    boundary_cells = sd.signs_and_cells_of_boundary_faces(faces=np.array(face_indices))[
+        1
+    ]
+
+    return boundary_cells
+
+
+def get_boundary_cells(self, sd: pp.Grid, side: str) -> np.ndarray:
+    """Grabs the cell indices of a certain subdomain side.
+
+    Wrapper-like function for fetching boundary cell indices.
+
+    This might already exist within PorePy, but I couldn't find it ...
+
+    Parameters:
+        sd: The subdomain
+        side: The side we want the cell indices for. Should take values "south",
+            "north", "west", "east", "top" or "bottom".
+
+    Returns:
+        An array with the indices of the boundary cells of a certain domain side.
+
+    """
+    if side == "south":
+        cells = self._get_boundary_cells(sd=sd, coord="y", extreme="ymin")
+    elif side == "north":
+        cells = self._get_boundary_cells(sd=sd, coord="y", extreme="ymax")
+    elif side == "west":
+        cells = self._get_boundary_cells(sd=sd, coord="x", extreme="xmin")
+    elif side == "east":
+        cells = self._get_boundary_cells(sd=sd, coord="x", extreme="xmax")
+    elif side == "top":
+        cells = self._get_boundary_cells(sd=sd, coord="z", extreme="zmax")
+    elif side == "bottom":
+        cells = self._get_boundary_cells(sd=sd, coord="z", extreme="zmin")
+    return cells
