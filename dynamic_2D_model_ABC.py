@@ -16,8 +16,8 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 2000 / self.units.m
-        y = 2000 / self.units.m
+        x = 1000 / self.units.m
+        y = 1000 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
