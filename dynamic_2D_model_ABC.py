@@ -8,8 +8,20 @@ from utils import get_solution_values
 
 
 class MyGeometry:
+    def nd_rect_domain(self, x, y) -> pp.Domain:
+        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
+
+        box.update({"ymin": 0, "ymax": y})
+
+        return pp.Domain(box)
+
+    def set_domain(self) -> None:
+        x = 2000 / self.units.m
+        y = 2000 / self.units.m
+        self._domain = self.nd_rect_domain(x, y)
+
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.25 / 32.0 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 40 / self.units.m}
         return mesh_args
 
 
@@ -220,11 +232,14 @@ class SolutionStrategySourceBC:
         vals = np.zeros((self.nd, sd.num_cells))
 
         # Assigning a one-cell source term in the middle of the domain
-        closest_cell = sd.closest_cell(np.array([[0.5], [0.5], [0.0]]))[0]
+        x_mid = self.domain.bounding_box["xmax"] / 2
+        y_mid = self.domain.bounding_box["ymax"] / 2
+        closest_cell = sd.closest_cell(np.array([[x_mid], [y_mid], [0.0]]))[0]
         vals[0][closest_cell] = 1
+        vals[1][closest_cell] = 1
 
         if self.time_manager.time_index == 1:
-            return vals.ravel("F") * 1e-8
+            return vals.ravel("F") * 1
         else:
             return vals.ravel("F") * 0
 
@@ -265,20 +280,20 @@ class MyConstitutiveLaws:
         dt = self.time_manager.dt
         cs = self.secondary_wave_speed
         cp = self.primary_wave_speed
-        rho = self.solid.density()
-
-        value = rho / dt
+        lam = self.solid.lame_lambda()
+        mu = self.solid.shear_modulus()
 
         if direction == "shear":
             if side == "north" or side == "east":
-                return value * cs
+                value = mu / (cs * dt)
             elif side == "west" or side == "south":
-                return -value * cs
+                value = mu / (cs * dt)
         elif direction == "tensile":
             if side == "north" or side == "east":
-                return value * cp
+                value = (lam + 2 * mu) / (cp * dt)
             elif side == "west" or side == "south":
-                return -value * cp
+                value = (lam + 2 * mu) / (cp * dt)
+        return value * (1)
 
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Method for reconstructing the boundary displacement.
@@ -326,7 +341,7 @@ class MyMomentumBalance(
 
 
 t_shift = 0.0
-tf = 0.1
+tf = 0.5
 dt = tf / 100.0
 
 time_manager = pp.TimeManager(
@@ -339,11 +354,10 @@ time_manager = pp.TimeManager(
 
 solid_constants = pp.SolidConstants(
     {
-        "density": 1,
-        "lame_lambda": 1,
+        "density": 2425,
+        "lame_lambda": 12e9,
         "permeability": 1,
-        "porosity": 1,
-        "shear_modulus": 1,
+        "shear_modulus": 4e9,
     }
 )
 
