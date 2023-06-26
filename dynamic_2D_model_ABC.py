@@ -9,24 +9,14 @@ from utils import get_solution_values
 
 class MyGeometry:
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.25 / 16.0 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.25 / 32.0 / self.units.m}
         return mesh_args
 
 
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         # Approximating the time derivative in the BCs and rewriting the BCs on "Robin
-        # form" gives 1/(dt*c_(p/s)) as Robin weight. c_s/c_p depends on the boundary
-        # side and displacement component. See handwritten notes/implementation
-        # plan/reference paper (Higdon, 1991).
-        dt = self.time_manager.dt
-        cp = self.primary_wave_speed
-        cs = self.secondary_wave_speed
-        lam = self.solid.lame_lambda()
-        mu = self.solid.shear_modulus()
-
-        robin_weight_tensile = (lam + 2 * mu) / (dt * cp)
-        robin_weight_shear = (mu) / (dt * cs)
+        # form" gives the Robin weights.
 
         bounds = self.domain_boundary_sides(sd)
 
@@ -37,30 +27,42 @@ class BoundaryAndInitialCond:
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
-        # value[0][0][bounds.west] *= -robin_weight_tensile
-        # value[1][1][bounds.west] *= -robin_weight_shear
+        # There might be something wrong here.
+        value[0][0][bounds.north] *= self.robin_weight_value(
+            direction="shear", side="north"
+        )
+        value[1][1][bounds.north] *= self.robin_weight_value(
+            direction="tensile", side="north"
+        )
 
-        # value[0][0][bounds.north] *= robin_weight_shear
-        # value[1][1][bounds.north] *= robin_weight_tensile
+        value[0][0][bounds.south] *= self.robin_weight_value(
+            direction="shear", side="south"
+        )
+        value[1][1][bounds.south] *= self.robin_weight_value(
+            direction="tensile", side="south"
+        )
 
-        value[0][0][bounds.south] *= robin_weight_shear
-        value[1][1][bounds.south] *= robin_weight_tensile
+        value[1][1][bounds.east] *= self.robin_weight_value(
+            direction="shear", side="east"
+        )
+        value[0][0][bounds.east] *= self.robin_weight_value(
+            direction="tensile", side="east"
+        )
 
-        # value[0][0][bounds.east] *= robin_weight_tensile
-        # value[1][1][bounds.east] *= robin_weight_shear
+        value[1][1][bounds.west] *= self.robin_weight_value(
+            direction="shear", side="west"
+        )
+        value[0][0][bounds.west] *= self.robin_weight_value(
+            direction="tensile", side="west"
+        )
 
         # Choosing type of boundary condition for the different domain sides.
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,
-            bounds.south,
+            bounds.north + bounds.south + bounds.east + bounds.west,
             "rob",
         )
-        # bc = pp.BoundaryConditionVectorial(
-        #     sd,
-        #     bounds.north + bounds.south + bounds.east + bounds.west,
-        #     "rob",
-        # )
 
         bc.robin_weight = value
         return bc
@@ -98,15 +100,6 @@ class BoundaryAndInitialCond:
         values = np.zeros((self.nd, sd.num_faces))
         displacement_values = np.zeros((self.nd, sd.num_faces))
 
-        dt = self.time_manager.dt
-        cp = self.primary_wave_speed
-        cs = self.secondary_wave_speed
-        lam = self.solid.lame_lambda()
-        mu = self.solid.shear_modulus()
-
-        robin_weight_tensile = (lam + 2 * mu) / (dt * cp)
-        robin_weight_shear = (mu) / (dt * cs)
-
         bounds = self.domain_boundary_sides(sd)
         if self.time_manager.time_index > 1:
             displacement_boundary_operator = self.boundary_displacement([sd])
@@ -119,32 +112,40 @@ class BoundaryAndInitialCond:
                 displacement_values, (self.nd, sd.num_faces)
             )
 
-        # values[0][bounds.east] += (
-        #     robin_weight_tensile * displacement_values[0][bounds.east]
-        # )
-        # values[1][bounds.east] += (
-        #     robin_weight_shear * displacement_values[1][bounds.east]
-        # )
-
-        # values[0][bounds.west] += -(
-        #     robin_weight_tensile * displacement_values[0][bounds.west]
-        # )
-        # values[1][bounds.west] += -(
-        #     robin_weight_shear * displacement_values[1][bounds.west]
-        # )
-
-        # values[0][bounds.north] += (
-        #     robin_weight_shear * displacement_values[0][bounds.north]
-        # )
-        # values[1][bounds.north] += (
-        #     robin_weight_tensile * displacement_values[1][bounds.north]
-        # )
+        values[0][bounds.north] += (
+            self.robin_weight_value(direction="shear", side="north")
+            * displacement_values[0][bounds.north]
+        )
+        values[1][bounds.north] += (
+            self.robin_weight_value(direction="tensile", side="north")
+            * displacement_values[1][bounds.north]
+        )
 
         values[0][bounds.south] += (
-            robin_weight_shear * displacement_values[0][bounds.south]
+            self.robin_weight_value(direction="shear", side="south")
+            * displacement_values[0][bounds.south]
         )
         values[1][bounds.south] += (
-            robin_weight_tensile * displacement_values[1][bounds.south]
+            self.robin_weight_value(direction="tensile", side="south")
+            * displacement_values[1][bounds.south]
+        )
+
+        values[1][bounds.east] += (
+            self.robin_weight_value(direction="shear", side="east")
+            * displacement_values[1][bounds.east]
+        )
+        values[0][bounds.east] += (
+            self.robin_weight_value(direction="tensile", side="east")
+            * displacement_values[0][bounds.east]
+        )
+
+        values[0][bounds.west] += (
+            self.robin_weight_value(direction="tensile", side="west")
+            * displacement_values[0][bounds.west]
+        )
+        values[1][bounds.west] += (
+            self.robin_weight_value(direction="shear", side="west")
+            * displacement_values[1][bounds.west]
         )
 
         return values.ravel("F")
@@ -218,10 +219,11 @@ class SolutionStrategySourceBC:
         # 2D hardcoded
         vals = np.zeros((self.nd, sd.num_cells))
 
-        vals[0][2527:2528] = 1
-        vals[1][2527:2528] = 1
+        # Assigning a one-cell source term in the middle of the domain
+        closest_cell = sd.closest_cell(np.array([[0.5], [0.5], [0.0]]))[0]
+        vals[0][closest_cell] = 1
 
-        if self.time_manager.time_index <= 1:
+        if self.time_manager.time_index == 1:
             return vals.ravel("F") * 1e-8
         else:
             return vals.ravel("F") * 0
@@ -248,6 +250,36 @@ class SolutionStrategySourceBC:
 
 
 class MyConstitutiveLaws:
+    def robin_weight_value(self, direction: str, side: str) -> float:
+        """Shear Robin weight for Robin boundary conditions.
+
+        Parameters:
+            direction: Whether the boundary condition that uses the weight is the shear
+                or tensile component of the displacement.
+            side: Which boundary side is considered. This alters the sign of the weight.
+
+        Returns:
+            The weight/coefficient for use in the Robing boundary conditions.
+
+        """
+        dt = self.time_manager.dt
+        cs = self.secondary_wave_speed
+        cp = self.primary_wave_speed
+        rho = self.solid.density()
+
+        value = rho / dt
+
+        if direction == "shear":
+            if side == "north" or side == "east":
+                return value * cs
+            elif side == "west" or side == "south":
+                return -value * cs
+        elif direction == "tensile":
+            if side == "north" or side == "east":
+                return value * cp
+            elif side == "west" or side == "south":
+                return -value * cp
+
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Method for reconstructing the boundary displacement.
 
