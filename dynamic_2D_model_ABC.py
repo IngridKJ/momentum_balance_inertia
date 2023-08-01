@@ -7,6 +7,16 @@ from utils import body_force_function
 from utils import get_solution_values
 
 
+class NewmarkConstants:
+    @property
+    def gamma(self) -> float:
+        return 0.5
+
+    @property
+    def beta(self) -> float:
+        return 0.25
+
+
 class MyGeometry:
     def nd_rect_domain(self, x, y) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
@@ -21,7 +31,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 40 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 20 / self.units.m}
         return mesh_args
 
 
@@ -32,8 +42,8 @@ class BoundaryAndInitialCond:
 
         bounds = self.domain_boundary_sides(sd)
 
-        # These two lines provides an array with 2 components. The first component is a
-        # 2d array with ones in the first row and zeros in thesecond. The second
+        # These two lines provide an array with 2 components. The first component is a
+        # 2d array with ones in the first row and zeros in the second. The second
         # component is also a 2d array, but now the first row is zeros and the second
         # row is ones.
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
@@ -107,8 +117,10 @@ class BoundaryAndInitialCond:
             Array of boundary values.
 
         """
+        # Equidimensional hard code
         assert len(subdomains) == 1
         sd = subdomains[0]
+
         values = np.zeros((self.nd, sd.num_faces))
         displacement_values = np.zeros((self.nd, sd.num_faces))
 
@@ -133,11 +145,11 @@ class BoundaryAndInitialCond:
             * displacement_values[1][bounds.north]
         )
 
-        values[0][bounds.south] += (
+        values[0][bounds.south] -= (
             self.robin_weight_value(direction="shear", side="south")
             * displacement_values[0][bounds.south]
         )
-        values[1][bounds.south] += (
+        values[1][bounds.south] -= (
             self.robin_weight_value(direction="tensile", side="south")
             * displacement_values[1][bounds.south]
         )
@@ -151,13 +163,13 @@ class BoundaryAndInitialCond:
             * displacement_values[0][bounds.east]
         )
 
-        values[0][bounds.west] += (
-            self.robin_weight_value(direction="tensile", side="west")
-            * displacement_values[0][bounds.west]
-        )
-        values[1][bounds.west] += (
+        values[1][bounds.west] -= (
             self.robin_weight_value(direction="shear", side="west")
             * displacement_values[1][bounds.west]
+        )
+        values[0][bounds.west] -= (
+            self.robin_weight_value(direction="tensile", side="west")
+            * displacement_values[0][bounds.west]
         )
 
         return values.ravel("F")
@@ -165,7 +177,7 @@ class BoundaryAndInitialCond:
     def initial_condition(self):
         """Assigning initial bc values."""
         super().initial_condition()
-        self.update_time_dependent_bc(initial=True)
+        # self.update_time_dependent_bc(initial=True)
 
 
 class SolutionStrategySourceBC:
@@ -236,9 +248,9 @@ class SolutionStrategySourceBC:
         y_mid = self.domain.bounding_box["ymax"] / 2
         closest_cell = sd.closest_cell(np.array([[x_mid], [y_mid], [0.0]]))[0]
         vals[0][closest_cell] = 1
-        vals[1][closest_cell] = 1
+        # vals[1][closest_cell] = 1
 
-        if self.time_manager.time_index == 1:
+        if self.time_manager.time_index <= 1:
             return vals.ravel("F") * 1
         else:
             return vals.ravel("F") * 0
@@ -257,11 +269,8 @@ class SolutionStrategySourceBC:
         )
 
         # Update time dependent bc
-        # CHECK: Is this method called in the "same loop" as initial cond? Are they
-        # updated twice?
-        # Yes. It is initiated, and then updated again for iterate solutions in this
-        # method. Revisit whether this is the intention or not.
-        self.update_time_dependent_bc(initial=False)
+        # Check this and initial condition for bc
+        self.update_time_dependent_bc(initial=True)
 
 
 class MyConstitutiveLaws:
@@ -274,12 +283,14 @@ class MyConstitutiveLaws:
             side: Which boundary side is considered. This alters the sign of the weight.
 
         Returns:
-            The weight/coefficient for use in the Robing boundary conditions.
+            The weight/coefficient for use in the Robin boundary conditions.
 
         """
         dt = self.time_manager.dt
+
         cs = self.secondary_wave_speed
         cp = self.primary_wave_speed
+
         lam = self.solid.lame_lambda()
         mu = self.solid.shear_modulus()
 
@@ -287,13 +298,13 @@ class MyConstitutiveLaws:
             if side == "north" or side == "east":
                 value = mu / (cs * dt)
             elif side == "west" or side == "south":
-                value = mu / (cs * dt)
+                value = -mu / (cs * dt)
         elif direction == "tensile":
             if side == "north" or side == "east":
                 value = (lam + 2 * mu) / (cp * dt)
             elif side == "west" or side == "south":
-                value = (lam + 2 * mu) / (cp * dt)
-        return value * (1)
+                value = -(lam + 2 * mu) / (cp * dt)
+        return value
 
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Method for reconstructing the boundary displacement.
@@ -320,7 +331,14 @@ class MyConstitutiveLaws:
         displacement = self.displacement(subdomains)
 
         # The boundary displacement is the sum of the boundary cell displacement and the
-        # boundary face displacement?
+        # boundary face displacement.
+
+        # Example usage:
+        # porepy\utils\examples_utils.py
+        # Other note, from the file referenced above:
+        # "Compute the pseudo-trace of the displacement
+        # Note that this is not the real trace, as this only holds for particular
+        # choices of boundary condtions.""
         boundary_displacement = (
             discr.bound_displacement_cell @ displacement
             + discr.bound_displacement_face @ bc
@@ -331,6 +349,7 @@ class MyConstitutiveLaws:
 
 
 class MyMomentumBalance(
+    NewmarkConstants,
     BoundaryAndInitialCond,
     MyGeometry,
     SolutionStrategySourceBC,
@@ -341,8 +360,8 @@ class MyMomentumBalance(
 
 
 t_shift = 0.0
-tf = 0.5
-dt = tf / 100.0
+tf = 0.4
+dt = tf / 200.0
 
 time_manager = pp.TimeManager(
     schedule=[0.0 + t_shift, tf + t_shift],
@@ -354,19 +373,20 @@ time_manager = pp.TimeManager(
 
 solid_constants = pp.SolidConstants(
     {
-        "density": 2425,
-        "lame_lambda": 12e9,
-        "permeability": 1,
-        "shear_modulus": 4e9,
+        "density": 2425.0,
+        "lame_lambda": 12.0e9,
+        "permeability": 1.0,
+        "shear_modulus": 4.5e9,
     }
 )
 
 material_constants = {"solid": solid_constants}
 params = {
     "time_manager": time_manager,
+    "grid_type": "cartesian",
     "material_constants": material_constants,
-    "folder_name": "rob",
-    "manufactured_solution": "simply_zero",
+    "folder_name": "testing",
+    "manufactured_solution": "bubble_1000",
     "progressbars": True,
 }
 model = MyMomentumBalance(params)
