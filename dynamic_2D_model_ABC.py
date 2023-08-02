@@ -31,7 +31,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 20 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 20 / 2 / self.units.m}
         return mesh_args
 
 
@@ -49,7 +49,6 @@ class BoundaryAndInitialCond:
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
-        # There might be something wrong here.
         value[0][0][bounds.north] *= self.robin_weight_value(
             direction="shear", side="north"
         )
@@ -79,7 +78,6 @@ class BoundaryAndInitialCond:
         )
 
         # Choosing type of boundary condition for the different domain sides.
-        bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,
             bounds.north + bounds.south + bounds.east + bounds.west,
@@ -120,21 +118,28 @@ class BoundaryAndInitialCond:
         # Equidimensional hard code
         assert len(subdomains) == 1
         sd = subdomains[0]
+        data = self.mdg.subdomain_data(sd)
 
         values = np.zeros((self.nd, sd.num_faces))
-        displacement_values = np.zeros((self.nd, sd.num_faces))
-
         bounds = self.domain_boundary_sides(sd)
+
         if self.time_manager.time_index > 1:
+            # Most recent "get face displacement"-idea: Create them using
+            # bound_displacement_face/cell from second timestep and ongoing.
             displacement_boundary_operator = self.boundary_displacement([sd])
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
 
-            # Reshape for further use
-            displacement_values = np.reshape(
-                displacement_values, (self.nd, sd.num_faces)
+        else:
+            # On first timestep, initial values are fetched from the data dictionary.
+            # These initial values are assigned in the initial_condition function.
+            # Currently just set to zero...
+            displacement_values = get_solution_values(
+                name=self.bc_values_mechanics_key, data=data, time_step_index=0
             )
+
+        displacement_values = np.reshape(displacement_values, (self.nd, sd.num_faces))
 
         values[0][bounds.north] += (
             self.robin_weight_value(direction="shear", side="north")
@@ -177,6 +182,25 @@ class BoundaryAndInitialCond:
     def initial_condition(self):
         """Assigning initial bc values."""
         super().initial_condition()
+
+        sd = self.mdg.subdomains(dim=2)[0]
+        data = self.mdg.subdomain_data(sd)
+
+        bc_vals = np.zeros((sd.dim, sd.num_faces))
+        bc_vals = bc_vals.flatten()
+
+        pp.set_solution_values(
+            name=self.bc_values_mechanics_key,
+            values=bc_vals,
+            data=data,
+            time_step_index=0,
+        )
+        pp.set_solution_values(
+            name=self.bc_values_mechanics_key,
+            values=bc_vals,
+            data=data,
+            iterate_index=0,
+        )
         # self.update_time_dependent_bc(initial=True)
 
 
@@ -240,7 +264,6 @@ class SolutionStrategySourceBC:
             An array of source values.
 
         """
-        # 2D hardcoded
         vals = np.zeros((self.nd, sd.num_cells))
 
         # Assigning a one-cell source term in the middle of the domain
@@ -248,10 +271,10 @@ class SolutionStrategySourceBC:
         y_mid = self.domain.bounding_box["ymax"] / 2
         closest_cell = sd.closest_cell(np.array([[x_mid], [y_mid], [0.0]]))[0]
         vals[0][closest_cell] = 1
-        # vals[1][closest_cell] = 1
+        vals[1][closest_cell] = 1
 
-        if self.time_manager.time_index <= 1:
-            return vals.ravel("F") * 1
+        if self.time_manager.time_index <= 200:
+            return vals.ravel("F") * self.time_manager.time
         else:
             return vals.ravel("F") * 0
 
@@ -268,8 +291,7 @@ class SolutionStrategySourceBC:
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
 
-        # Update time dependent bc
-        # Check this and initial condition for bc
+        # Update time dependent bc before next solve.
         self.update_time_dependent_bc(initial=True)
 
 
@@ -295,15 +317,13 @@ class MyConstitutiveLaws:
         mu = self.solid.shear_modulus()
 
         if direction == "shear":
-            if side == "north" or side == "east":
-                value = mu / (cs * dt)
-            elif side == "west" or side == "south":
-                value = -mu / (cs * dt)
+            value = mu / (cs * dt)
+            if side == "west" or side == "south":
+                value = (-1) * value
         elif direction == "tensile":
-            if side == "north" or side == "east":
-                value = (lam + 2 * mu) / (cp * dt)
-            elif side == "west" or side == "south":
-                value = -(lam + 2 * mu) / (cp * dt)
+            value = (lam + 2 * mu) / (cp * dt)
+            if side == "west" or side == "south":
+                value = -1 * value
         return value
 
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
@@ -333,12 +353,16 @@ class MyConstitutiveLaws:
         # The boundary displacement is the sum of the boundary cell displacement and the
         # boundary face displacement.
 
-        # Example usage:
+        # Example usage within porepy:
         # porepy\utils\examples_utils.py
+
         # Other note, from the file referenced above:
         # "Compute the pseudo-trace of the displacement
         # Note that this is not the real trace, as this only holds for particular
-        # choices of boundary condtions.""
+        # choices of boundary condtions."
+
+        # Possible reason things are incorrect: Are the boundary conditions updated at
+        # the correct time-step?
         boundary_displacement = (
             discr.bound_displacement_cell @ displacement
             + discr.bound_displacement_face @ bc
@@ -360,8 +384,8 @@ class MyMomentumBalance(
 
 
 t_shift = 0.0
-tf = 0.4
-dt = tf / 200.0
+tf = 0.8
+dt = tf / 800.0
 
 time_manager = pp.TimeManager(
     schedule=[0.0 + t_shift, tf + t_shift],
@@ -386,7 +410,7 @@ params = {
     "grid_type": "cartesian",
     "material_constants": material_constants,
     "folder_name": "testing",
-    "manufactured_solution": "bubble_1000",
+    "manufactured_solution": "simply_zero",
     "progressbars": True,
 }
 model = MyMomentumBalance(params)
