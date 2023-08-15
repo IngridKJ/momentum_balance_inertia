@@ -66,6 +66,28 @@ class NamesAndConstants:
         return np.sqrt(mu / rho)
 
 
+class MyGeometry:
+    def nd_rect_domain(self, x, y) -> pp.Domain:
+        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
+
+        box.update({"ymin": 0, "ymax": y})
+
+        return pp.Domain(box)
+
+    def set_domain(self) -> None:
+        # 2D hardcoded
+        x = 1.0 / self.units.m
+        y = 1.0 / self.units.m
+        self._domain = self.nd_rect_domain(x, y)
+
+    def grid_type(self) -> str:
+        return self.params.get("grid_type", "cartesian")
+
+    def meshing_arguments(self) -> dict:
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        return mesh_args
+
+
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
         inertia_mass = self.inertia(subdomains)
@@ -377,6 +399,7 @@ class TimeDependentSourceTerm:
 
 class DynamicMomentumBalance(
     NamesAndConstants,
+    MyGeometry,
     MyEquations,
     TimeDependentSourceTerm,
     MySolutionStrategy,

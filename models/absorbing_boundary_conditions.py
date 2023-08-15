@@ -1,47 +1,13 @@
-"""
-This file is to be deprecated. I have done some slight refactoring for both the
-ABC-model and for the time dependent source term model. So instead of the model for each
-of them living within their respective runscripts, they are now separated in a nicer
-manner in the models directory. This to avoid the model for ABCs to inherit from a
-runscript ...
-
-"""
 import porepy as pp
 import numpy as np
 
-from dynamic_2D_model import MyMomentumBalance
-from models import MomentumBalanceABC
+from models import MomentumBalanceTimeDepSource
 
-from utils import body_force_function
+import sys
+
+sys.path.append("../utils")
+
 from utils import get_solution_values
-
-
-class NewmarkConstants:
-    @property
-    def gamma(self) -> float:
-        return 0.5
-
-    @property
-    def beta(self) -> float:
-        return 0.25
-
-
-class MyGeometry:
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = 100.0 / self.units.m
-        y = 500.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y)
-
-    def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 1.0 / self.units.m}
-        return mesh_args
 
 
 class BoundaryAndInitialCond:
@@ -209,10 +175,9 @@ class BoundaryAndInitialCond:
             data=data,
             iterate_index=0,
         )
-        # self.update_time_dependent_bc(initial=True)
 
 
-class SolutionStrategySourceBC:
+class SolutionStrategyABC:
     def update_time_dependent_bc(self, initial: bool) -> None:
         """Method for updating the time dependent boundary conditions.
 
@@ -260,53 +225,14 @@ class SolutionStrategySourceBC:
                 iterate_index=0,
             )
 
-    def source_values_(self, f, sd, t) -> np.ndarray:
-        """Computes the integrated source values by the source function.
-
-        Parameters:
-            f: Function depending on time and space for the source term.
-            sd: Subdomain where the source term is defined.
-            t: Current time in the time-stepping.
-
-        Returns:
-            An array of source values.
-
-        """
-        vals = np.zeros((self.nd, sd.num_cells))
-
-        # Assigning a one-cell source term in the middle of the domain
-        # x_point = self.domain.bounding_box["xmax"] / 2
-        # y_point = self.domain.bounding_box["ymax"] / 2
-        x_point = self.domain.bounding_box["xmax"] / 2
-        y_point = self.domain.bounding_box["ymax"] * 0.8
-        closest_cell = sd.closest_cell(np.array([[x_point], [y_point], [0.0]]))[0]
-        # vals[0][closest_cell] = 1
-        vals[1][closest_cell] = 1
-
-        if self.time_manager.time_index <= 200:
-            return vals.ravel("F") * self.time_manager.time
-        else:
-            return vals.ravel("F") * 0
-
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources and time dependent bc values."""
-        sd = self.mdg.subdomains()[0]
-        data = self.mdg.subdomain_data(sd)
-        t = self.time_manager.time
-
-        # Mechanics source
-
-        source_func = body_force_function(self)
-        mech_source = self.source_values(source_func, sd, t)
-        pp.set_solution_values(
-            name="source_mechanics", values=mech_source, data=data, iterate_index=0
-        )
-
+        super().before_nonlinear_loop()
         # Update time dependent bc before next solve.
         self.update_time_dependent_bc(initial=True)
 
 
-class MyConstitutiveLaws:
+class ConstitutiveLawsABC:
     def robin_weight_value(self, direction: str, side: str) -> float:
         """Shear Robin weight for Robin boundary conditions.
 
@@ -383,77 +309,10 @@ class MyConstitutiveLaws:
         return boundary_displacement
 
 
-class MyGeometry:
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = 100.0 / self.units.m
-        y = 500.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y)
-
-    def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 1.0 / self.units.m}
-        return mesh_args
-
-
-class MyMomentumBalanceABC(
+class MomentumBalanceABC(
     BoundaryAndInitialCond,
-    MyGeometry,
-    SolutionStrategySourceBC,
-    MyConstitutiveLaws,
-    MyMomentumBalance,
+    SolutionStrategyABC,
+    ConstitutiveLawsABC,
+    MomentumBalanceTimeDepSource,
 ):
     ...
-
-
-t_shift = 0.0
-tf = 1.0
-dt = tf / 100.0
-
-time_manager = pp.TimeManager(
-    schedule=[0.0 + t_shift, tf + t_shift],
-    dt_init=dt,
-    constant_dt=True,
-    iter_max=10,
-    print_info=True,
-)
-
-solid_constants = pp.SolidConstants(
-    {
-        "density": 1.0,
-        "lame_lambda": 1.0,
-        "shear_modulus": 1.0,
-    }
-)
-# solid_constants = pp.SolidConstants(
-#     {
-#         "density": 2425.0,
-#         "lame_lambda": 9.0e9,
-#         "permeability": 1.0,
-#         "shear_modulus": 4.5e9,
-#     }
-# )
-
-material_constants = {"solid": solid_constants}
-params = {
-    "time_manager": time_manager,
-    "grid_type": "cartesian",
-    "material_constants": material_constants,
-    "folder_name": "testing_2",
-    "manufactured_solution": "unit_test",
-    "progressbars": True,
-}
-model = MyMomentumBalanceABC(params)
-
-
-# Try at refactoring
-# class Refactored(MyGeometry, MomentumBalanceABC):
-#     ...
-# model = Refactored(params)
-
-pp.run_time_dependent_model(model, params)

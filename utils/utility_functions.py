@@ -200,12 +200,17 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         )
 
     x, y, t = sym.symbols("x y t")
-
+    cp = model.primary_wave_speed
+    cs = model.secondary_wave_speed
     manufactured_sol = model.params.get("manufactured_solution", "bubble")
-    if manufactured_sol == "bubble":
+    if manufactured_sol == "unit_test":
+        u1 = sym.sin(x - cp * t)
+        u2 = 0
+        u = [u1, u2]
+    elif manufactured_sol == "bubble":
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
-    if manufactured_sol == "bubble_1000":
+    elif manufactured_sol == "bubble_1000":
         u1 = u2 = t**2 * x * (1000 - x) * y * (1000 - y)
         u = [u1, u2]
     elif manufactured_sol == "sin_bubble":

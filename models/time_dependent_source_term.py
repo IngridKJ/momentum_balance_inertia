@@ -2,45 +2,13 @@ import porepy as pp
 import numpy as np
 
 from models import DynamicMomentumBalance
-from models import MomentumBalanceTimeDepSource
+
+import sys
+
+sys.path.append("../utils")
 
 from utils import body_force_function
 from utils import u_v_a_wrap
-from utils import get_solution_values
-from utils import cell_center_function_evaluation
-
-
-class NewmarkConstants:
-    @property
-    def gamma(self) -> float:
-        return 0.5
-
-    @property
-    def beta(self) -> float:
-        return 0.25
-
-
-class MyGeometry:
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        # 2D hardcoded
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        # 2D hardcoded
-        x = 1 / self.units.m
-        y = 1 / self.units.m
-        self._domain = self.nd_rect_domain(x, y)
-
-    def grid_type(self) -> str:
-        return self.params.get("grid_type", "cartesian")
-
-    def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
-        return mesh_args
 
 
 class BoundaryAndInitialCond:
@@ -56,7 +24,6 @@ class BoundaryAndInitialCond:
 
     def initial_displacement(self, dofs: int) -> np.ndarray:
         """Initial displacement values."""
-        # 2D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
@@ -73,7 +40,6 @@ class BoundaryAndInitialCond:
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
         """Initial velocity values."""
-        # 2D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
@@ -90,7 +56,6 @@ class BoundaryAndInitialCond:
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
-        # 2D hardcoded
         sd = self.mdg.subdomains()[0]
 
         x = sd.cell_centers[0, :]
@@ -137,7 +102,6 @@ class Source:
             An array of source values.
 
         """
-        # 2D hardcoded
         vals = np.zeros((self.nd, sd.num_cells))
 
         x = sd.cell_centers[0, :]
@@ -153,54 +117,10 @@ class Source:
 
         return vals.ravel("F")
 
-        # For "manual" convergence analysis/error comp: See here and above function in
-        # commits before 15.08.2023.
 
-
-class MyMomentumBalance(
-    NewmarkConstants,
+class MomentumBalanceTimeDepSource(
     BoundaryAndInitialCond,
-    MyGeometry,
     Source,
     DynamicMomentumBalance,
 ):
     ...
-
-
-t_shift = 0.0
-dt = 1.0 / 10.0
-tf = 1.0
-
-time_manager = pp.TimeManager(
-    schedule=[0.0 + t_shift, tf + t_shift],
-    dt_init=dt,
-    constant_dt=True,
-    iter_max=10,
-    print_info=True,
-)
-
-solid_constants = pp.SolidConstants(
-    {
-        "density": 1,
-        "lame_lambda": 1,
-        "permeability": 1,
-        "porosity": 1,
-        "shear_modulus": 1,
-    }
-)
-
-material_constants = {"solid": solid_constants}
-params = {
-    "time_manager": time_manager,
-    "material_constants": material_constants,
-    "folder_name": "test_convergence_viz",
-    "manufactured_solution": "bubble",
-    "progressbars": True,
-}
-model = MyMomentumBalance(params)
-
-# First try at some refactoring. This is now possible instead of all the stuff above.
-# model = TimeDepSourceMomentumBalance(params)
-
-if __name__ == "__main__":
-    pp.run_time_dependent_model(model, params)
