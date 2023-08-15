@@ -48,8 +48,8 @@ follows:
 * [manufactured_solution_dynamic](./manufactured_solution_dynamic.py) is implementation
   of a verification setup for the dynamic momentum balance.
 
-This verification setup takes use of the model defined within
-[dynamic_2D_model](./dynamic_2D_model.py).
+The verification setup takes use of [this](./models/time_dependent_source_term.py)
+model.
 
 
 ## Sanity check
