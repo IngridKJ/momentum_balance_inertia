@@ -5,7 +5,8 @@ dynamic momentum balance equation (elastic wave equation) can be solved.
 
 Specifically, this includes implementation of the Newmark time discretization scheme.
 The implementation is verified by convergence analysis using manufactured analytical
-solution.
+solution. Every time the source code concerning the "core" implementation has been
+refactored, a convergence analysis is run prior to pushing - just in case.
 
 ## Models
 Models are found within the [models](./models/) directory:
@@ -28,8 +29,8 @@ Models are found within the [models](./models/) directory:
 ### "Old" runscripts
 I am working with refactoring the models. The refactoring is done, but not all
 runscripts are updated accordingly. The idea is to avoid having the "original" modified
-models defined in runscripts, like in the files listed below. So, these scripts (should)
-work.
+models defined in runscripts, like in the files listed below. However, these scripts
+(should) still work.
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
   successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).

@@ -3,9 +3,9 @@
 In short, functions in this file are called for fetching values from data dictionary and
 for creating source terms corresponding to analytical solutions. These analytical
 solutions are determined by the "manufactured_solution" key value in the params
-dictionary. The latter uses symbolic differentiation provided by sympy. Running other
-manufactured solutions than those already present is easily done by adding the
-expression for it where the manufactured solution is defined.
+dictionary. Creation of source terms uses symbolic differentiation provided by sympy.
+Therefore, running other manufactured solutions than those already present is easily
+done by adding the expression for it where the manufactured solution is defined.
 
 In addition to this there is a function for fetching cell indices of boundary cells. It
 might be done in a brute force way, and the functionality may already lie within PorePy,
