@@ -17,15 +17,19 @@ Models are found within the [models](./models/) directory:
 * [time_dependent_source_term](./models/time_dependent_source_term.py) is a model
   indlucing a time dependent source term. It inherits from [the basic
   model](./models/dynamic_momentum_balance.py).
-* [absorbing_boundary_conditions](./models/absorbing_boundary_conditions.py) is a model
-  that has absorbing boundary conditions included (WIP).
+* (WIP) [absorbing_boundary_conditions](./models/absorbing_boundary_conditions.py) is a
+  model that has absorbing boundary conditions included. It inherits from the [time
+  dependent source term](./models/time_dependent_source_term.py) model.
 
 
 ## Runscripts and modified models
-I am working with refactoring the models. The idea is to avoid having the "original"
-modified models defined in runscripts, as in most of the files listed below. The
-refactoring is done, but not all runscripts are updated properly. Newer runscripts will
-use the refactored models.
+* [runscript_absorbing_boundary_conditions](./runscript_absorbing_boundary_conditions.py)
+  is for running the 2D model with absorbing boundary conditions.
+### "Old" runscripts
+I am working with refactoring the models. The refactoring is done, but not all
+runscripts are updated accordingly. The idea is to avoid having the "original" modified
+models defined in runscripts, like in the files listed below. So, these scripts (should)
+work.
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
   successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
@@ -34,10 +38,6 @@ use the refactored models.
 * [dynamic_2D_model_ABC](./dynamic_2D_model_ABC.py) is for dynamic momentum balance with
   absorbing boundary conditions (ABCs).
 * [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
-* [runscript_absorbing_boundary_conditions](./runscript_absorbing_boundary_conditions.py)
-  is for running the 2D model with absorbing boundary conditions.
-
-
 ## Actual verification setup
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
 follows:
