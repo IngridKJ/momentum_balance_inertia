@@ -451,9 +451,4 @@ params = {
 model = MyMomentumBalanceABC(params)
 
 
-# Try at refactoring
-# class Refactored(MyGeometry, MomentumBalanceABC):
-#     ...
-# model = Refactored(params)
-
 pp.run_time_dependent_model(model, params)

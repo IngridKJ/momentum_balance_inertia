@@ -199,8 +199,5 @@ params = {
 }
 model = MyMomentumBalance(params)
 
-# First try at some refactoring. This is now possible instead of all the stuff above.
-# model = TimeDepSourceMomentumBalance(params)
-
 if __name__ == "__main__":
     pp.run_time_dependent_model(model, params)
