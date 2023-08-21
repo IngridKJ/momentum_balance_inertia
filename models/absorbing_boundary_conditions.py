@@ -226,7 +226,7 @@ class SolutionStrategyABC:
             )
 
     def before_nonlinear_loop(self) -> None:
-        """Update values of external sources and time dependent bc values."""
+        """Update time dependent bc values."""
         super().before_nonlinear_loop()
         # Update time dependent bc before next solve.
         self.update_time_dependent_bc(initial=True)
