@@ -73,12 +73,7 @@ class BoundaryAndInitialCond:
 
 class Source:
     def before_nonlinear_loop(self) -> None:
-        """Update values of external sources.
-
-        Currently also used for setting exact values for displacement, velocity and
-        acceleration for use in debugging/verification/convergence analysis.
-
-        """
+        """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time

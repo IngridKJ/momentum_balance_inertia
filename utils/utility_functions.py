@@ -148,6 +148,21 @@ def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
 def symbolic_representation(
     model, is_2D: bool = True, return_dt=False, return_ddt=False
 ) -> tuple:
+    """Wrapper for symbolic representation of functions.
+
+    Parameters:
+        model: The model class
+        is_2D: Flag for whether the problem is 2D or not. Defaults to True.
+        return_dt: Flag for whether the time derivative of the function should be
+            returned. Defaults to False.
+        return_ddt: Flag for whether the second time derivative of the function should
+            be returned. Defaults to False.
+
+    Returns:
+        The symbolic representation of either the displacement, velocity or
+        acceleration.
+
+    """
     if is_2D:
         return _symbolic_representation_2D(
             model=model, return_dt=return_dt, return_ddt=return_ddt
@@ -770,7 +785,7 @@ def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarr
     elif coord == "y":
         coord = 1
     elif coord == "z":
-        coord = 3
+        coord = 2
 
     faces = sd.get_all_boundary_faces()
     face_centers = sd.face_centers
