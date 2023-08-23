@@ -24,8 +24,8 @@ Models are found within the [models](./models/) directory:
 
 
 ## Runscripts and modified models
-* [runscript_absorbing_boundary_conditions](./runscript_absorbing_boundary_conditions.py)
-  is for running the 2D model with absorbing boundary conditions.
+* [unit_test_ABC](./unit_test_ABC.py) is for running the 2D model with absorbing 
+boundary conditions.
 ### "Old" runscripts
 I am working with refactoring the models. The refactoring is done, but not all
 runscripts are updated accordingly. The idea is to avoid having the "original" modified

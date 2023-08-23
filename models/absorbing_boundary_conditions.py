@@ -114,7 +114,9 @@ class BoundaryAndInitialCond:
                 name=self.bc_values_mechanics_key, data=data, time_step_index=0
             )
 
-        displacement_values = np.reshape(displacement_values, (self.nd, sd.num_faces))
+        displacement_values = np.reshape(
+            displacement_values, (self.nd, sd.num_faces), "F"
+        )
 
         values[0][bounds.north] += (
             self.robin_weight_value(direction="shear", side="north")
@@ -178,6 +180,9 @@ class BoundaryAndInitialCond:
 
 
 class SolutionStrategyABC:
+    def _is_nonlinear_problem(self) -> bool:
+        return True
+
     def update_time_dependent_bc(self, initial: bool) -> None:
         """Method for updating the time dependent boundary conditions.
 
@@ -228,8 +233,9 @@ class SolutionStrategyABC:
     def before_nonlinear_loop(self) -> None:
         """Update time dependent bc values."""
         super().before_nonlinear_loop()
+
         # Update time dependent bc before next solve.
-        self.update_time_dependent_bc(initial=True)
+        self.update_time_dependent_bc(initial=False)
 
 
 class ConstitutiveLawsABC:
