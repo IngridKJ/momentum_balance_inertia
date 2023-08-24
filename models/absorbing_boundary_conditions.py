@@ -93,6 +93,7 @@ class BoundaryAndInitialCond:
         # Equidimensional hard code
         assert len(subdomains) == 1
         sd = subdomains[0]
+        face_areas = sd.face_areas
         data = self.mdg.subdomain_data(sd)
 
         values = np.zeros((self.nd, sd.num_faces))
@@ -121,38 +122,38 @@ class BoundaryAndInitialCond:
         values[0][bounds.north] += (
             self.robin_weight_value(direction="shear", side="north")
             * displacement_values[0][bounds.north]
-        )
+        ) * face_areas[bounds.north]
         values[1][bounds.north] += (
             self.robin_weight_value(direction="tensile", side="north")
             * displacement_values[1][bounds.north]
-        )
+        ) * face_areas[bounds.north]
 
         values[0][bounds.south] -= (
             self.robin_weight_value(direction="shear", side="south")
             * displacement_values[0][bounds.south]
-        )
+        ) * face_areas[bounds.south]
         values[1][bounds.south] -= (
             self.robin_weight_value(direction="tensile", side="south")
             * displacement_values[1][bounds.south]
-        )
+        ) * face_areas[bounds.south]
 
         values[1][bounds.east] += (
             self.robin_weight_value(direction="shear", side="east")
             * displacement_values[1][bounds.east]
-        )
+        ) * face_areas[bounds.east]
         values[0][bounds.east] += (
             self.robin_weight_value(direction="tensile", side="east")
             * displacement_values[0][bounds.east]
-        )
+        ) * face_areas[bounds.east]
 
         values[1][bounds.west] -= (
             self.robin_weight_value(direction="shear", side="west")
             * displacement_values[1][bounds.west]
-        )
+        ) * face_areas[bounds.west]
         values[0][bounds.west] -= (
             self.robin_weight_value(direction="tensile", side="west")
             * displacement_values[0][bounds.west]
-        )
+        ) * face_areas[bounds.west]
         return values.ravel("F")
 
     def initial_condition(self):

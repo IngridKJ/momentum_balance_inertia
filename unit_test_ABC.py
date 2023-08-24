@@ -14,8 +14,6 @@ Boundary conditions are:
 import porepy as pp
 import numpy as np
 
-from typing import Optional
-
 from models import MomentumBalanceABC
 
 from utils import get_solution_values
@@ -70,6 +68,7 @@ class DifferentBC:
         """
         assert len(subdomains) == 1
         sd = subdomains[0]
+        face_areas = sd.face_areas
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
 
@@ -91,7 +90,7 @@ class DifferentBC:
                 name=self.bc_values_mechanics_key, data=data, time_step_index=0
             )
 
-        # Note to self: The "F" here is crucial:)
+        # Note to self: The "F" here is crucial.
         displacement_values = np.reshape(
             displacement_values, (self.nd, sd.num_faces), "F"
         )
@@ -105,14 +104,16 @@ class DifferentBC:
         values[1][bounds.south] = np.zeros(len(displacement_values[1][bounds.south]))
 
         # Values for the absorbing boundary
+        # Scaling with face area is crucial for the ABCs.This is due to the way we
+        # handle the time derivative.
         values[1][bounds.east] += (
             self.robin_weight_value(direction="shear", side="east")
             * displacement_values[1][bounds.east]
-        )
+        ) * face_areas[bounds.east]
         values[0][bounds.east] += (
             self.robin_weight_value(direction="tensile", side="east")
             * displacement_values[0][bounds.east]
-        )
+        ) * face_areas[bounds.east]
 
         # Values for the eastern side sine wave
         values[0][bounds.west] += np.ones(
@@ -132,11 +133,11 @@ class MyGeometry:
 
     def set_domain(self) -> None:
         x = 40.0 / self.units.m
-        y = 30.0 / self.units.m
+        y = 20.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 1.0 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.5 / self.units.m}
         return mesh_args
 
 
@@ -283,7 +284,7 @@ params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
     "material_constants": material_constants,
-    "folder_name": "testing_4",
+    "folder_name": "scaled_quasi_1D",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
 }
