@@ -13,7 +13,6 @@ from utils import u_v_a_wrap
 
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        # 2D hardcoded
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,

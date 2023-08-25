@@ -13,16 +13,15 @@ from utils import get_solution_values
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         # Approximating the time derivative in the BCs and rewriting the BCs on "Robin
-        # form" gives the Robin weights.
-
-        bounds = self.domain_boundary_sides(sd)
-
-        # These two lines provide an array with 2 components. The first component is a
-        # 2d array with ones in the first row and zeros in the second. The second
-        # component is also a 2d array, but now the first row is zeros and the second
-        # row is ones.
+        # form" gives need for Robin weights.
+        # The two following lines provide an array with 2 components. The first
+        # component is a 2d array with ones in the first row and zeros in the second.
+        # The second component is also a 2d array, but now the first row is zeros and
+        # the second row is ones.
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
+
+        bounds = self.domain_boundary_sides(sd)
 
         value[0][0][bounds.north] *= self.robin_weight_value(
             direction="shear", side="north"
@@ -77,8 +76,6 @@ class BoundaryAndInitialCond:
             Time dependent dense array for boundary values.
 
         """
-        # Use time dependent array to allow for time dependent boundary conditions in
-        # the div(u) term.
         return pp.ad.TimeDependentDenseArray(self.bc_values_mechanics_key, subdomains)
 
     def time_dependent_bc_values_mechanics(
@@ -276,6 +273,9 @@ class ConstitutiveLawsABC:
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Method for reconstructing the boundary displacement.
 
+        Usage within the "realm" of absorbing boundary conditions: we need the
+        displacement values on the boundary at the previous time step.
+
         Note: This is for the pure mechanical problem - even without faults.
             Modifications are needed when a coupling to fluid flow is introduced at some
             later point.
@@ -287,8 +287,7 @@ class ConstitutiveLawsABC:
             Ad operator representing the displacement on grid faces of the subdomains.
 
         """
-        # No need to facilitate changing of stress discretization, only one is
-        # available at the moment.
+        # Discretization
         discr = self.stress_discretization(subdomains)
 
         # Boundary conditions on external boundaries
@@ -297,19 +296,6 @@ class ConstitutiveLawsABC:
         # Displacement
         displacement = self.displacement(subdomains)
 
-        # The boundary displacement is the sum of the boundary cell displacement and the
-        # boundary face displacement.
-
-        # Example usage within porepy:
-        # porepy\utils\examples_utils.py
-
-        # Other note, from the file referenced above:
-        # "Compute the pseudo-trace of the displacement
-        # Note that this is not the real trace, as this only holds for particular
-        # choices of boundary condtions."
-
-        # Possible reason things are incorrect: Are the boundary conditions updated at
-        # the correct time-step?
         boundary_displacement = (
             discr.bound_displacement_cell @ displacement
             + discr.bound_displacement_face @ bc

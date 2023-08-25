@@ -38,7 +38,7 @@ class NamesAndConstants:
 
     @property
     def primary_wave_speed(self):
-        """Primary wave speed (c_P).
+        """Primary wave speed (c_p).
 
         Speed of the compressive elastic waves.
 
@@ -53,7 +53,7 @@ class NamesAndConstants:
 
     @property
     def secondary_wave_speed(self):
-        """Secondary wave speed (c_S).
+        """Secondary wave speed (c_s).
 
         Speed of the shear elastic waves.
 
@@ -216,7 +216,6 @@ class MySolutionStrategy:
 
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources."""
-        # Equidimensional domain hardcode
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
@@ -267,8 +266,7 @@ class MySolutionStrategy:
         return v
 
     def acceleration_values(self, subdomain: pp.Grid) -> np.ndarray:
-        """Update of acceleration values to be done after linear system solve (double
-        check that this is actually where it happens).
+        """Update of acceleration values to be done after linear system solve.
 
         Newmark time discretization formula for the current acceleration, depending on
         the current displacement value and the previous velocity value.
@@ -345,7 +343,6 @@ class MySolutionStrategy:
                     time_step_index=0,
                 )
 
-            # if self.time_manager.time_index != 0:
             pp.set_solution_values(
                 name=self.velocity_key,
                 values=vals_velocity,
