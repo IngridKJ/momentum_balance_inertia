@@ -31,10 +31,12 @@ class BoundaryAndInitialCond:
             direction="tensile", side="north"
         )
 
-        value[0][0][bounds.south] *= self.robin_weight_value(
+        # I have yet to track down why I need these minuses here. The answer probably
+        # rests within PorePy itself, might go have a look.
+        value[0][0][bounds.south] *= -self.robin_weight_value(
             direction="shear", side="south"
         )
-        value[1][1][bounds.south] *= self.robin_weight_value(
+        value[1][1][bounds.south] *= -self.robin_weight_value(
             direction="tensile", side="south"
         )
 
@@ -44,11 +46,12 @@ class BoundaryAndInitialCond:
         value[0][0][bounds.east] *= self.robin_weight_value(
             direction="tensile", side="east"
         )
-
-        value[1][1][bounds.west] *= self.robin_weight_value(
+        # I have yet to track down why I need these minuses here. The answer probably
+        # rests within PorePy itself, might go have a look.
+        value[1][1][bounds.west] *= -self.robin_weight_value(
             direction="shear", side="west"
         )
-        value[0][0][bounds.west] *= self.robin_weight_value(
+        value[0][0][bounds.west] *= -self.robin_weight_value(
             direction="tensile", side="west"
         )
 

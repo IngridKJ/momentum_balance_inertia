@@ -24,8 +24,11 @@ Models are found within the [models](./models/) directory:
 
 
 ## Runscripts and modified models
-* [unit_test_ABC](./unit_test_ABC.py) is for running the 2D model with absorbing 
-boundary conditions.
+* [unit_test_ABC](./unit_test_ABC.py) is for running the a quasi 1D model with one
+absorbing boundary.
+* [runscript_center_source_ABC](./runscript_center_source_ABC.py) is for running a 2D
+model with absorbing boundary conditions on all domain boundaries. It has a centered
+source term to see how the propagating wave is handled by the ABCs.
 ### "Old" runscripts
 I am working with refactoring the models. The refactoring is done, but not all
 runscripts are updated accordingly. The idea is to avoid having the "original" modified
