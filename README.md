@@ -37,10 +37,6 @@ models defined in runscripts, like in the files listed below. However, these scr
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
   successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
-* [dynamic_2D_model_time_dep_BC](./dynamic_2D_model_time_dep_BC.py) is for dynamic
-  momentum balance with time dependent boundary conditions.
-* [dynamic_2D_model_ABC](./dynamic_2D_model_ABC.py) is for dynamic momentum balance with
-  absorbing boundary conditions (ABCs).
 * [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
 ## Actual verification setup
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
