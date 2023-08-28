@@ -3,8 +3,6 @@ import numpy as np
 
 from models import MomentumBalanceTimeDepSource
 
-# from .time_dep_3D import MomentumBalanceTimeDepSource3D
-
 import sys
 
 sys.path.append("../utils")
@@ -28,70 +26,38 @@ class BoundaryAndInitialCond:
         # Looking into assigning the robin weights in a nicer manner, but this is not
         # implemented yet.
         # For now we tolerate the brute force way:
-        value[0][0][bounds.north] *= self.robin_weight_value(
-            direction="shear", side="north"
-        )
-        value[1][1][bounds.north] *= self.robin_weight_value(
-            direction="tensile", side="north"
-        )
 
-        value[0][0][bounds.south] *= self.robin_weight_value(
-            direction="shear", side="south"
-        )
-        value[1][1][bounds.south] *= self.robin_weight_value(
-            direction="tensile", side="south"
-        )
+        robin_weight_shear = self.robin_weight_value(direction="shear")
+        robin_weight_tensile = self.robin_weight_value(direction="tensile")
 
-        value[1][1][bounds.east] *= self.robin_weight_value(
-            direction="shear", side="east"
-        )
-        value[0][0][bounds.east] *= self.robin_weight_value(
-            direction="tensile", side="east"
-        )
+        value[0][0][bounds.north] *= robin_weight_shear
+        value[1][1][bounds.north] *= robin_weight_tensile
 
-        value[1][1][bounds.west] *= self.robin_weight_value(
-            direction="shear", side="west"
-        )
-        value[0][0][bounds.west] *= self.robin_weight_value(
-            direction="tensile", side="west"
-        )
+        value[0][0][bounds.south] *= robin_weight_shear
+        value[1][1][bounds.south] *= robin_weight_tensile
+
+        value[1][1][bounds.east] *= robin_weight_shear
+        value[0][0][bounds.east] *= robin_weight_tensile
+
+        value[1][1][bounds.west] *= robin_weight_shear
+        value[0][0][bounds.west] *= robin_weight_tensile
 
         if self.nd == 3:
-            value[2][2][bounds.north] *= self.robin_weight_value(
-                direction="shear", side="north"
-            )
+            value[2][2][bounds.north] *= robin_weight_shear
 
-            value[2][2][bounds.south] *= self.robin_weight_value(
-                direction="shear", side="south"
-            )
+            value[2][2][bounds.south] *= robin_weight_shear
 
-            value[2][2][bounds.east] *= self.robin_weight_value(
-                direction="shear", side="east"
-            )
+            value[2][2][bounds.east] *= robin_weight_shear
 
-            value[2][2][bounds.west] *= self.robin_weight_value(
-                direction="shear", side="west"
-            )
+            value[2][2][bounds.west] *= robin_weight_shear
 
-            value[0][0][bounds.top] *= self.robin_weight_value(
-                direction="shear", side="top"
-            )
-            value[1][1][bounds.top] *= self.robin_weight_value(
-                direction="shear", side="top"
-            )
-            value[2][2][bounds.top] *= self.robin_weight_value(
-                direction="tensile", side="top"
-            )
+            value[0][0][bounds.top] *= robin_weight_shear
+            value[1][1][bounds.top] *= robin_weight_shear
+            value[2][2][bounds.top] *= robin_weight_tensile
 
-            value[0][0][bounds.bottom] *= self.robin_weight_value(
-                direction="shear", side="bottom"
-            )
-            value[1][1][bounds.bottom] *= self.robin_weight_value(
-                direction="shear", side="bottom"
-            )
-            value[2][2][bounds.bottom] *= self.robin_weight_value(
-                direction="tensile", side="bottom"
-            )
+            value[0][0][bounds.bottom] *= robin_weight_shear
+            value[1][1][bounds.bottom] *= robin_weight_shear
+            value[2][2][bounds.bottom] *= robin_weight_tensile
 
         if self.nd == 2:
             bc = pp.BoundaryConditionVectorial(
@@ -171,87 +137,72 @@ class BoundaryAndInitialCond:
         # Assigning the values like this is a very brute force way. A
         # tensor-normal-vector-product is considered as an altenative (but not
         # implemented yet)
+        robin_weight_shear = self.robin_weight_value(direction="shear")
+        robin_weight_tensile = self.robin_weight_value(direction="tensile")
+
         values[0][bounds.north] += (
-            self.robin_weight_value(direction="shear", side="north")
-            * displacement_values[0][bounds.north]
+            robin_weight_shear * displacement_values[0][bounds.north]
         ) * face_areas[bounds.north]
         values[1][bounds.north] += (
-            self.robin_weight_value(direction="tensile", side="north")
-            * displacement_values[1][bounds.north]
+            robin_weight_tensile * displacement_values[1][bounds.north]
         ) * face_areas[bounds.north]
 
         values[0][bounds.south] += (
-            self.robin_weight_value(direction="shear", side="south")
-            * displacement_values[0][bounds.south]
+            robin_weight_shear * displacement_values[0][bounds.south]
         ) * face_areas[bounds.south]
         values[1][bounds.south] += (
-            self.robin_weight_value(direction="tensile", side="south")
-            * displacement_values[1][bounds.south]
+            robin_weight_tensile * displacement_values[1][bounds.south]
         ) * face_areas[bounds.south]
 
         values[1][bounds.east] += (
-            self.robin_weight_value(direction="shear", side="east")
-            * displacement_values[1][bounds.east]
+            robin_weight_shear * displacement_values[1][bounds.east]
         ) * face_areas[bounds.east]
         values[0][bounds.east] += (
-            self.robin_weight_value(direction="tensile", side="east")
-            * displacement_values[0][bounds.east]
+            robin_weight_tensile * displacement_values[0][bounds.east]
         ) * face_areas[bounds.east]
 
         values[1][bounds.west] += (
-            self.robin_weight_value(direction="shear", side="west")
-            * displacement_values[1][bounds.west]
+            robin_weight_shear * displacement_values[1][bounds.west]
         ) * face_areas[bounds.west]
         values[0][bounds.west] += (
-            self.robin_weight_value(direction="tensile", side="west")
-            * displacement_values[0][bounds.west]
+            robin_weight_tensile * displacement_values[0][bounds.west]
         ) * face_areas[bounds.west]
 
         if self.nd == 3:
             values[2][bounds.north] += (
-                self.robin_weight_value(direction="shear", side="north")
-                * displacement_values[2][bounds.north]
+                robin_weight_shear * displacement_values[2][bounds.north]
             ) * face_areas[bounds.north]
 
             values[2][bounds.south] += (
-                self.robin_weight_value(direction="shear", side="south")
-                * displacement_values[2][bounds.south]
+                robin_weight_shear * displacement_values[2][bounds.south]
             ) * face_areas[bounds.south]
 
             values[2][bounds.east] += (
-                self.robin_weight_value(direction="shear", side="east")
-                * displacement_values[2][bounds.east]
+                robin_weight_shear * displacement_values[2][bounds.east]
             ) * face_areas[bounds.east]
 
             values[2][bounds.west] += (
-                self.robin_weight_value(direction="shear", side="west")
-                * displacement_values[2][bounds.west]
+                robin_weight_shear * displacement_values[2][bounds.west]
             ) * face_areas[bounds.west]
 
             values[0][bounds.top] += (
-                self.robin_weight_value(direction="shear", side="top")
-                * displacement_values[2][bounds.top]
+                robin_weight_shear * displacement_values[2][bounds.top]
             ) * face_areas[bounds.top]
             values[1][bounds.top] += (
-                self.robin_weight_value(direction="shear", side="top")
-                * displacement_values[2][bounds.top]
+                robin_weight_shear * displacement_values[2][bounds.top]
             ) * face_areas[bounds.top]
             values[2][bounds.top] += (
-                self.robin_weight_value(direction="tensile", side="top")
-                * displacement_values[2][bounds.top]
+                robin_weight_tensile * displacement_values[2][bounds.top]
             ) * face_areas[bounds.top]
 
             values[0][bounds.bottom] += (
-                self.robin_weight_value(direction="shear", side="bottom")
-                * displacement_values[2][bounds.bottom]
+                robin_weight_shear * displacement_values[2][bounds.bottom]
             ) * face_areas[bounds.bottom]
             values[1][bounds.bottom] += (
-                self.robin_weight_value(direction="shear", side="bottom")
-                * displacement_values[2][bounds.bottom]
+                robin_weight_shear * displacement_values[2][bounds.bottom]
             ) * face_areas[bounds.bottom]
             values[2][bounds.bottom] += (
-                self.robin_weight_value(direction="tensile", side="bottom")
-                * displacement_values[2][bounds.bottom]
+                robin_weight_tensile * displacement_values[2][bounds.bottom]
             ) * face_areas[bounds.bottom]
 
         return values.ravel("F")
@@ -340,7 +291,7 @@ class SolutionStrategyABC:
 
 
 class ConstitutiveLawsABC:
-    def robin_weight_value(self, direction: str, side: str) -> float:
+    def robin_weight_value(self, direction: str, side: str = None) -> float:
         """Shear Robin weight for Robin boundary conditions.
 
         Parameters:
@@ -362,12 +313,8 @@ class ConstitutiveLawsABC:
 
         if direction == "shear":
             value = mu / (cs * dt)
-            if side == "west" or side == "south" or side == "bottom":
-                value = 1 * value
         elif direction == "tensile":
             value = (lam + 2 * mu) / (cp * dt)
-            if side == "west" or side == "south" or side == "bottom":
-                value = 1 * value
         return value
 
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:

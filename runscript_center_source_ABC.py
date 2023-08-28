@@ -85,9 +85,9 @@ material_constants = {"solid": solid_constants}
 
 params = {
     "time_manager": time_manager,
-    "grid_type": "simplex",
+    "grid_type": "cartesian",
     "material_constants": material_constants,
-    "folder_name": "simplex_testing_1",
+    "folder_name": "cartesian_testing",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
 }
