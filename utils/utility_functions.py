@@ -225,6 +225,9 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     elif manufactured_sol == "bubble":
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
+    elif manufactured_sol == "bubble_30":
+        u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
+        u = [u1, u2]
     elif manufactured_sol == "bubble_1000":
         u1 = u2 = t**2 * x * (1000 - x) * y * (1000 - y)
         u = [u1, u2]
@@ -365,6 +368,8 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
     if manufactured_sol == "bubble":
         u1 = u2 = u3 = t**2 * x * (1 - x) * y * (1 - y) * z * (1 - z)
         u = [u1, u2, u3]
+    elif manufactured_sol == "simply_zero":
+        u = [0, 0, 0]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = u3 = (
             sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y) * z * (1 - z)

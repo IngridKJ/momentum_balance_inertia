@@ -24,48 +24,81 @@ class BoundaryAndInitialCond:
     def initial_displacement(self, dofs: int) -> np.ndarray:
         """Initial displacement values."""
         sd = self.mdg.subdomains()[0]
+        t = self.time_manager.time
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
-        t = self.time_manager.time
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        displacement_function = u_v_a_wrap(self)
-        vals[0] = displacement_function[0](x, y, t)
-        vals[1] = displacement_function[1](x, y, t)
+        if self.nd == 2:
+            displacement_function = u_v_a_wrap(self)
+
+            vals[0] = displacement_function[0](x, y, t)
+            vals[1] = displacement_function[1](x, y, t)
+
+        elif self.nd == 3:
+            z = sd.cell_centers[2, :]
+
+            displacement_function = u_v_a_wrap(self, is_2D=False)
+
+            vals[0] = displacement_function[0](x, y, z, t)
+            vals[1] = displacement_function[1](x, y, z, t)
+            vals[2] = displacement_function[2](x, y, z, t)
 
         return vals.ravel("F")
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
         """Initial velocity values."""
         sd = self.mdg.subdomains()[0]
+        t = self.time_manager.time
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
-        t = self.time_manager.time
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        velocity_function = u_v_a_wrap(self, return_dt=True)
-        vals[0] = velocity_function[0](x, y, t)
-        vals[1] = velocity_function[1](x, y, t)
+        if self.nd == 2:
+            velocity_function = u_v_a_wrap(self, return_dt=True)
+
+            vals[0] = velocity_function[0](x, y, t)
+            vals[1] = velocity_function[1](x, y, t)
+
+        elif self.nd == 3:
+            z = sd.cell_centers[2, :]
+
+            velocity_function = u_v_a_wrap(self, is_2D=False, return_dt=True)
+
+            vals[0] = velocity_function[0](x, y, z, t)
+            vals[1] = velocity_function[1](x, y, z, t)
+            vals[2] = velocity_function[2](x, y, z, t)
 
         return vals.ravel("F")
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
         """Initial acceleration values."""
         sd = self.mdg.subdomains()[0]
+        t = self.time_manager.time
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
-        t = self.time_manager.time
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        acceleration_function = u_v_a_wrap(self, return_ddt=True)
-        vals[0] = acceleration_function[0](x, y, t)
-        vals[1] = acceleration_function[1](x, y, t)
+        if self.nd == 2:
+            acceleration_function = u_v_a_wrap(self, return_ddt=True)
+
+            vals[0] = acceleration_function[0](x, y, t)
+            vals[1] = acceleration_function[1](x, y, t)
+
+        elif self.nd == 3:
+            z = sd.cell_centers[2, :]
+
+            acceleration_function = u_v_a_wrap(self, is_2D=False, return_ddt=True)
+
+            vals[0] = acceleration_function[0](x, y, z, t)
+            vals[1] = acceleration_function[1](x, y, z, t)
+            vals[2] = acceleration_function[2](x, y, z, t)
 
         return vals.ravel("F")
 
@@ -78,7 +111,11 @@ class Source:
         t = self.time_manager.time
 
         # Mechanics source
-        source_func = body_force_function(self)
+        if self.nd == 2:
+            source_func = body_force_function(self)
+        elif self.nd == 3:
+            source_func = body_force_function(self, is_2D=False)
+
         mech_source = self.source_values(source_func, sd, t)
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
@@ -96,15 +133,24 @@ class Source:
             An array of source values.
 
         """
+        cell_volume = sd.cell_volumes
         vals = np.zeros((self.nd, sd.num_cells))
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
 
-        x_val = f[0](x, y, t)
-        y_val = f[1](x, y, t)
+        if self.nd == 2:
+            x_val = f[0](x, y, t)
+            y_val = f[1](x, y, t)
 
-        cell_volume = sd.cell_volumes
+        elif self.nd == 3:
+            z = sd.cell_centers[2, :]
+
+            x_val = f[0](x, y, z, t)
+            y_val = f[1](x, y, z, t)
+            z_val = f[2](x, y, z, t)
+
+            vals[2] = z_val * cell_volume
 
         vals[0] = x_val * cell_volume
         vals[1] = y_val * cell_volume
