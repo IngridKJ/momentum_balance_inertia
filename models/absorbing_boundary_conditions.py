@@ -177,20 +177,20 @@ class BoundaryAndInitialCond:
             ) * face_areas[bounds.west]
 
             values[0][bounds.top] += (
-                robin_weight_shear * displacement_values[2][bounds.top]
+                robin_weight_shear * displacement_values[0][bounds.top]
             ) * face_areas[bounds.top]
             values[1][bounds.top] += (
-                robin_weight_shear * displacement_values[2][bounds.top]
+                robin_weight_shear * displacement_values[1][bounds.top]
             ) * face_areas[bounds.top]
             values[2][bounds.top] += (
                 robin_weight_tensile * displacement_values[2][bounds.top]
             ) * face_areas[bounds.top]
 
             values[0][bounds.bottom] += (
-                robin_weight_shear * displacement_values[2][bounds.bottom]
+                robin_weight_shear * displacement_values[0][bounds.bottom]
             ) * face_areas[bounds.bottom]
             values[1][bounds.bottom] += (
-                robin_weight_shear * displacement_values[2][bounds.bottom]
+                robin_weight_shear * displacement_values[1][bounds.bottom]
             ) * face_areas[bounds.bottom]
             values[2][bounds.bottom] += (
                 robin_weight_tensile * displacement_values[2][bounds.bottom]
