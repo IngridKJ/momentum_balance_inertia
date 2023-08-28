@@ -26,23 +26,35 @@ class BoundaryAndInitialCond:
         robin_weight_shear = self.robin_weight_value(direction="shear")
         robin_weight_tensile = self.robin_weight_value(direction="tensile")
 
+        # Assigning shear weight to the boundaries who have x-direction as shear
+        # direction.
         value[0][0][
             bounds.north + bounds.south + bounds.bottom + bounds.top
         ] *= robin_weight_shear
 
-        value[1][1][bounds.north + bounds.south] *= robin_weight_tensile
-
+        # Assigning tensile weight to the boundaries who have x-direction as tensile
+        # direction.
         value[0][0][bounds.east + bounds.west] *= robin_weight_tensile
 
+        # Assigning shear weight to the boundaries who have y-direction as shear
+        # direction.
         value[1][1][
             bounds.east + bounds.west + bounds.bottom + bounds.top
         ] *= robin_weight_shear
 
+        # Assigning tensile weight to the boundaries who have y-direction as tensile
+        # direction.
+        value[1][1][bounds.north + bounds.south] *= robin_weight_tensile
+
         if self.nd == 3:
+            # Assigning shear weight to the boundaries who have z-direction as shear
+            # direction.
             value[2][2][
                 bounds.north + bounds.south + bounds.east + bounds.west
             ] *= robin_weight_shear
 
+            # Assigning tensile weight to the boundaries who have z-direction as tensile
+            # direction.
             value[2][2][bounds.top + bounds.bottom] *= robin_weight_tensile
 
         bc = pp.BoundaryConditionVectorial(
