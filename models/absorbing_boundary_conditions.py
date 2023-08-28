@@ -64,7 +64,7 @@ class BoundaryAndInitialCond:
             + bounds.east
             + bounds.west
             + bounds.bottom
-            + bounds.south,
+            + bounds.top,
             "rob",
         )
 
@@ -288,7 +288,8 @@ class ConstitutiveLawsABC:
         Parameters:
             direction: Whether the boundary condition that uses the weight is the shear
                 or tensile component of the displacement.
-            side: Which boundary side is considered. This alters the sign of the weight.
+            side: Which boundary side is considered. This alters the sign of the
+                weight. To be deprecated.
 
         Returns:
             The weight/coefficient for use in the Robin boundary conditions.
