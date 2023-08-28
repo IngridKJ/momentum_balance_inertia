@@ -23,59 +23,38 @@ class BoundaryAndInitialCond:
 
         bounds = self.domain_boundary_sides(sd)
 
-        # Looking into assigning the robin weights in a nicer manner, but this is not
-        # implemented yet.
-        # For now we tolerate the brute force way:
-
         robin_weight_shear = self.robin_weight_value(direction="shear")
         robin_weight_tensile = self.robin_weight_value(direction="tensile")
 
-        value[0][0][bounds.north] *= robin_weight_shear
-        value[1][1][bounds.north] *= robin_weight_tensile
+        value[0][0][
+            bounds.north + bounds.south + bounds.bottom + bounds.top
+        ] *= robin_weight_shear
 
-        value[0][0][bounds.south] *= robin_weight_shear
-        value[1][1][bounds.south] *= robin_weight_tensile
+        value[1][1][bounds.north + bounds.south] *= robin_weight_tensile
 
-        value[1][1][bounds.east] *= robin_weight_shear
-        value[0][0][bounds.east] *= robin_weight_tensile
+        value[0][0][bounds.east + bounds.west] *= robin_weight_tensile
 
-        value[1][1][bounds.west] *= robin_weight_shear
-        value[0][0][bounds.west] *= robin_weight_tensile
+        value[1][1][
+            bounds.east + bounds.west + bounds.bottom + bounds.top
+        ] *= robin_weight_shear
 
         if self.nd == 3:
-            value[2][2][bounds.north] *= robin_weight_shear
+            value[2][2][
+                bounds.north + bounds.south + bounds.east + bounds.west
+            ] *= robin_weight_shear
 
-            value[2][2][bounds.south] *= robin_weight_shear
+            value[2][2][bounds.top + bounds.bottom] *= robin_weight_tensile
 
-            value[2][2][bounds.east] *= robin_weight_shear
-
-            value[2][2][bounds.west] *= robin_weight_shear
-
-            value[0][0][bounds.top] *= robin_weight_shear
-            value[1][1][bounds.top] *= robin_weight_shear
-            value[2][2][bounds.top] *= robin_weight_tensile
-
-            value[0][0][bounds.bottom] *= robin_weight_shear
-            value[1][1][bounds.bottom] *= robin_weight_shear
-            value[2][2][bounds.bottom] *= robin_weight_tensile
-
-        if self.nd == 2:
-            bc = pp.BoundaryConditionVectorial(
-                sd,
-                bounds.north + bounds.south + bounds.east + bounds.west,
-                "rob",
-            )
-        if self.nd == 3:
-            bc = pp.BoundaryConditionVectorial(
-                sd,
-                bounds.north
-                + bounds.south
-                + bounds.east
-                + bounds.west
-                + bounds.top
-                + bounds.bottom,
-                "rob",
-            )
+        bc = pp.BoundaryConditionVectorial(
+            sd,
+            bounds.north
+            + bounds.south
+            + bounds.east
+            + bounds.west
+            + bounds.bottom
+            + bounds.south,
+            "rob",
+        )
 
         bc.robin_weight = value
         return bc
@@ -154,18 +133,18 @@ class BoundaryAndInitialCond:
             robin_weight_tensile * displacement_values[1][bounds.south]
         ) * face_areas[bounds.south]
 
-        values[1][bounds.east] += (
-            robin_weight_shear * displacement_values[1][bounds.east]
-        ) * face_areas[bounds.east]
         values[0][bounds.east] += (
             robin_weight_tensile * displacement_values[0][bounds.east]
         ) * face_areas[bounds.east]
+        values[1][bounds.east] += (
+            robin_weight_shear * displacement_values[1][bounds.east]
+        ) * face_areas[bounds.east]
 
-        values[1][bounds.west] += (
-            robin_weight_shear * displacement_values[1][bounds.west]
-        ) * face_areas[bounds.west]
         values[0][bounds.west] += (
             robin_weight_tensile * displacement_values[0][bounds.west]
+        ) * face_areas[bounds.west]
+        values[1][bounds.west] += (
+            robin_weight_shear * displacement_values[1][bounds.west]
         ) * face_areas[bounds.west]
 
         if self.nd == 3:
