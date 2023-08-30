@@ -3,85 +3,6 @@ import porepy as pp
 import numpy as np
 
 from models import MomentumBalanceABC
-from utils import get_solution_values
-
-
-class BoundaryCondUnit3D:
-    def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        # Approximating the time derivative in the BCs and rewriting the BCs on "Robin
-        # form" gives need for Robin weights.
-        # The two following lines provide an array with 2 components. The first
-        # component is a 2d array with ones in the first row and zeros in the second.
-        # The second component is also a 2d array, but now the first row is zeros and
-        # the second row is ones.
-        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
-        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
-
-        bounds = self.domain_boundary_sides(sd)
-
-        value[0][0][bounds.east] *= self.robin_weight_value(
-            direction="tensile", side="east"
-        )
-
-        bc = pp.BoundaryConditionVectorial(sd, bounds.east, "rob")
-
-        bc.is_neu[:, bounds.west + bounds.east] = False
-
-        bc.is_dir[:, bounds.west] = True
-        bc.is_neu[:, bounds.north + bounds.south + bounds.top + bounds.bottom] = True
-
-        bc.robin_weight = value
-        return bc
-
-    def time_dependent_bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> np.ndarray:
-        """Method for assigning the time dependent bc values.
-
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Array of boundary values.
-
-        """
-        # Equidimensional hard code
-        assert len(subdomains) == 1
-        sd = subdomains[0]
-        face_areas = sd.face_areas
-        data = self.mdg.subdomain_data(sd)
-
-        values = np.zeros((self.nd, sd.num_faces))
-        bounds = self.domain_boundary_sides(sd)
-
-        if self.time_manager.time_index > 1:
-            # "Get face displacement"-strategy: Create them using
-            # bound_displacement_face/-cell from second timestep and ongoing.
-            displacement_boundary_operator = self.boundary_displacement([sd])
-            displacement_values = displacement_boundary_operator.evaluate(
-                self.equation_system
-            ).val
-
-        else:
-            # On first timestep, initial values are fetched from the data dictionary.
-            # These initial values are assigned in the initial_condition function.
-            displacement_values = get_solution_values(
-                name=self.bc_values_mechanics_key, data=data, time_step_index=0
-            )
-
-        displacement_values = np.reshape(
-            displacement_values, (self.nd, sd.num_faces), "F"
-        )
-
-        values[0][bounds.west] += np.ones(
-            len(displacement_values[0][bounds.west])
-        ) * np.sin(self.time_manager.time)
-
-        values[0][bounds.east] += (
-            self.robin_weight_value(direction="tensile", side="east")
-            * displacement_values[0][bounds.east]
-        ) * face_areas[bounds.east]
-        return values.ravel("F")
 
 
 class SolutionStratABC:
@@ -137,7 +58,6 @@ class MyGeometry:
 
 
 class MomentumBalanceABCModifiedGeometry(
-    # BoundaryCondUnit3D,
     MyGeometry,
     SolutionStratABC,
     MomentumBalanceABC,
