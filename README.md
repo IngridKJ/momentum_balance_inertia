@@ -13,32 +13,27 @@ Models are found within the [models](./models/) directory:
 * [momentum balance](./models/no_inertia_momentum_balance.py) (i.e. just a call to and
   slight modification of the built-in PorePy model).
 * [dynamic momentum balance](./models/dynamic_momentum_balance.py) is the basic dynamic
-  momentum balance model. It does not include things such as time dependent source terms
-  or time dependent boundary conditions.
-* [time_dependent_source_term](./models/time_dependent_source_term.py) is a model
-  indlucing a time dependent source term. It inherits from [the basic
+  momentum balance model.
+* [time_dependent_source_term](./models/time_dependent_source_term.py) is a model also
+  assigning a time dependent source term. It inherits from [the basic
   model](./models/dynamic_momentum_balance.py).
-* (WIP) [absorbing_boundary_conditions](./models/absorbing_boundary_conditions.py) is a
-  model that has absorbing boundary conditions included. It inherits from the [time
-  dependent source term](./models/time_dependent_source_term.py) model.
+* [absorbing_boundary_conditions](./models/absorbing_boundary_conditions.py) is a model
+  that has absorbing boundary conditions included. It inherits from the [time dependent
+  source term](./models/time_dependent_source_term.py) model.
 
+## Runscripts
+The two following runscripts have a centered source term to see how the propagating wave
+is handled by the ABCs. All domain boundaries are absorbing.
+* [center_source_2D_ABC](./center_source_2D_ABC.py) is for running the 2D model.
+* [center_source_3D_ABC](./center_source_3D_ABC.py) is for running the 3D model.
 
-## Runscripts and modified models
-* [unit_test_ABC](./unit_test_ABC.py) is for running the a quasi 1D model with one
-absorbing boundary.
-* [runscript_center_source_ABC](./runscript_center_source_ABC.py) is for running a 2D
-model with absorbing boundary conditions on all domain boundaries. It has a centered
-source term to see how the propagating wave is handled by the ABCs.
-### "Old" runscripts
-I am working with refactoring the models. The refactoring is done, but not all
-runscripts are updated accordingly. The idea is to avoid having the "original" modified
-models defined in runscripts, like in the files listed below. However, these scripts
-(should) still work.
-* [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
-  successfull attempt at MMS with static momentum balance equation.
-* [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
-* [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
-## Actual verification setup
+## Unit test setups for the absorbing boundary conditions (ABCs)
+* [unit_test_2D_ABC](./unit_test_2D_ABC.py) is for running the 2D quasi-1D model with
+one absorbing boundary.
+* [unit_test_3D_ABC](./unit_test_3D_ABC.py) is for running the 3D quasi-1D model with
+one absorbing boundary.
+
+## Verification setup for the dynamic momentum balance
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
 follows:
 * [runscript_convergence_analysis](./runscript_convergence_analysis.py) is the runscript
@@ -51,6 +46,14 @@ follows:
 The verification setup takes use of [this](./models/time_dependent_source_term.py)
 model.
 
+### "Old" runscripts
+Some model refactoring is performed, but not all runscripts are updated accordingly. The
+idea is to avoid having the "original" modified models defined in runscripts, like in
+the files listed below. However, these scripts (should) still work.
+* [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
+  successfull attempt at MMS with static momentum balance equation.
+* [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
+* [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
 
 ## Sanity check
 Before the convergence rates for the dynamic momentum balance were as expected, a

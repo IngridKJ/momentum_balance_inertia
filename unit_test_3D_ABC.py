@@ -33,20 +33,6 @@ class BoundaryCondUnit3D:
         bc.robin_weight = value
         return bc
 
-    def bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> pp.ad.TimeDependentDenseArray:
-        """Boundary values for mechanics.
-
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Time dependent dense array for boundary values.
-
-        """
-        return pp.ad.TimeDependentDenseArray(self.bc_values_mechanics_key, subdomains)
-
     def time_dependent_bc_values_mechanics(
         self, subdomains: list[pp.Grid]
     ) -> np.ndarray:
@@ -98,6 +84,113 @@ class BoundaryCondUnit3D:
         return values.ravel("F")
 
 
+class UnitTestConstitutiveLaw:
+    def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
+        """Stiffness tensor [Pa].
+
+        Parameters:
+            subdomain: Subdomain where the stiffness tensor is defined.
+
+        Returns:
+            Cell-wise stiffness tensor in SI units.
+
+        """
+        lmbda = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
+        mu = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+        return UnitTestFourthOrderTensor(mu, lmbda)
+
+
+class UnitTestFourthOrderTensor(object):
+    """Cell-wise representation of fourth order tensor, represented by (3^2, 3^2 ,Nc)-array, where Nc denotes the number of cells, i.e. the tensor values are stored discretely.
+
+    For each cell, there are dim^4 degrees of freedom, stored in a 3^2 * 3^2 matrix.
+
+    The only constructor available for the moment is based on the Lame parameters, e.g.
+    using two degrees of freedom.
+
+    Attributes:
+        values: dimensions (3^2, 3^2, nc), cell-wise representation of
+            the stiffness matrix.
+        lmbda (np.ndarray): Nc array of first Lame parameter
+        mu (np.ndarray): Nc array of second Lame parameter
+
+    """
+
+    def __init__(self, mu: np.ndarray, lmbda: np.ndarray):
+        """Constructor for fourth order tensor on Lame-parameter form
+
+        Parameters:
+            mu: Nc array of shear modulus (second lame parameter).
+            lmbda: Nc array of first lame parameter.
+
+        Raises:
+            ValueError if mu or lmbda are not 1d arrays.
+            ValueError if the lengths of mu and lmbda are not matching.
+        """
+
+        if not isinstance(mu, np.ndarray):
+            raise ValueError("Input mu should be a numpy array")
+        if not isinstance(lmbda, np.ndarray):
+            raise ValueError("Input lmbda should be a numpy array")
+        if not mu.ndim == 1:
+            raise ValueError("mu should be 1-D")
+        if not lmbda.ndim == 1:
+            raise ValueError("Lmbda should be 1-D")
+        if mu.size != lmbda.size:
+            raise ValueError("Mu and lmbda should have the same length")
+
+        # Save lmbda and mu, can be useful to have in some cases
+        self.lmbda = lmbda
+        self.mu = mu
+
+        # Basis for the contributions of mu, lmbda and phi is hard-coded
+        mu_mat = np.array(
+            [
+                [2, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 2, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 2],
+            ]
+        )
+        lmbda_mat = np.array(
+            [
+                [1, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1],
+            ]
+        )
+
+        # Expand dimensions to prepare for cell-wise representation
+        mu_mat = mu_mat[:, :, np.newaxis]
+        lmbda_mat = lmbda_mat[:, :, np.newaxis]
+
+        c = mu_mat * mu + lmbda_mat * lmbda
+        self.values = c
+
+    def copy(self) -> "UnitTestFourthOrderTensor":
+        """`
+        Define a deep copy of the tensor.
+
+        Returns:
+            FourthOrderTensor: New tensor with identical fields, but separate
+                arrays (in the memory sense).
+        """
+        C = UnitTestFourthOrderTensor(mu=self.mu, lmbda=self.lmbda)
+        C.values = self.values.copy()
+        return C
+
+
 class MyGeometry:
     def nd_rect_domain(self, x, y, z) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
@@ -119,6 +212,7 @@ class MyGeometry:
 
 class MomentumBalanceABCModifiedGeometry(
     BoundaryCondUnit3D,
+    UnitTestConstitutiveLaw,
     MyGeometry,
     MomentumBalanceABC,
 ):
@@ -126,8 +220,8 @@ class MomentumBalanceABCModifiedGeometry(
 
 
 t_shift = 0.0
-tf = 10.0
-dt = tf / 1000.0
+tf = 5.0
+dt = tf / 500.0
 
 
 time_manager = pp.TimeManager(
@@ -152,7 +246,7 @@ params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
     "material_constants": material_constants,
-    "folder_name": "meh",
+    "folder_name": "unit_test_3D",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
 }
