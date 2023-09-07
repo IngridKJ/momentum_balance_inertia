@@ -32,6 +32,8 @@ is handled by the ABCs. All domain boundaries are absorbing.
 one absorbing boundary.
 * [unit_test_3D_ABC](./unit_test_3D_ABC.py) is for running the 3D quasi-1D model with
 one absorbing boundary.
+* [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
+  balance.
 
 ## Verification setup for the dynamic momentum balance
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
@@ -40,10 +42,14 @@ follows:
   for running the convergence analysis. Function "bubble" is used for investigating
   convergence in space. Function "sine_bubble" is used for investigating convergence in
   time.
+* [runscript_convergence_analysis_3D](./runscript_convergence_analysis_3D.py) is the
+  same as above but for 3D.
 * [manufactured_solution_dynamic](./manufactured_solution_dynamic.py) is implementation
   of a verification setup for the dynamic momentum balance.
+* [manufactured_solution_dynamic_3D](./manufactured_solution_dynamic_3D.py) is the same
+  as above but for 3D.
 
-The verification setup takes use of [this](./models/time_dependent_source_term.py)
+The verification setups takes use of [this](./models/time_dependent_source_term.py)
 model.
 
 ### "Old" runscripts
@@ -54,6 +60,9 @@ the files listed below. However, these scripts (should) still work.
   successfull attempt at MMS with static momentum balance equation.
 * [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
 * [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
+
+At least the bottom two are very close to being deprecated. Now I have soon finalized
+verifying the 3D version of the refactored model, and after that they will be removed.
 
 ## Sanity check
 Before the convergence rates for the dynamic momentum balance were as expected, a
