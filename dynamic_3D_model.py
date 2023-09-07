@@ -66,10 +66,6 @@ class BoundaryAndInitialCond:
         for sd in subdomains:
             bounds = self.domain_boundary_sides(sd)
             val_loc = np.zeros((self.nd, sd.num_faces))
-            value = 1
-            val_loc[1, bounds.north] = -value * 1e-5 * 0
-            val_loc[1, bounds.south] = value * 1e-5 * 0
-
             values.append(val_loc)
 
         values = np.array(values)
@@ -110,7 +106,7 @@ class BoundaryAndInitialCond:
         velocity_function = u_v_a_wrap(self, is_2D=False, return_dt=True)
         vals[0] = velocity_function[0](x, y, z, t)
         vals[1] = velocity_function[1](x, y, z, t)
-        vals[2] = velocity_function[1](x, y, z, t)
+        vals[2] = velocity_function[2](x, y, z, t)
 
         return vals.ravel("F")
 
@@ -129,7 +125,7 @@ class BoundaryAndInitialCond:
         displacement_function = u_v_a_wrap(self, is_2D=False)
         vals[0] = displacement_function[0](x, y, z, t)
         vals[1] = displacement_function[1](x, y, z, t)
-        vals[2] = displacement_function[1](x, y, z, t)
+        vals[2] = displacement_function[2](x, y, z, t)
 
         return vals.ravel("F")
 
@@ -190,9 +186,13 @@ class MyMomentumBalance(
     ...
 
 
+tf = 10.0
+time_steps = 20
+dt = tf / time_steps
+
 time_manager = pp.TimeManager(
-    schedule=[0, 1e-1],
-    dt_init=0.5e-2,
+    schedule=[0, tf],
+    dt_init=dt,
     constant_dt=True,
     iter_max=10,
     print_info=True,
@@ -214,6 +214,7 @@ params = {
     "material_constants": material_constants,
     "folder_name": "3D_time_dep_source_2",
     "manufactured_solution": "bubble",
+    "progress_bars": True,
 }
 model = MyMomentumBalance(params)
 
