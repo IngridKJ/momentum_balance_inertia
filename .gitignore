@@ -7,4 +7,5 @@
 *.txt
 *.mp4
 *.png
-utils/Verification and runscripts
+verification/Verification and runscripts
+ParaView/*
