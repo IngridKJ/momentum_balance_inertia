@@ -437,6 +437,7 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
     trace_grad_u = grad_u[0][0] + grad_u[1][1] + grad_u[2][2]
 
     # Exact strain (\epsilon(u))
+    # !!! double check this, I think I found an index typo in second (first) element.
     strain = 0.5 * np.array(
         [
             [
@@ -447,7 +448,7 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
             [
                 grad_u[1][0] + grad_u_T[1][0],
                 grad_u[1][1] + grad_u_T[1][1],
-                grad_u[2][1] + grad_u_T[2][1],
+                grad_u[1][2] + grad_u_T[1][2],
             ],
             [
                 grad_u[2][0] + grad_u_T[2][0],
@@ -476,15 +477,22 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
         ],
     ]
 
-    # Divergence of sigma
+    # Divergence of sigma !!! Found some weird stuff with div sigma here. Old code is
+    # commented out below. This probably still doesn't explain my issues tho. Then my
+    # question is, why does the other runscript work..?
     div_sigma = [
-        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
-        sym.diff(sigma[0][2], z),
-        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
-        sym.diff(sigma[1][2], z),
-        sym.diff(sigma[2][0], x) + sym.diff(sigma[2][1], y),
-        sym.diff(sigma[2][2], z),
+        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y) + sym.diff(sigma[0][2], z),
+        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y) + sym.diff(sigma[1][2], z),
+        sym.diff(sigma[2][0], x) + sym.diff(sigma[2][1], y) + sym.diff(sigma[2][2], z),
     ]
+    # div_sigma = [
+    #     sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
+    #     sym.diff(sigma[0][2], z),
+    #     sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
+    #     sym.diff(sigma[1][2], z),
+    #     sym.diff(sigma[2][0], x) + sym.diff(sigma[2][1], y),
+    #     sym.diff(sigma[2][2], z),
+    # ]
 
     # Full acceleration term
     acceleration_term = [rho * ddt_u[0], rho * ddt_u[1], rho * ddt_u[2]]

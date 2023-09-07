@@ -14,11 +14,23 @@ from utils import u_v_a_wrap
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         bounds = self.domain_boundary_sides(sd)
-        bc = pp.BoundaryConditionVectorial(
-            sd,
-            bounds.north + bounds.south + bounds.east + bounds.west,
-            "dir",
-        )
+        if self.nd == 2:
+            bc = pp.BoundaryConditionVectorial(
+                sd,
+                bounds.north + bounds.south + bounds.east + bounds.west,
+                "dir",
+            )
+        elif self.nd == 3:
+            bc = pp.BoundaryConditionVectorial(
+                sd,
+                bounds.north
+                + bounds.south
+                + bounds.east
+                + bounds.west
+                + bounds.top
+                + bounds.bottom,
+                "dir",
+            )
         return bc
 
     def initial_displacement(self, dofs: int) -> np.ndarray:
