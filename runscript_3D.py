@@ -5,33 +5,6 @@ import numpy as np
 from models import MomentumBalanceTimeDepSource
 
 
-class BCVals:
-    def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        bounds = self.domain_boundary_sides(sd)
-        bc = pp.BoundaryConditionVectorial(
-            sd,
-            bounds.north
-            + bounds.south
-            + bounds.west
-            + bounds.east
-            + bounds.top
-            + bounds.bottom,
-            "dir",
-        )
-        return bc
-
-    def bc_values_mechanics(self, subdomains: list[pp.Grid]) -> pp.ad.AdArray:
-        values = []
-        for sd in subdomains:
-            bounds = self.domain_boundary_sides(sd)
-            val_loc = np.zeros((self.nd, sd.num_faces))
-            values.append(val_loc)
-
-        values = np.array(values)
-        values = values.ravel("F")
-        return pp.wrap_as_ad_array(values, name="bc_vals_mechanics")
-
-
 class MyGeometry:
     def nd_rect_domain(self, x, y, z) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
@@ -52,7 +25,6 @@ class MyGeometry:
 
 
 class MomentumBalanceABCModifiedGeometry(
-    BCVals,
     MyGeometry,
     MomentumBalanceTimeDepSource,
 ):
@@ -85,7 +57,7 @@ material_constants = {"solid": solid_constants}
 
 params = {
     "time_manager": time_manager,
-    "grid_type": "simplex",
+    "grid_type": "cartesian",
     "material_constants": material_constants,
     "folder_name": "center_source",
     "manufactured_solution": "bubble",
@@ -94,24 +66,3 @@ params = {
 
 model = MomentumBalanceABCModifiedGeometry(params)
 pp.run_time_dependent_model(model, params)
-sd = model.mdg.subdomains(dim=3)[0]
-data = model.mdg.subdomain_data(sd)
-
-from utils import get_solution_values
-
-t = tf
-x = sd.cell_centers[0, :]
-y = sd.cell_centers[1, :]
-z = sd.cell_centers[2, :]
-ones = np.ones(len(x))
-
-u1 = u2 = u3 = t**2 * x * y * z * (1 - x) * (1 - y) * (1 - z)
-u_e = np.array([u1, u2, u3])
-u_e = u_e.ravel("F")
-u = get_solution_values(name="u", data=data, time_step_index=0)
-
-error = pp.error_computation.l2_error(
-    grid=sd, true_array=u_e, approx_array=u, is_scalar=False, is_cc=True, relative=True
-)
-
-print(error)

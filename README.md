@@ -22,18 +22,22 @@ Models are found within the [models](./models/) directory:
   source term](./models/time_dependent_source_term.py) model.
 
 ## Runscripts
-The two following runscripts have a centered source term to see how the propagating wave
-is handled by the ABCs. All domain boundaries are absorbing.
-* [center_source_2D_ABC](./center_source_2D_ABC.py) is for running the 2D model.
-* [center_source_3D_ABC](./center_source_3D_ABC.py) is for running the 3D model.
+The two following runscripts have a centered source term to see how the propagating wave is
+handled by the ABCs. All domain boundaries are absorbing.
+* [center_source_2D_ABC](./center_source_2D_ABC.py) is for running the 2D model with
+  absorbing boundaries.
+* [center_source_3D_ABC](./center_source_3D_ABC.py) is for running the 3D model with
+  absorbing boundaries.
+
+Other runscripts:
+* [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
+  balance. No absorbing boundaries, just zero Dirichlet.
 
 ## Unit test setups for the absorbing boundary conditions (ABCs)
 * [unit_test_2D_ABC](./unit_test_2D_ABC.py) is for running the 2D quasi-1D model with
 one absorbing boundary.
 * [unit_test_3D_ABC](./unit_test_3D_ABC.py) is for running the 3D quasi-1D model with
 one absorbing boundary.
-* [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
-  balance.
 
 ## Verification setup for the dynamic momentum balance
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
