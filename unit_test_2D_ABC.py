@@ -132,8 +132,8 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 40.0 / self.units.m
-        y = 20.0 / self.units.m
+        x = 15.0 / self.units.m
+        y = 1.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
@@ -248,18 +248,58 @@ class UnitTestFourthOrderTensor(object):
         return C
 
 
+class DifferenceExporting:
+    def data_to_export(self):
+        """Define the data to export to vtu.
+
+        Returns:
+            list: List of tuples containing the subdomain, variable name,
+            and values to export.
+
+        """
+        data = super().data_to_export()
+        for sd in self.mdg.subdomains(dim=self.nd):
+            x = sd.cell_centers[0, :]
+            t = self.time_manager.time
+            cp = self.primary_wave_speed
+
+            d = self.mdg.subdomain_data(sd)
+            disp_vals = d[pp.TIME_STEP_SOLUTIONS]["u"][0]
+            u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")[0]
+
+            u_e = np.sin(t - x / cp)
+
+            du = u_e - u_h
+
+            relative_l2_error = pp.error_computation.l2_error(
+                grid=sd,
+                true_array=u_e,
+                approx_array=u_h,
+                is_scalar=True,
+                is_cc=True,
+                relative=True,
+            )
+
+            data.append((sd, "diff_anal_num", du))
+            data.append((sd, "analytical_solution", u_e))
+            with open("l2_error_file_3000_.txt", "a") as file:
+                file.write(str(relative_l2_error))
+        return data
+
+
 class MomentumBalanceABCModifiedGeometry(
     DifferentBC,
     MyGeometry,
     UnitTestConstitutiveLaw,
+    DifferenceExporting,
     MomentumBalanceABC,
 ):
     ...
 
 
 t_shift = 0.0
-tf = 12.0
-dt = tf / 1200.0
+tf = 75.0
+dt = tf / 3000.0
 
 
 time_manager = pp.TimeManager(
@@ -273,8 +313,8 @@ time_manager = pp.TimeManager(
 solid_constants = pp.SolidConstants(
     {
         "density": 1.0,
-        "lame_lambda": 1.0e1,
-        "shear_modulus": 1.0e1,
+        "lame_lambda": 1.0,
+        "shear_modulus": 1.0,
     }
 )
 
@@ -284,7 +324,7 @@ params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
     "material_constants": material_constants,
-    "folder_name": "scaled_quasi_1D",
+    "folder_name": "quasi_1D_",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
 }
