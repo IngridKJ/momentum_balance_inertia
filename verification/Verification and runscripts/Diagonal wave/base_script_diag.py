@@ -138,18 +138,21 @@ class BoundaryConditionsUnitTest:
         # Values for the western and southern side sine wave
         x = sd.face_centers[0, :]
         y = sd.face_centers[1, :]
+        alpha = self.rotation_angle
 
         values[0][bounds.west] += np.sin(
-            np.ones(len(x[bounds.west])) * t - 1 / (cp * np.sqrt(2)) * y[bounds.west]
+            np.ones(len(x[bounds.west])) * t - 1 / (cp) * y[bounds.west] * np.sin(alpha)
         )
         values[1][bounds.west] += np.sin(
-            np.ones(len(y[bounds.west])) * t - 1 / (cp * np.sqrt(2)) * y[bounds.west]
+            np.ones(len(y[bounds.west])) * t - 1 / (cp) * y[bounds.west] * np.sin(alpha)
         )
         values[0][bounds.south] += np.sin(
-            np.ones(len(x[bounds.south])) * t - 1 / (cp * np.sqrt(2)) * x[bounds.south]
+            np.ones(len(x[bounds.south])) * t
+            - 1 / (cp) * x[bounds.south] * np.cos(alpha)
         )
         values[1][bounds.south] += np.sin(
-            np.ones(len(y[bounds.south])) * t - 1 / (cp * np.sqrt(2)) * x[bounds.south]
+            np.ones(len(y[bounds.south])) * t
+            - 1 / (cp) * x[bounds.south] * np.cos(alpha)
         )
 
         return values.ravel("F")
@@ -167,6 +170,7 @@ class InitialConditionUnitTest:
         t = 0
         x = sd.face_centers[0, :]
         y = sd.face_centers[1, :]
+        alpha = self.rotation_angle
 
         inds_north = get_boundary_cells(
             self=self, sd=sd, side="north", return_faces=True
@@ -177,18 +181,18 @@ class InitialConditionUnitTest:
 
         # North
         bc_vals[0, :][inds_north] = np.sin(
-            t - (x[inds_north] + y[inds_north]) / (np.sqrt(2) * cp)
+            t - (x[inds_north] * np.cos(alpha) + y[inds_north] * np.sin(alpha)) / (cp)
         )
         bc_vals[1, :][inds_north] = np.sin(
-            t - (x[inds_north] + y[inds_north]) / (np.sqrt(2) * cp)
+            t - (x[inds_north] * np.cos(alpha) + y[inds_north] * np.sin(alpha)) / (cp)
         )
 
         # East
         bc_vals[0, :][inds_east] = np.sin(
-            t - (x[inds_east] + y[inds_east]) / (np.sqrt(2) * cp)
+            t - (x[inds_east] * np.cos(alpha) + y[inds_east] * np.sin(alpha)) / (cp)
         )
         bc_vals[1, :][inds_east] = np.sin(
-            t - (x[inds_east] + y[inds_east]) / (np.sqrt(2) * cp)
+            t - (x[inds_east] * np.cos(alpha) + y[inds_east] * np.sin(alpha)) / (cp)
         )
 
         bc_vals = bc_vals.ravel("F")
@@ -222,17 +226,17 @@ class ExportErrors:
             y = sd.cell_centers[1, :]
             t = self.time_manager.time
             cp = self.primary_wave_speed
+            alpha = self.rotation_angle
 
             d = self.mdg.subdomain_data(sd)
-            # disp_vals = d[pp.TIME_STEP_SOLUTIONS]["u"][0]
             disp_vals = get_solution_values(name="u", data=d, time_step_index=0)
 
             u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")[0]
 
             u_e = np.array(
                 [
-                    np.sin(t - (x + y) / (np.sqrt(2) * cp)),
-                    np.sin(t - (x + y) / (np.sqrt(2) * cp)),
+                    np.sin(t - (x * np.cos(alpha) + y * np.sin(alpha)) / (cp)),
+                    np.sin(t - (x * np.cos(alpha) + y * np.sin(alpha)) / (cp)),
                 ]
             )
 
@@ -256,6 +260,7 @@ class ExportErrors:
 
 
 class BaseScriptModel(
+    RotationAngle,
     BoundaryConditionsUnitTest,
     InitialConditionUnitTest,
     ExportErrors,
