@@ -225,6 +225,9 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     elif manufactured_sol == "bubble":
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
+    elif manufactured_sol == "diag_wave":
+        u1 = u2 = sym.sin(t - (x + y) / (sym.sqrt(2) * cp))
+        u = [u1, u2]
     elif manufactured_sol == "bubble_30":
         u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
         u = [u1, u2]
@@ -799,10 +802,12 @@ def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarr
         1
     ]
 
-    return boundary_cells
+    return boundary_cells, face_indices
 
 
-def get_boundary_cells(self, sd: pp.Grid, side: str) -> np.ndarray:
+def get_boundary_cells(
+    self, sd: pp.Grid, side: str, return_faces: bool = False
+) -> np.ndarray:
     """Grabs the cell indices of a certain subdomain side.
 
     Wrapper-like function for fetching boundary cell indices.
@@ -819,15 +824,17 @@ def get_boundary_cells(self, sd: pp.Grid, side: str) -> np.ndarray:
 
     """
     if side == "south":
-        cells = self._get_boundary_cells(sd=sd, coord="y", extreme="ymin")
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="y", extreme="ymin")
     elif side == "north":
-        cells = self._get_boundary_cells(sd=sd, coord="y", extreme="ymax")
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="y", extreme="ymax")
     elif side == "west":
-        cells = self._get_boundary_cells(sd=sd, coord="x", extreme="xmin")
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="x", extreme="xmin")
     elif side == "east":
-        cells = self._get_boundary_cells(sd=sd, coord="x", extreme="xmax")
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="x", extreme="xmax")
     elif side == "top":
-        cells = self._get_boundary_cells(sd=sd, coord="z", extreme="zmax")
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="z", extreme="zmax")
     elif side == "bottom":
-        cells = self._get_boundary_cells(sd=sd, coord="z", extreme="zmin")
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="z", extreme="zmin")
+    if return_faces:
+        return faces
     return cells
