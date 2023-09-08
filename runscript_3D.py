@@ -24,7 +24,7 @@ class MyGeometry:
         return mesh_args
 
 
-class MomentumBalanceABCModifiedGeometry(
+class MomentumBalanceModifiedGeometry(
     MyGeometry,
     MomentumBalanceTimeDepSource,
 ):
@@ -64,5 +64,5 @@ params = {
     "progressbars": True,
 }
 
-model = MomentumBalanceABCModifiedGeometry(params)
+model = MomentumBalanceModifiedGeometry(params)
 pp.run_time_dependent_model(model, params)
