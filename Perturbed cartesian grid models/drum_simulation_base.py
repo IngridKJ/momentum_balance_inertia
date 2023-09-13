@@ -28,18 +28,8 @@ class SolutionStratABC:
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
 
-        if self.nd == 2:
-            x_val = f[0](x, y, t)
-            y_val = f[1](x, y, t)
-
-        elif self.nd == 3:
-            z = sd.cell_centers[2, :]
-
-            x_val = f[0](x, y, z, t)
-            y_val = f[1](x, y, z, t)
-            z_val = f[2](x, y, z, t)
-
-            vals[2] = z_val * cell_volume
+        x_val = f[0](x, y, t)
+        y_val = f[1](x, y, t)
 
         vals[0] = x_val * cell_volume
         vals[1] = y_val * cell_volume * 0
