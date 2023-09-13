@@ -231,7 +231,7 @@ class ExportErrors:
             d = self.mdg.subdomain_data(sd)
             disp_vals = get_solution_values(name="u", data=d, time_step_index=0)
 
-            u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")[0]
+            u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")
 
             u_e = np.array(
                 [
@@ -251,7 +251,7 @@ class ExportErrors:
                 relative=True,
             )
 
-            data.append((sd, "diff_anal_num", du))
+            data.append((sd, "absolute_error", du))
             data.append((sd, "analytical_solution", u_e))
 
             with open(self.filename, "a") as file:
