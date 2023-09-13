@@ -41,10 +41,6 @@ class BoundaryPerturbedGeometry:
         sd.nodes[:2, non_boundary_node] += (np.random.rand(1) - 0.5) * h / 4
         sd.compute_geometry()
 
-    def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.0125 / self.units.m}
-        return mesh_args
-
 
 class BoundaryPerturbedModel(
     BoundaryPerturbedGeometry,
