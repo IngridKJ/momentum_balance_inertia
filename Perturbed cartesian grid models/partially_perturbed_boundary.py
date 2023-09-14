@@ -8,6 +8,13 @@ from utils import get_boundary_cells
 
 class BoundaryPerturbedGeometry:
     def set_geometry(self):
+        """Perturb a "boundary" node.
+
+        Perturbes one arbitrary west boundary cell node. The node that is perturbed is
+        not actually a boundary node, but rather one of the in-domain nodes of a
+        boundary cell.
+
+        """
         super().set_geometry()
         sd = self.mdg.subdomains()[0]
         h = self.meshing_arguments()["cell_size"]
@@ -18,9 +25,9 @@ class BoundaryPerturbedGeometry:
         # Here follows the most brute force way of fecthing a non-corner "internal"
         # western boundary cell node that I could think of. Please ignore.
         cont = True
-        cell_number = 1
         cells_south = get_boundary_cells(self, sd, side="south")
         cells_north = get_boundary_cells(self, sd, side="north")
+        cell_number = np.random.choice(get_boundary_cells(self, sd, side="west"))
         while cont == True:
             if cell_number in cells_south or cell_number in cells_north:
                 cell_number = np.random.choice(
@@ -67,7 +74,7 @@ params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
     "folder_name": "perturbed_node",
-    "manufactured_solution": "bubble",
+    "manufactured_solution": "drum_solution",
     "progressbars": True,
 }
 

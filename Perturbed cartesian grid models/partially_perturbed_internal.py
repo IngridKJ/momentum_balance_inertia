@@ -7,13 +7,17 @@ from drum_simulation_base import BaseClass
 
 class InternalPerturbedGeometry:
     def set_geometry(self):
+        """Perturb an internal node.
+
+        Perturbes an arbitrary internal node. The node might be an internal node of a
+        boundary cell. For consistently perturbing nodes belonging to a boundary cell,
+        see the partially_perturbed_boundary.py file.
+
+        """
         super().set_geometry()
         sd = self.mdg.subdomains()[0]
         h = self.meshing_arguments()["cell_size"]
 
-        # Fetching a random internal node. The internal node might belong to a boundary
-        # cell, which is really a test performed in partially_perturbed_boundary.py. It
-        # is however unlikely that such a node is chosen over an actual internal node.
         inds = sd.get_internal_nodes()
         random_index = np.random.choice(inds)
 
@@ -46,7 +50,7 @@ params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
     "folder_name": "perturbed_nodes",
-    "manufactured_solution": "bubble",
+    "manufactured_solution": "drum_solution",
     "progressbars": True,
 }
 

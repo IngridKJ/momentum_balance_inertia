@@ -7,6 +7,7 @@ from drum_simulation_base import BaseClass
 
 class AllPerturbedGeometry:
     def set_geometry(self):
+        """Perturb all internal boundary nodes randomly."""
         super().set_geometry()
         sd = self.mdg.subdomains()[0]
         h = self.meshing_arguments()["cell_size"]
@@ -40,7 +41,7 @@ params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
     "folder_name": "perturbed_nodes",
-    "manufactured_solution": "bubble",
+    "manufactured_solution": "drum_solution",
     "progressbars": True,
 }
 

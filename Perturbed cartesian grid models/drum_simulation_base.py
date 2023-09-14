@@ -32,11 +32,8 @@ class SolutionStratABC:
         y_val = f[1](x, y, t)
 
         vals[0] = x_val * cell_volume
-        vals[1] = y_val * cell_volume * 0
-        if self.time_manager.time_index <= 10:
-            return vals.ravel("F")
-        else:
-            return vals.ravel("F") * 0
+        vals[1] = y_val * cell_volume
+        return vals.ravel("F")
 
 
 class MyGeometry:
