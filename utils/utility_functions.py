@@ -47,10 +47,9 @@ def get_solution_values(
 ) -> np.ndarray:
     """Function for fetching values stored in data dictionary.
 
-    It looks very ugly to fetch values (that are not connected to a variable) from the
-    data dictionary. Therefore this function will come in handy such that the keys
-    `pp.TIME_STEP_SOLUTIONS` or `pp.ITERATE_SOLUTIONS` are not scattered all over the
-    code.
+    This function should be used to fetch solution values that are not related to a
+    variable. This is to avoid the time consuming alternative of writing e.g.:
+    `data["solution_name"][pp.TIME_STEP_SOLUTION/pp.ITERATE_SOLUTION][0]`.
 
     Parameters:
         name: Name of the parameter whose values we are interested in.
@@ -61,6 +60,9 @@ def get_solution_values(
         iterate_index: Which iterate we want to get values for. 0 is current, 1 is one
             iterate back in time. Only limited by how many iterates are stored from
             before.
+
+    Returns:
+        An array containing the solution values.
 
     """
     if (time_step_index is None and iterate_index is None) or (
@@ -225,6 +227,9 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         u = [u1, u2]
     elif manufactured_sol == "bubble":
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "drum_solution":
+        u1 = u2 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
     elif manufactured_sol == "diag_wave":
         alpha = model.rotation_angle
