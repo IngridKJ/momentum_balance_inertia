@@ -22,8 +22,8 @@ Models are found within the [models](./models/) directory:
   source term](./models/time_dependent_source_term.py) model.
 
 ## Runscripts
-The two following runscripts have a centered source term to see how the propagating wave is
-handled by the ABCs. All domain boundaries are absorbing.
+The two following runscripts have a centered source term to see how the propagating wave
+is handled by the ABCs. All domain boundaries are absorbing.
 * [center_source_2D_ABC](./center_source_2D_ABC.py) is for running the 2D model with
   absorbing boundaries.
 * [center_source_3D_ABC](./center_source_3D_ABC.py) is for running the 3D model with
@@ -33,9 +33,10 @@ Other runscripts:
 * [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
   balance. No absorbing boundaries, just zero Dirichlet.
 
-## Unit test setups for the absorbing boundary conditions (ABCs)
-* [unit_test_2D_ABC](./unit_test_2D_ABC.py) is for running the 2D quasi-1D model with
-one absorbing boundary.
+## Test setups for the absorbing boundary conditions (ABCs)
+* [Orthogonal wave](./verification/Verification%20and%20runscripts/Orthogonal%20wave/)
+  contains a setup for propagation of an orthogonal wave. It is ready with a few
+  different choices for time stepping, parameter value and grid.
 * [unit_test_3D_ABC](./unit_test_3D_ABC.py) is for running the 3D quasi-1D model with
 one absorbing boundary.
 
@@ -57,16 +58,8 @@ The verification setups takes use of [this](./models/time_dependent_source_term.
 model.
 
 ### "Old" runscripts
-Some model refactoring is performed, but not all runscripts are updated accordingly. The
-idea is to avoid having the "original" modified models defined in runscripts, like in
-the files listed below. However, these scripts (should) still work.
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
   successfull attempt at MMS with static momentum balance equation.
-* [dynamic_2D_model](./dynamic_2D_model.py) is for dynamic momentum balance (2D).
-* [dynamic_3D_model](./dynamic_3D_model.py) is for dynamic momentum balance (3D).
-
-At least the bottom two are very close to being deprecated. Now I have soon finalized
-verifying the 3D version of the refactored model, and after that they will be removed.
 
 ## Sanity check
 Before the convergence rates for the dynamic momentum balance were as expected, a
