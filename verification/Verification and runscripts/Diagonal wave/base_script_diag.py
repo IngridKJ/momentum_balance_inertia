@@ -157,7 +157,7 @@ class BoundaryConditionsUnitTest:
         return values.ravel("F")
 
 
-class InitialConditionUnitTest:
+class InitialConditionSourceTermUnitTest:
     def initial_condition(self):
         """Assigning initial bc values."""
         super().initial_condition()
@@ -208,6 +208,21 @@ class InitialConditionUnitTest:
             data=data,
             iterate_index=0,
         )
+
+    def source_values(self, f, sd, t) -> np.ndarray:
+        """Computes the integrated source values by the source function.
+
+        Parameters:
+            f: Function depending on time and space for the source term.
+            sd: Subdomain where the source term is defined.
+            t: Current time in the time-stepping.
+
+        Returns:
+            An array of source values.
+
+        """
+        vals = np.zeros((self.nd, sd.num_cells))
+        return vals.ravel("F")
 
 
 class ExportErrors:
@@ -261,7 +276,7 @@ class ExportErrors:
 class BaseScriptModel(
     RotationAngle,
     BoundaryConditionsUnitTest,
-    InitialConditionUnitTest,
+    InitialConditionSourceTermUnitTest,
     ExportErrors,
     MomentumBalanceABC,
 ):
