@@ -19,7 +19,6 @@ sys.path.append("../../../")
 from models import MomentumBalanceABC
 
 from utils import get_boundary_cells
-from utils import get_solution_values
 
 
 class RotationAngle:
@@ -103,7 +102,7 @@ class BoundaryConditionsUnitTest:
         else:
             # On first timestep, initial values are fetched from the data dictionary.
             # These initial values are assigned in the initial_condition function.
-            displacement_values = get_solution_values(
+            displacement_values = pp.get_solution_values(
                 name=self.bc_values_mechanics_key, data=data, time_step_index=0
             )
 
@@ -229,7 +228,7 @@ class ExportErrors:
             alpha = self.rotation_angle
 
             d = self.mdg.subdomain_data(sd)
-            disp_vals = get_solution_values(name="u", data=d, time_step_index=0)
+            disp_vals = pp.get_solution_values(name="u", data=d, time_step_index=0)
 
             u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")
 
