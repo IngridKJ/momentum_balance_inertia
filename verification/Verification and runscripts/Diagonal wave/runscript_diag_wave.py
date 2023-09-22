@@ -26,7 +26,9 @@ class TestSetup(
     MyGeometry,
     BaseScriptModel,
 ):
-    ...
+    @property
+    def rotation_angle(self) -> float:
+        return np.pi / 6
 
 
 t_shift = 0.0
@@ -58,11 +60,6 @@ import os
 import sys
 
 runscript_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-model.filename = f"diagonal_{time_steps}_{runscript_name}.txt"
+model.filename = f"ts{time_steps}_{runscript_name}.txt"
 
-pp.run_time_dependent_model(model, params)
-
-from plot_l2_error import plot_the_error
-
-plot_the_error(model.filename)
 pp.run_time_dependent_model(model, params)
