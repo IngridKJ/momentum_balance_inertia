@@ -132,6 +132,32 @@ class MyEquations:
 
 
 class MySolutionStrategy:
+    def set_discretization_parameters(self) -> None:
+        """Set discretization parameters for the simulation.
+
+        Sets eta = 1/3 on all faces if it is a simplex grid. Default is to have 0 on the
+        boundaries, but this causes divergence of the solution. 1/3 all over fixes this
+        issue.
+
+        """
+
+        super().set_discretization_parameters()
+        if self.params["grid_type"] == "simplex":
+            num_subfaces = 0
+            for sd, data in self.mdg.subdomains(return_data=True):
+                subcell_topology = pp.fvutils.SubcellTopology(sd)
+                num_subfaces += subcell_topology.num_subfno
+                eta_values = np.ones(num_subfaces) * 1 / 3
+                if sd.dim == self.nd:
+                    pp.initialize_data(
+                        sd,
+                        data,
+                        self.stress_keyword,
+                        {
+                            "mpsa_eta": eta_values,
+                        },
+                    )
+
     def velocity_time_dep_array(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.TimeDependentDenseArray:
