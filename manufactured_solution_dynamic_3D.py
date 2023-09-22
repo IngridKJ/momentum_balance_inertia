@@ -58,7 +58,7 @@ class ManuMechDataSaving(VerificationDataSaving):
 
     """
 
-    exact_sol: ManuMechExactSolution2d
+    exact_sol: ManuMechExactSolution3d
     """Exact solution object."""
 
     stress: Callable[[list[pp.Grid]], pp.ad.Operator]
@@ -127,18 +127,18 @@ class ManuMechDataSaving(VerificationDataSaving):
 
 
 # -----> Exact solution
-class ManuMechExactSolution2d:
+class ManuMechExactSolution3d:
     """Class containing the exact manufactured solution for the verification setup."""
 
     def __init__(self, setup):
         """Constructor of the class."""
         # Symbolic variables
-        u, x, y, t = symbolic_representation(model=setup)
+        u, x, y, z, t = symbolic_representation(model=setup, is_2D=False)
         (
             source_mech,
             sigma_total,
             acceleration_term,
-        ) = symbolic_equation_terms(model=setup, u=u, x=x, y=y, t=t)
+        ) = symbolic_equation_terms(model=setup, u=u, x=x, y=y, z=z, t=t, is_2D=False)
 
         # Public attributes
         self.u = u  # displacement
@@ -163,21 +163,23 @@ class ManuMechExactSolution2d:
 
         """
         # Symbolic variables
-        x, y, t = sym.symbols("x y t")
+        x, y, z, t = sym.symbols("x y z t")
 
         # Get cell centers
         cc = sd.cell_centers
 
         # Lambdify expression
         u_fun: list[Callable] = [
-            sym.lambdify((x, y, t), self.u[0], "numpy"),
-            sym.lambdify((x, y, t), self.u[1], "numpy"),
+            sym.lambdify((x, y, z, t), self.u[0], "numpy"),
+            sym.lambdify((x, y, z, t), self.u[1], "numpy"),
+            sym.lambdify((x, y, z, t), self.u[2], "numpy"),
         ]
 
         # Cell-centered displacements
         u_cc: list[np.ndarray] = [
-            u_fun[0](cc[0], cc[1], time),
-            u_fun[1](cc[0], cc[1], time),
+            u_fun[0](cc[0], cc[1], cc[2], time),
+            u_fun[1](cc[0], cc[1], cc[2], time),
+            u_fun[2](cc[0], cc[1], cc[2], time),
         ]
 
         # Flatten array
@@ -203,7 +205,7 @@ class ManuMechExactSolution2d:
 
         """
         # Symbolic variables
-        x, y, t = sym.symbols("x y t")
+        x, y, z, t = sym.symbols("x y z t")
 
         # Get cell centers and face normals
         fc = sd.face_centers
@@ -212,23 +214,36 @@ class ManuMechExactSolution2d:
         # Lambdify expression
         sigma_total_fun: list[list[Callable]] = [
             [
-                sym.lambdify((x, y, t), self.sigma_total[0][0], "numpy"),
-                sym.lambdify((x, y, t), self.sigma_total[0][1], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[0][0], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[0][1], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[0][2], "numpy"),
             ],
             [
-                sym.lambdify((x, y, t), self.sigma_total[1][0], "numpy"),
-                sym.lambdify((x, y, t), self.sigma_total[1][1], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[1][0], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[1][1], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[1][2], "numpy"),
+            ],
+            [
+                sym.lambdify((x, y, z, t), self.sigma_total[2][0], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[2][1], "numpy"),
+                sym.lambdify((x, y, z, t), self.sigma_total[2][2], "numpy"),
             ],
         ]
 
         # Face-centered elastic force
         force_total_fc: list[np.ndarray] = [
-            # (sigma_xx * n_x + sigma_xy * n_y) * face_area
-            sigma_total_fun[0][0](fc[0], fc[1], time) * fn[0]
-            + sigma_total_fun[0][1](fc[0], fc[1], time) * fn[1],
-            # (sigma_yx * n_x + sigma_yy * n_y) * face_area
-            sigma_total_fun[1][0](fc[0], fc[1], time) * fn[0]
-            + sigma_total_fun[1][1](fc[0], fc[1], time) * fn[1],
+            # (sigma_xx * n_x + sigma_xy * n_y + sigma_xz * n_z) * face_area
+            sigma_total_fun[0][0](fc[0], fc[1], fc[2], time) * fn[0]
+            + sigma_total_fun[0][1](fc[0], fc[1], fc[2], time) * fn[1]
+            + sigma_total_fun[0][2](fc[0], fc[1], fc[2], time) * fn[2],
+            # (sigma_yx * n_x + sigma_yy * n_y + sigma_yz * n_z) * face_area
+            sigma_total_fun[1][0](fc[0], fc[1], fc[2], time) * fn[0]
+            + sigma_total_fun[1][1](fc[0], fc[1], fc[2], time) * fn[1]
+            + sigma_total_fun[1][2](fc[0], fc[1], fc[2], time) * fn[2],
+            # (sigma_zx * n_x + sigma_zy * n_y + sigma_zz * n_z) * face_area
+            sigma_total_fun[2][0](fc[0], fc[1], fc[2], time) * fn[0]
+            + sigma_total_fun[2][1](fc[0], fc[1], fc[2], time) * fn[1]
+            + sigma_total_fun[2][2](fc[0], fc[1], fc[2], time) * fn[2],
         ]
 
         # Flatten array
@@ -253,7 +268,7 @@ class ManuMechExactSolution2d:
 
         """
         # Symbolic variables
-        x, y, t = sym.symbols("x y t")
+        x, y, z, t = sym.symbols("x y z t")
 
         # Get cell centers and cell volumes
         cc = sd.cell_centers
@@ -261,14 +276,16 @@ class ManuMechExactSolution2d:
 
         # Lambdify expression
         source_mech_fun: list[Callable] = [
-            sym.lambdify((x, y, t), self.source_mech[0], "numpy"),
-            sym.lambdify((x, y, t), self.source_mech[1], "numpy"),
+            sym.lambdify((x, y, z, t), self.source_mech[0], "numpy"),
+            sym.lambdify((x, y, z, t), self.source_mech[1], "numpy"),
+            sym.lambdify((x, y, z, t), self.source_mech[2], "numpy"),
         ]
 
         # Evaluate and integrate source
         source_mech: list[np.ndarray] = [
-            source_mech_fun[0](cc[0], cc[1], time) * vol,
-            source_mech_fun[1](cc[0], cc[1], time) * vol,
+            source_mech_fun[0](cc[0], cc[1], cc[2], time) * vol,
+            source_mech_fun[1](cc[0], cc[1], cc[2], time) * vol,
+            source_mech_fun[2](cc[0], cc[1], cc[2], time) * vol,
         ]
 
         # Flatten array
@@ -308,6 +325,12 @@ class ManuMechUtils(VerificationUtils):
             sd, u_num[1::2], plot_2d=True, linewidth=0, title="u_y (Numerical)"
         )
 
+        # z displacement
+        pp.plot_grid(sd, u_ex[2::3], plot_2d=True, linewidth=0, title="u_z (Exact)")
+        pp.plot_grid(
+            sd, u_num[2::3], plot_2d=True, linewidth=0, title="u_z (Numerical)"
+        )
+
 
 # -----> Geometry
 class UnitSquareGrid:
@@ -318,7 +341,7 @@ class UnitSquareGrid:
 
     def set_domain(self) -> None:
         """Set domain."""
-        self._domain = nd_cube_domain(2, 1.0)
+        self._domain = nd_cube_domain(3, 1.0)
 
     def meshing_arguments(self) -> dict[str, float]:
         """Set meshing arguments."""
@@ -327,10 +350,10 @@ class UnitSquareGrid:
 
 
 # -----> Solution strategy
-class ManuMechSolutionStrategy2d:
+class ManuMechSolutionStrategy3d:
     """Solution strategy for the verification setup."""
 
-    exact_sol: ManuMechExactSolution2d
+    exact_sol: ManuMechExactSolution3d
     """Exact solution object."""
 
     plot_results: Callable
@@ -346,7 +369,7 @@ class ManuMechSolutionStrategy2d:
         """Constructor for the class."""
         super().__init__(params)
 
-        self.exact_sol: ManuMechExactSolution2d
+        self.exact_sol: ManuMechExactSolution3d
         """Exact solution object."""
 
         self.results: list[ManuMechSaveData] = []
@@ -363,7 +386,7 @@ class ManuMechSolutionStrategy2d:
         super().set_materials()
 
         # Instantiate exact solution object after materials have been set
-        self.exact_sol = ManuMechExactSolution2d(self)
+        self.exact_sol = ManuMechExactSolution3d(self)
 
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources."""
@@ -385,9 +408,9 @@ class ManuMechSolutionStrategy2d:
 
 
 # -----> Mixer class
-class ManuMechSetup2d(  # type: ignore[misc]
+class ManuMechSetup3d(  # type: ignore[misc]
     UnitSquareGrid,
-    ManuMechSolutionStrategy2d,
+    ManuMechSolutionStrategy3d,
     ManuMechUtils,
     ManuMechDataSaving,
     MomentumBalanceTimeDepSource,

@@ -3,10 +3,13 @@
 In short, functions in this file are called for fetching values from data dictionary and
 for creating source terms corresponding to analytical solutions. These analytical
 solutions are determined by the "manufactured_solution" key value in the params
-dictionary. The latter uses symbolic differentiation provided by sympy. Running other
-manufactured solutions than those already present is easily done by adding the
-expression for it where the manufactured
-solution is defined.
+dictionary. Creation of source terms uses symbolic differentiation provided by sympy.
+Therefore, running other manufactured solutions than those already present is easily
+done by adding the expression for it where the manufactured solution is defined.
+
+In addition to this there is a function for fetching cell indices of boundary cells. It
+might be done in a brute force way, and the functionality may already lie within PorePy,
+but I failed to find it.
 
 For comparison of the numerical and analytical solution, here are a couple analytical
 solutions in ParaView-calculator-language.
@@ -44,10 +47,9 @@ def get_solution_values(
 ) -> np.ndarray:
     """Function for fetching values stored in data dictionary.
 
-    It looks very ugly to fetch values (that are not connected to a variable) from the
-    data dictionary. Therefore this function will come in handy such that the keys
-    `pp.TIME_STEP_SOLUTIONS` or `pp.ITERATE_SOLUTIONS` are not scattered all over the
-    code.
+    This function should be used to fetch solution values that are not related to a
+    variable. This is to avoid the time consuming alternative of writing e.g.:
+    `data["solution_name"][pp.TIME_STEP_SOLUTION/pp.ITERATE_SOLUTION][0]`.
 
     Parameters:
         name: Name of the parameter whose values we are interested in.
@@ -58,6 +60,9 @@ def get_solution_values(
         iterate_index: Which iterate we want to get values for. 0 is current, 1 is one
             iterate back in time. Only limited by how many iterates are stored from
             before.
+
+    Returns:
+        An array containing the solution values.
 
     """
     if (time_step_index is None and iterate_index is None) or (
@@ -145,6 +150,21 @@ def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
 def symbolic_representation(
     model, is_2D: bool = True, return_dt=False, return_ddt=False
 ) -> tuple:
+    """Wrapper for symbolic representation of functions.
+
+    Parameters:
+        model: The model class
+        is_2D: Flag for whether the problem is 2D or not. Defaults to True.
+        return_dt: Flag for whether the time derivative of the function should be
+            returned. Defaults to False.
+        return_ddt: Flag for whether the second time derivative of the function should
+            be returned. Defaults to False.
+
+    Returns:
+        The symbolic representation of either the displacement, velocity or
+        acceleration.
+
+    """
     if is_2D:
         return _symbolic_representation_2D(
             model=model, return_dt=return_dt, return_ddt=return_ddt
@@ -197,10 +217,29 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         )
 
     x, y, t = sym.symbols("x y t")
+    cp = model.primary_wave_speed
+    cs = model.secondary_wave_speed
 
     manufactured_sol = model.params.get("manufactured_solution", "bubble")
-    if manufactured_sol == "bubble":
+    if manufactured_sol == "unit_test":
+        u1 = sym.sin(x - cp * t)
+        u2 = 0
+        u = [u1, u2]
+    elif manufactured_sol == "bubble":
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "drum_solution":
+        u1 = u2 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "diag_wave":
+        alpha = model.rotation_angle
+        u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
+        u = [u1, u2]
+    elif manufactured_sol == "bubble_30":
+        u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
+        u = [u1, u2]
+    elif manufactured_sol == "bubble_1000":
+        u1 = u2 = t**2 * x * (1000 - x) * y * (1000 - y)
         u = [u1, u2]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y)
@@ -217,6 +256,8 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     elif manufactured_sol == "quad_space":
         u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
         u = [u1, u2]
+    elif manufactured_sol == "simply_zero":
+        u = [0, 0]
 
     if return_dt:
         dt_u = [sym.diff(u[0], t), sym.diff(u[1], t)]
@@ -337,6 +378,8 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
     if manufactured_sol == "bubble":
         u1 = u2 = u3 = t**2 * x * (1 - x) * y * (1 - y) * z * (1 - z)
         u = [u1, u2, u3]
+    elif manufactured_sol == "simply_zero":
+        u = [0, 0, 0]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = u3 = (
             sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y) * z * (1 - z)
@@ -414,7 +457,7 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
             [
                 grad_u[1][0] + grad_u_T[1][0],
                 grad_u[1][1] + grad_u_T[1][1],
-                grad_u[2][1] + grad_u_T[2][1],
+                grad_u[1][2] + grad_u_T[1][2],
             ],
             [
                 grad_u[2][0] + grad_u_T[2][0],
@@ -445,12 +488,9 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
 
     # Divergence of sigma
     div_sigma = [
-        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
-        sym.diff(sigma[0][2], z),
-        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
-        sym.diff(sigma[1][2], z),
-        sym.diff(sigma[2][0], x) + sym.diff(sigma[2][1], y),
-        sym.diff(sigma[2][2], z),
+        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y) + sym.diff(sigma[0][2], z),
+        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y) + sym.diff(sigma[1][2], z),
+        sym.diff(sigma[2][0], x) + sym.diff(sigma[2][1], y) + sym.diff(sigma[2][2], z),
     ]
 
     # Full acceleration term
@@ -611,11 +651,15 @@ def _acceleration_function_3D(model) -> list:
 def body_force_function(model, is_2D: bool = True) -> list:
     """Wrapper function for the body forces in 2D and 3D.
 
-    See the sub-methods for documentation.
+    See the sub-methods for documentation. For now only used for constructing the force
+    from a known analytical solution.
 
     Parameters:
         model: model class
         is_2D: flag for whether model is for 2D or 3D domain.
+
+    Returns:
+        A (lambdified) function to be used as the source term function.
 
     """
     if is_2D:
@@ -726,3 +770,78 @@ def body_force_func(model) -> list:
         sym.lambdify((x, y), div_sigma[0], "numpy"),
         sym.lambdify((x, y), div_sigma[1], "numpy"),
     ]
+
+
+# -------- Functions related to subdomains
+
+
+def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarray:
+    """Grab cell indices of a certain side of a subdomain.
+
+    This might already exist within PorePy, but I couldn't find it ...
+
+    Parameters:
+        sd: The subdomain we are interested in grabbing cells for.
+        coord: Either "x", "y" or "z" depending on what coordinate direction is
+            relevant for choosing the boundary cells. E.g., for an east boundary it
+            is "x", for a north boundary it is "y".
+        extreme: Whether it is the lower or upper "extreme" of the coord-value.
+            East corresponds to "xmax" and west corresponds to "xmin".
+
+    Returns:
+        An array with the indices of the boundary cells of a certain domain side.
+
+    """
+    if coord == "x":
+        coord = 0
+    elif coord == "y":
+        coord = 1
+    elif coord == "z":
+        coord = 2
+
+    faces = sd.get_all_boundary_faces()
+    face_centers = sd.face_centers
+    face_indices = [
+        f for f in faces if face_centers[coord][f] == self.domain.bounding_box[extreme]
+    ]
+
+    boundary_cells = sd.signs_and_cells_of_boundary_faces(faces=np.array(face_indices))[
+        1
+    ]
+
+    return boundary_cells, face_indices
+
+
+def get_boundary_cells(
+    self, sd: pp.Grid, side: str, return_faces: bool = False
+) -> np.ndarray:
+    """Grabs the cell indices of a certain subdomain side.
+
+    Wrapper-like function for fetching boundary cell indices.
+
+    This might already exist within PorePy, but I couldn't find it ...
+
+    Parameters:
+        sd: The subdomain
+        side: The side we want the cell indices for. Should take values "south",
+            "north", "west", "east", "top" or "bottom".
+
+    Returns:
+        An array with the indices of the boundary cells of a certain domain side.
+
+    """
+    if side == "south":
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="y", extreme="ymin")
+    elif side == "north":
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="y", extreme="ymax")
+    elif side == "west":
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="x", extreme="xmin")
+    elif side == "east":
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="x", extreme="xmax")
+    elif side == "top":
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="z", extreme="zmax")
+    elif side == "bottom":
+        cells, faces = _get_boundary_cells(self=self, sd=sd, coord="z", extreme="zmin")
+    if return_faces:
+        return faces
+    return cells

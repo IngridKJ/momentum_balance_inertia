@@ -7,4 +7,5 @@ from .utility_functions import (
     body_force_func,
     symbolic_equation_terms,
     symbolic_representation,
+    get_boundary_cells,
 )

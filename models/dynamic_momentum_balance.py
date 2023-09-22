@@ -28,6 +28,65 @@ class NamesAndConstants:
         """Key for acceleration in the time step and iterate dictionaries."""
         return "acceleration"
 
+    @property
+    def bc_values_mechanics_key(self) -> str:
+        """Key for mechanical boundary conditions in the time step and iterate
+        dictionaries.
+
+        """
+        return "bc_values_mechanics"
+
+    @property
+    def primary_wave_speed(self):
+        """Primary wave speed (c_p).
+
+        Speed of the compressive elastic waves.
+
+        Returns:
+            The value of the compressive elastic waves.
+
+        """
+        lam = self.solid.lame_lambda()
+        mu = self.solid.shear_modulus()
+        rho = self.solid.density()
+        return np.sqrt((lam + 2 * mu) / rho)
+
+    @property
+    def secondary_wave_speed(self):
+        """Secondary wave speed (c_s).
+
+        Speed of the shear elastic waves.
+
+        Returns:
+            The value of the shear elastic waves.
+
+        """
+        mu = self.solid.shear_modulus()
+        rho = self.solid.density()
+        return np.sqrt(mu / rho)
+
+
+class MyGeometry:
+    def nd_rect_domain(self, x, y) -> pp.Domain:
+        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
+
+        box.update({"ymin": 0, "ymax": y})
+
+        return pp.Domain(box)
+
+    def set_domain(self) -> None:
+        # 2D hardcoded
+        x = 1.0 / self.units.m
+        y = 1.0 / self.units.m
+        self._domain = self.nd_rect_domain(x, y)
+
+    def grid_type(self) -> str:
+        return self.params.get("grid_type", "cartesian")
+
+    def meshing_arguments(self) -> dict:
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        return mesh_args
+
 
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
@@ -73,6 +132,32 @@ class MyEquations:
 
 
 class MySolutionStrategy:
+    def set_discretization_parameters(self) -> None:
+        """Set discretization parameters for the simulation.
+
+        Sets eta = 1/3 on all faces if it is a simplex grid. Default is to have 0 on the
+        boundaries, but this causes divergence of the solution. 1/3 all over fixes this
+        issue.
+
+        """
+
+        super().set_discretization_parameters()
+        if self.params["grid_type"] == "simplex":
+            num_subfaces = 0
+            for sd, data in self.mdg.subdomains(return_data=True):
+                subcell_topology = pp.fvutils.SubcellTopology(sd)
+                num_subfaces += subcell_topology.num_subfno
+                eta_values = np.ones(num_subfaces) * 1 / 3
+                if sd.dim == self.nd:
+                    pp.initialize_data(
+                        sd,
+                        data,
+                        self.stress_keyword,
+                        {
+                            "mpsa_eta": eta_values,
+                        },
+                    )
+
     def velocity_time_dep_array(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.TimeDependentDenseArray:
@@ -118,7 +203,7 @@ class MySolutionStrategy:
         return np.zeros(dofs * self.nd)
 
     def initial_condition(self):
-        """Assigning initial velocity and acceleration values."""
+        """Assigning initial displacement, velocity and acceleration values."""
         super().initial_condition()
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
@@ -152,11 +237,11 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
+        # Be careful about this one.
         # self.update_time_dependent_ad_arrays(initial=True)
 
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources."""
-        # Equidimensional domain hardcode
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
@@ -207,8 +292,7 @@ class MySolutionStrategy:
         return v
 
     def acceleration_values(self, subdomain: pp.Grid) -> np.ndarray:
-        """Update of acceleration values to be done after linear system solve (double
-        check that this is actually where it happens).
+        """Update of acceleration values to be done after linear system solve.
 
         Newmark time discretization formula for the current acceleration, depending on
         the current displacement value and the previous velocity value.
@@ -240,11 +324,10 @@ class MySolutionStrategy:
         """Update the time dependent arrays for the velocity and acceleration.
 
         Parameters:
-            initial: (Outdated because I messed with it to fix a bug) If True, the
-                array generating method is called for both the stored time steps and the
-                stored iterates. If False, the array generating method is called only
-                for the iterate, and the time step solution is updated by copying the
-                iterate.
+            initial: If True, the array generating method is called for both the stored
+                time steps and the stored iterates. If False, the array generating
+                method is called only for the iterate, and the time step solution is
+                updated by copying the iterate.
 
         """
         super().update_time_dependent_ad_arrays(initial)
@@ -252,19 +335,19 @@ class MySolutionStrategy:
             vals_acceleration = self.acceleration_values([sd])
             vals_velocity = self.velocity_values([sd])
             if initial:
-                if self.time_manager.time_index != 0:
-                    pp.set_solution_values(
-                        name=self.velocity_key,
-                        values=vals_velocity,
-                        data=data,
-                        time_step_index=0,
-                    )
-                    pp.set_solution_values(
-                        name=self.acceleration_key,
-                        values=vals_acceleration,
-                        data=data,
-                        time_step_index=0,
-                    )
+                # if self.time_manager.time_index != 0:
+                pp.set_solution_values(
+                    name=self.velocity_key,
+                    values=vals_velocity,
+                    data=data,
+                    time_step_index=0,
+                )
+                pp.set_solution_values(
+                    name=self.acceleration_key,
+                    values=vals_acceleration,
+                    data=data,
+                    time_step_index=0,
+                )
             else:
                 # Copy old values from iterate to the solution.
                 vals_velocity_it = get_solution_values(
@@ -286,19 +369,18 @@ class MySolutionStrategy:
                     time_step_index=0,
                 )
 
-            if self.time_manager.time_index != 0:
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity,
-                    data=data,
-                    iterate_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration,
-                    data=data,
-                    iterate_index=0,
-                )
+            pp.set_solution_values(
+                name=self.velocity_key,
+                values=vals_velocity,
+                data=data,
+                iterate_index=0,
+            )
+            pp.set_solution_values(
+                name=self.acceleration_key,
+                values=vals_acceleration,
+                data=data,
+                iterate_index=0,
+            )
 
     def after_nonlinear_convergence(
         self, solution: np.ndarray, errors: float, iteration_counter: int
@@ -340,6 +422,7 @@ class TimeDependentSourceTerm:
 
 class DynamicMomentumBalance(
     NamesAndConstants,
+    MyGeometry,
     MyEquations,
     TimeDependentSourceTerm,
     MySolutionStrategy,
