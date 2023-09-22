@@ -3,12 +3,6 @@ import numpy as np
 
 from models import MomentumBalanceTimeDepSource
 
-import sys
-
-sys.path.append("../utils")
-
-from utils import get_solution_values
-
 
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
@@ -117,7 +111,7 @@ class BoundaryAndInitialCond:
         else:
             # On first timestep, initial values are fetched from the data dictionary.
             # These initial values are assigned in the initial_condition function.
-            displacement_values = get_solution_values(
+            displacement_values = pp.get_solution_values(
                 name=self.bc_values_mechanics_key, data=data, time_step_index=0
             )
 
@@ -255,7 +249,7 @@ class SolutionStrategyABC:
 
             else:
                 # Copy old values from iterate to the solution.
-                bc_vals_it = get_solution_values(
+                bc_vals_it = pp.get_solution_values(
                     name=self.bc_values_mechanics_key, data=data, iterate_index=0
                 )
 

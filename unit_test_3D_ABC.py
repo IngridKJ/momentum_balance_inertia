@@ -3,7 +3,6 @@ import porepy as pp
 import numpy as np
 
 from models import MomentumBalanceABC
-from utils import get_solution_values
 
 
 class BoundaryCondUnit3D:
@@ -65,7 +64,7 @@ class BoundaryCondUnit3D:
         else:
             # On first timestep, initial values are fetched from the data dictionary.
             # These initial values are assigned in the initial_condition function.
-            displacement_values = get_solution_values(
+            displacement_values = pp.get_solution_values(
                 name=self.bc_values_mechanics_key, data=data, time_step_index=0
             )
 

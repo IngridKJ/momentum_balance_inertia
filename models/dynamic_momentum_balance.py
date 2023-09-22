@@ -3,7 +3,6 @@ from porepy.models.momentum_balance import MomentumBalance
 import porepy as pp
 import time_derivatives
 
-from utils import get_solution_values
 from utils import acceleration_velocity_displacement
 
 import numpy as np
@@ -350,10 +349,10 @@ class MySolutionStrategy:
                 )
             else:
                 # Copy old values from iterate to the solution.
-                vals_velocity_it = get_solution_values(
+                vals_velocity_it = pp.get_solution_values(
                     name=self.velocity_key, data=data, iterate_index=0
                 )
-                vals_acceleration_it = get_solution_values(
+                vals_acceleration_it = pp.get_solution_values(
                     name=self.acceleration_key, data=data, iterate_index=0
                 )
                 pp.set_solution_values(
