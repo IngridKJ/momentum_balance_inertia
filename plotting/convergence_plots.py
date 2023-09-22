@@ -1,16 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def RGB(r, g, b):
-    return (r / 255, g / 255, b / 255)
-
-
-def convergence_ratio(error_values):
-    ratios = np.zeros(len(error_values) - 1)
-    for i in range(len(error_values) - 1):
-        ratios[i] = error_values[i] / error_values[i + 1]
-    return ratios
+import plot_utils as pu
 
 
 def read_convergence_files(filename: str) -> dict:
@@ -35,8 +26,8 @@ def read_convergence_files(filename: str) -> dict:
     info_dict["error_displacement"] = np.loadtxt(filename)[:, 2]
     info_dict["error_force"] = np.loadtxt(filename)[:, 3]
 
-    ratio_displacement = convergence_ratio(info_dict["error_displacement"])
-    ratio_force = convergence_ratio(info_dict["error_force"])
+    ratio_displacement = pu.convergence_ratio(info_dict["error_displacement"])
+    ratio_force = pu.convergence_ratio(info_dict["error_force"])
 
     info_dict["ratio_displacement"] = ratio_displacement
     info_dict["ratio_force"] = ratio_force
@@ -56,14 +47,14 @@ def plotting(keyword: str, dic: dict) -> None:
         dic["error_displacement"],
         "o--",
         label="displacement",
-        color=RGB(157, 77, 159),
+        color=pu.RGB(157, 77, 159),
     )
     plt.loglog(
         dic[axis_name],
         dic["error_force"],
         "o-.",
         label="force",
-        color=RGB(49, 135, 152),
+        color=pu.RGB(49, 135, 152),
     )
 
     plt.title(f"Convergence rates: {keyword}")
