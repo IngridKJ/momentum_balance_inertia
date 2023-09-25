@@ -14,6 +14,8 @@ Boundary conditions are:
 import porepy as pp
 import numpy as np
 
+from plot_l2_error import plot_the_error
+
 import sys
 
 sys.path.append("../../../")
@@ -297,9 +299,15 @@ class ExportErrors:
             x_max = self.domain.bounding_box["xmax"]
             # Don't bother collecting the errors before the wave has traveled the
             # entire domain.
-            if self.time_manager.time >= x_max / cp:
-                with open(self.filename, "a") as file:
-                    file.write(str(relative_l2_error))
+            if self.params.get("write_errors", False):
+                if self.time_manager.time >= x_max / cp:
+                    with open(self.filename, "a") as file:
+                        file.write("," + str(relative_l2_error))
+                if (
+                    int(self.time_manager.time_final / self.time_manager.dt)
+                ) == self.time_manager.time_index:
+                    plot_the_error(self.filename, write_stats=True)
+
         return data
 
 
