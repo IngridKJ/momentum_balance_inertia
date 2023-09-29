@@ -27,8 +27,7 @@ def plot_the_error(filename, write_stats: bool = False):
             file.write(f"Mean value: {np.mean(numbers)}\n")
             file.write(f"Minimum value: {np.min(numbers)}\n")
 
+    print(f"\n Maximum value: {np.max(numbers)}\n Mean value: {np.mean(numbers)}")
     plt.plot(time_steps, numbers)
     plt.xlim(start_from, len(numbers))
     plt.title(filename)
-
-    plt.show()

@@ -225,59 +225,10 @@ class InitialConditionSourceTermUnitTest:
         return vals.ravel("F")
 
 
-class ExportErrors:
-    def data_to_export(self):
-        """Define the data to export to vtu.
-
-        Returns:
-            list: List of tuples containing the subdomain, variable name,
-            and values to export.
-
-        """
-        data = super().data_to_export()
-        for sd in self.mdg.subdomains(dim=self.nd):
-            x = sd.cell_centers[0, :]
-            y = sd.cell_centers[1, :]
-            t = self.time_manager.time
-            cp = self.primary_wave_speed
-            alpha = self.rotation_angle
-
-            d = self.mdg.subdomain_data(sd)
-            disp_vals = pp.get_solution_values(name="u", data=d, time_step_index=0)
-
-            u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")
-
-            u_e = np.array(
-                [
-                    np.sin(t - (x * np.cos(alpha) + y * np.sin(alpha)) / (cp)),
-                    np.sin(t - (x * np.cos(alpha) + y * np.sin(alpha)) / (cp)),
-                ]
-            )
-
-            du = u_e - u_h
-
-            relative_l2_error = pp.error_computation.l2_error(
-                grid=sd,
-                true_array=u_e,
-                approx_array=u_h,
-                is_scalar=True,
-                is_cc=True,
-                relative=True,
-            )
-
-            data.append((sd, "absolute_error", du))
-            data.append((sd, "analytical_solution", u_e))
-
-            with open(self.filename, "a") as file:
-                file.write(str(relative_l2_error))
-        return data
-
-
 class BaseScriptModel(
     RotationAngle,
     BoundaryConditionsUnitTest,
     InitialConditionSourceTermUnitTest,
-    ExportErrors,
     MomentumBalanceABC,
 ):
     ...

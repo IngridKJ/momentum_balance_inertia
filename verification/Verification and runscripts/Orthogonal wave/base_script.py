@@ -301,12 +301,12 @@ class ExportErrors:
             # entire domain.
             if self.params.get("write_errors", False):
                 if self.time_manager.time >= x_max / cp:
-                    with open(self.filename, "a") as file:
+                    with open("errors.txt", "a") as file:
                         file.write("," + str(relative_l2_error))
                 if (
                     int(self.time_manager.time_final / self.time_manager.dt)
                 ) == self.time_manager.time_index:
-                    plot_the_error(self.filename, write_stats=True)
+                    plot_the_error("errors.txt", write_stats=True)
 
         return data
 
