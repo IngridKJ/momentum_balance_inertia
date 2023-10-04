@@ -1,7 +1,7 @@
 import porepy as pp
 import numpy as np
 
-from orth_only_from_init_cond import BaseScriptModel
+from model_one_orthogonal_wave import BaseScriptModel
 
 from utils import get_boundary_cells
 

@@ -1,7 +1,7 @@
 import porepy as pp
 import numpy as np
 
-from diag_only_from_init_cond import BaseScriptModel
+from model_one_diagonal_wave import BaseScriptModel
 
 
 class MyGeometry:
