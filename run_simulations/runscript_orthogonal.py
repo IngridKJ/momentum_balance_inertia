@@ -106,7 +106,7 @@ time_manager.time_steps = time_steps
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "testing_visualization",
+    "folder_name": "testing_visualization_",
     "manufactured_solution": "unit_test",
     "progressbars": True,
     "write_errors": True,
