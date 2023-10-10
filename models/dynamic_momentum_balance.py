@@ -236,9 +236,6 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
-        # Be careful about this one.
-        # self.update_time_dependent_ad_arrays(initial=True)
-
     def before_nonlinear_loop(self) -> None:
         """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
@@ -319,7 +316,7 @@ class MySolutionStrategy:
         )
         return a
 
-    def update_time_dependent_ad_arrays(self, initial: bool) -> None:
+    def update_time_dependent_ad_arrays_loc(self, initial: bool) -> None:
         """Update the time dependent arrays for the velocity and acceleration.
 
         Parameters:
@@ -329,7 +326,7 @@ class MySolutionStrategy:
                 updated by copying the iterate.
 
         """
-        super().update_time_dependent_ad_arrays(initial)
+        # super().update_time_dependent_ad_arrays(initial)
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             vals_acceleration = self.acceleration_values([sd])
             vals_velocity = self.velocity_values([sd])
@@ -397,7 +394,7 @@ class MySolutionStrategy:
         """
         solution = self.equation_system.get_variable_values(iterate_index=0)
 
-        self.update_time_dependent_ad_arrays(initial=True)
+        self.update_time_dependent_ad_arrays_loc(initial=True)
 
         self.equation_system.shift_time_step_values()
         self.equation_system.set_variable_values(
@@ -413,7 +410,7 @@ class TimeDependentSourceTerm:
 
         external_sources = pp.ad.TimeDependentDenseArray(
             name="source_mechanics",
-            subdomains=subdomains,
+            domains=subdomains,
             previous_timestep=False,
         )
         return external_sources
