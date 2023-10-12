@@ -10,6 +10,11 @@ import numpy as np
 
 class NamesAndConstants:
     @property
+    def bc_robin_key(self):
+        # Key for robin boundary conditions
+        return "bc_robin"
+
+    @property
     def beta(self) -> float:
         return 0.25
 
