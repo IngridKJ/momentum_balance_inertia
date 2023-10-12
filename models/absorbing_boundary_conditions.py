@@ -87,17 +87,27 @@ class BoundaryAndInitialCond:
         if self.time_manager.time_index > 1:
             # "Get face displacement"-strategy: Create them using
             # bound_displacement_face/-cell from second timestep and ongoing.
-            sd = self.mdg.subdomains(dim=2)
-            displacement_boundary_operator = self.boundary_displacement(sd)
+            sd = boundary_grid.parent
+            displacement_boundary_operator = self.boundary_displacement([sd])
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
 
-            disp_rs = np.reshape(displacement_values, (self.nd, sd[0].num_faces))
+            displacement_values = (
+                boundary_grid.projection(self.nd) @ displacement_values
+            )
+
+        elif self.time_manager.time_index == 1:
+            # On first timestep, initial values are fetched from the data dictionary.
+            # These initial values are assigned in the initial_condition function that
+            # is called at the zeroth time step. The boundary displacement operator is
+            # not available at this time.
+            displacement_values = pp.get_solution_values(
+                name="u", data=data, time_step_index=0
+            )
 
         else:
-            # On first timestep, initial values are fetched from the data dictionary.
-            # These initial values are assigned in the initial_condition function.
+            # values = self.initial_condition_bc(bg=boundary_grid)
             displacement_values = pp.get_solution_values(
                 name="u", data=data, time_step_index=0
             )
@@ -178,6 +188,9 @@ class BoundaryAndInitialCond:
             ) * face_areas[bounds.bottom]
 
         return values.ravel("F")
+
+    def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        pass
 
 
 class SolutionStrategyABC:
