@@ -3,6 +3,8 @@ import numpy as np
 
 from models import MomentumBalanceTimeDepSource
 
+Scalar = pp.ad.Scalar
+
 
 class BoundaryAndInitialCond:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
@@ -65,23 +67,7 @@ class BoundaryAndInitialCond:
         bc.robin_weight = value
         return bc
 
-    def bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> pp.ad.TimeDependentDenseArray:
-        """Boundary values for mechanics.
-
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Time dependent dense array for boundary values.
-
-        """
-        return pp.ad.TimeDependentDenseArray(self.bc_values_mechanics_key, subdomains)
-
-    def time_dependent_bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> np.ndarray:
+    def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning the time dependent bc values.
 
         Parameters:
@@ -92,31 +78,32 @@ class BoundaryAndInitialCond:
 
         """
         # Equidimensional hard code
-        assert len(subdomains) == 1
-        sd = subdomains[0]
-        face_areas = sd.face_areas
-        data = self.mdg.subdomain_data(sd)
+        face_areas = boundary_grid.cell_volumes
+        data = self.mdg.boundary_grid_data(boundary_grid)
 
-        values = np.zeros((self.nd, sd.num_faces))
-        bounds = self.domain_boundary_sides(sd)
+        values = np.zeros((self.nd, boundary_grid.num_cells))
+        bounds = self.domain_boundary_sides(boundary_grid)
 
         if self.time_manager.time_index > 1:
             # "Get face displacement"-strategy: Create them using
             # bound_displacement_face/-cell from second timestep and ongoing.
-            displacement_boundary_operator = self.boundary_displacement([sd])
+            sd = self.mdg.subdomains(dim=2)
+            displacement_boundary_operator = self.boundary_displacement(sd)
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
+
+            disp_rs = np.reshape(displacement_values, (self.nd, sd[0].num_faces))
 
         else:
             # On first timestep, initial values are fetched from the data dictionary.
             # These initial values are assigned in the initial_condition function.
             displacement_values = pp.get_solution_values(
-                name=self.bc_values_mechanics_key, data=data, time_step_index=0
+                name="u", data=data, time_step_index=0
             )
 
         displacement_values = np.reshape(
-            displacement_values, (self.nd, sd.num_faces), "F"
+            displacement_values, (self.nd, boundary_grid.num_cells), "F"
         )
 
         # Assigning the values like this is a very brute force way. A
@@ -192,87 +179,13 @@ class BoundaryAndInitialCond:
 
         return values.ravel("F")
 
-    def initial_condition(self):
-        """Assigning initial bc values."""
-        super().initial_condition()
-
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-        data = self.mdg.subdomain_data(sd)
-
-        bc_vals = np.zeros((sd.dim, sd.num_faces))
-        bc_vals = bc_vals.flatten()
-
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            time_step_index=0,
-        )
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            iterate_index=0,
-        )
-
 
 class SolutionStrategyABC:
     def _is_nonlinear_problem(self) -> bool:
         return True
 
-    def update_time_dependent_bc(self, initial: bool) -> None:
-        """Method for updating the time dependent boundary conditions.
-
-        Analogous to the method for updating other time dependent dense arrays (namely
-        velocity and acceleration). But to avoid problems with the velocity and
-        acceleration being updated when they should not, the updating of bc values is
-        separated from them.
-
-        Will revisit what is the most proper to do here.
-
-        Parameters:
-            initial: If True, the array generating method is called for both the stored
-                time steps and the stored iterates. If False, the array generating
-                method is called only for the iterate, and the time step solution is
-                updated by copying the iterate.
-
-        """
-        for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
-            bc_vals = self.time_dependent_bc_values_mechanics([sd])
-            if initial:
-                pp.set_solution_values(
-                    name=self.bc_values_mechanics_key,
-                    values=bc_vals,
-                    data=data,
-                    time_step_index=0,
-                )
-
-            else:
-                # Copy old values from iterate to the solution.
-                bc_vals_it = pp.get_solution_values(
-                    name=self.bc_values_mechanics_key, data=data, iterate_index=0
-                )
-
-                pp.set_solution_values(
-                    name=self.bc_values_mechanics_key,
-                    values=bc_vals_it,
-                    data=data,
-                    time_step_index=0,
-                )
-
-            pp.set_solution_values(
-                name=self.bc_values_mechanics_key,
-                values=bc_vals,
-                data=data,
-                iterate_index=0,
-            )
-
-    def before_nonlinear_loop(self) -> None:
-        """Update time dependent bc values."""
-        super().before_nonlinear_loop()
-
-        # Update time dependent bc before next solve.
-        self.update_time_dependent_bc(initial=False)
+    def robin_operator(self, bgs) -> pp.ad.Operator:
+        return self.create_boundary_operator(name=self.bc_robin_key, domains=bgs)
 
 
 class ConstitutiveLawsABC:
@@ -324,8 +237,18 @@ class ConstitutiveLawsABC:
         discr = self.stress_discretization(subdomains)
 
         # Boundary conditions on external boundaries
-        bc = self.bc_values_mechanics(subdomains)
-
+        # bc = self.bc_values_mechanics(subdomains)
+        bc = self._combine_boundary_operators(  # type: ignore [call-arg]
+            subdomains=subdomains,
+            dirichlet_operator=self.displacement,
+            neumann_operator=self.mechanical_stress,
+            bc_type=self.bc_type_mechanics,
+            robin_operator=lambda bgs: self.create_boundary_operator(
+                name=self.bc_robin_key, domains=bgs
+            ),
+            dim=self.nd,
+            name="bc_values_mechanics",
+        )
         # Displacement
         displacement = self.displacement(subdomains)
 
