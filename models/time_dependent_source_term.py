@@ -180,6 +180,70 @@ class Source:
 
 
 class BoundaryGridStuff:
+    """Mixin for adaptations related to Robin boundary conditions with boundary grids.
+
+    This mixin contains everything I needed to adapt in the source code for making the
+    Robin boundary conditions (and thus absorbing boundary conditions (ABCs)) work with
+    the boundary grid setup. Methods from three separate files are adapted. Which chunk
+    of methods belong to which files are signified by a comment above the first method
+    in the chunk.
+
+    It also contains some brief "documentation" of other adaptations that were needed
+    and a TODO for assignment of initial values. This is found below the list of
+    methods.
+
+    Methods herein include:
+    * _combine_boundary_operators: Signature now contains a robin_operator. The code
+        within is adapted such that all three boundary operators are combined, not only
+        Neumann and Dirichlet.
+    * _update_bc_type_filter: Included a function for Robin analogous to the Neumann and
+        Dirichlet ones. Now the Robin filter values can also be fetched from the parent
+        grid, projected onto the boundary grid, and then updated.
+    * __bc_type_storage: Needed to have this "locally". Not entirely sure why.
+    * mechanical_stress: Adapt signature in call to _combine_boundary_operators to also
+        give the Robin operator.
+    * displacement_divergence: Adapt signature in call to _combine_boundary_operators
+        to also give the Robin operator.
+    * update_all_boundary_conditions: Include a call to update Robin boundary
+        conditions.
+
+    In addition to this one needs to define the robin boundary condition key (for
+    identifying the operator/values/etc.) and a method for setting Robin-related
+    boundary values.
+    * self.bc_robin_key: "bc_robin". Is a property defined in the base dynamic momentum
+        balance model found within dynamic_momentum_balance.py.
+    * self.bc_values_robin: Method for setting values to the Robin boundary conditions.
+        That is, setting the right-hand side of sigma * n + alpha * u = G. Assigning the
+        Robin weight has _not_ changed. This still happens in the bc_type_mechanics
+        method.
+        As of right now (while writing this docstring), the only occurence of this
+        method is in runscripts utilizing Robin boundary conditions. This will be
+        adapted soon.
+
+    Specific change for the ABCs:
+    * The right hand side of the ABCs is some coefficient multiplied by the previous
+        face centered displacement value at the boundary. To obtain this, the utility
+        method boundary_displacement (found in absorbing_boundary_conditions.py) was
+        created to reconstruct the boundary displacements. Within here, a call to the
+        (now deprecated) method bc_values_mechanics was found. Now we have to use the
+        _combine_boundary_operators method instead.
+
+    TODO: Fix location and time for assignment of initial boundary values
+    * Certain simulations with ABCs include some non-trivial boundary values to be set.
+        That is, something other than a constant value.
+
+        These values need to be initialized properly, and the way this was done before
+        was to simply assign them before the simulation started. In the new set up,
+        there is a check whether there are values present in the data dictionary the
+        first time boundary conditions are to be updated. If initial values are set
+        before this occurs, the method assumes the initial call has already been made
+        and starts assigning new values and thus overriding the initial ones.
+
+        This can be solved within bc_values_robin by distinguishing what to return on
+        the very first call to the method (self.time_manager.time_index == 0).
+
+    """
+
     # From boundary_condition.py
     def _combine_boundary_operators(
         self,
@@ -200,6 +264,8 @@ class BoundaryGridStuff:
                 operator.
             neumann_operator: Function that returns the Neumann boundary condition
                 operator.
+            robin_operator: Function that returns the Robin boundary condition
+                operator.
             dim: Dimension of the equation. Defaults to 1.
             name: Name of the resulting operator. Must be unique for an operator.
 
@@ -209,7 +275,7 @@ class BoundaryGridStuff:
         """
         boundary_grids = self.subdomains_to_boundary_grids(subdomains)
 
-        # Creating the Dirichlet and Neumann AD expressions.
+        # Creating the Dirichlet, Neumann and Robin AD expressions.
         dirichlet = dirichlet_operator(boundary_grids)
         neumann = neumann_operator(boundary_grids)
         robin = robin_operator(boundary_grids)
@@ -217,7 +283,7 @@ class BoundaryGridStuff:
         # Adding bc_type function to local storage to evaluate it before every time step
         # in case if the type changes in the runtime.
         self.__bc_type_storage[name] = bc_type
-        # Creating the filters to ensure that Dirichlet and Neumann arrays do not
+        # Creating the filters to ensure that Dirichlet, Neumann and Robin arrays do not
         # intersect where we do not want it.
         dir_filter = pp.ad.TimeDependentDenseArray(
             name=(name + "_filter_dir"), domains=boundary_grids
@@ -250,10 +316,10 @@ class BoundaryGridStuff:
     def _update_bc_type_filter(
         self, name: str, bc_type_callable: Callable[[pp.Grid], pp.BoundaryCondition]
     ):
-        """Update the filters for Dirichlet and Neumann values.
+        """Update the filters for Dirichlet, Neumann and Robin values.
 
         This is done to discard the data related to Dirichlet boundary condition in
-        cells where the ``bc_type`` is Neumann and vice versa.
+        cells where the ``bc_type`` is Neumann or Robin and vice versa.
 
         """
 
