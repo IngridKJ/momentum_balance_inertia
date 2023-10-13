@@ -1,6 +1,6 @@
 import porepy as pp
 
-from base_script_fixed_time import time_manager_tf50_ts50
+from base_script_fixed_time import time_manager_tf5_ts100
 from base_script import BaseScriptModel
 
 
@@ -13,12 +13,12 @@ class MyGeometry7Meter:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 7.0 / self.units.m
-        y = 7.0 / self.units.m
+        x = 5.0 / self.units.m
+        y = 5.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.5**1 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
         return mesh_args
 
 
@@ -26,7 +26,7 @@ class Model(MyGeometry7Meter, BaseScriptModel):
     ...
 
 
-time_manager = time_manager_tf50_ts50
+time_manager = time_manager_tf5_ts100
 
 params = {
     "time_manager": time_manager,
@@ -38,4 +38,5 @@ params = {
 }
 
 model = Model(params)
-model(model, params)
+
+pp.run_time_dependent_model(model, params)

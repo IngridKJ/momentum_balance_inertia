@@ -58,73 +58,59 @@ class BoundaryConditionsUnitTest:
         bc.robin_weight = value
         return bc
 
-    def time_dependent_bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> np.ndarray:
-        """Method for assigning the time dependent bc values.
-
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Array of boundary values.
-
-        """
-        assert len(subdomains) == 1
-        sd = subdomains[0]
-        face_areas = sd.face_areas
-        data = self.mdg.subdomain_data(sd)
+    def bc_values_displacement(self, bg: pp.BoundaryGrid) -> np.ndarray:
         t = self.time_manager.time
 
-        values = np.zeros((self.nd, sd.num_faces))
-        bounds = self.domain_boundary_sides(sd)
+        values = np.zeros((self.nd, bg.num_cells))
+        bounds = self.domain_boundary_sides(bg)
 
+        displacement_values = np.reshape(values, (self.nd, bg.num_cells), "F")
+
+        values[0][bounds.west] += np.ones(
+            len(displacement_values[0][bounds.west])
+        ) * np.sin(t)
+        return values.ravel("F")
+
+    def bc_values_robin(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        face_areas = bg.cell_volumes
+        data = self.mdg.boundary_grid_data(bg)
+
+        values = np.zeros((self.nd, bg.num_cells))
+        bounds = self.domain_boundary_sides(bg)
         if self.time_manager.time_index > 1:
-            # "Get face displacement": Create them using bound_displacement_face/
-            # bound_displacement_cell from second timestep and ongoing.
+            sd = bg.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
 
-        else:
-            # On first timestep, initial values are fetched from the data dictionary.
-            # These initial values are assigned in the initial_condition function.
+            displacement_values = bg.projection(self.nd) @ displacement_values
+
+        elif self.time_manager.time_index == 1:
             displacement_values = pp.get_solution_values(
-                name=self.bc_values_mechanics_key, data=data, time_step_index=0
+                name="bc_robin", data=data, time_step_index=0
             )
 
-        # Note to self: The "F" here is crucial.
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(bg)
+
         displacement_values = np.reshape(
-            displacement_values, (self.nd, sd.num_faces), "F"
+            displacement_values, (self.nd, bg.num_cells), "F"
         )
 
-        # Zero Neumann on top - Waves are just allowed to slide alongside the
-        # boundaries.
-        values[0][bounds.north] = np.zeros(len(displacement_values[0][bounds.north]))
-        values[1][bounds.north] = np.zeros(len(displacement_values[1][bounds.north]))
-
-        values[0][bounds.south] = np.zeros(len(displacement_values[0][bounds.south]))
-        values[1][bounds.south] = np.zeros(len(displacement_values[1][bounds.south]))
-
-        # Values for the absorbing boundary
-        # Scaling with face area is crucial for the ABCs.This is due to the way we
-        # handle the time derivative.
         values[1][bounds.east] += (
             self.robin_weight_value(direction="shear", side="east")
             * displacement_values[1][bounds.east]
         ) * face_areas[bounds.east]
+
         values[0][bounds.east] += (
             self.robin_weight_value(direction="tensile", side="east")
             * displacement_values[0][bounds.east]
         ) * face_areas[bounds.east]
-
-        # Values for the western side sine wave
-        values[0][bounds.west] += np.ones(
-            len(displacement_values[0][bounds.west])
-        ) * np.sin(t)
-
         return values.ravel("F")
+
+    def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        return np.zeros((self.nd, bg.num_cells))
 
 
 class ConstitutiveLawUnitTest:

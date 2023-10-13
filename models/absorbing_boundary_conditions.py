@@ -68,7 +68,7 @@ class BoundaryAndInitialCond:
         return bc
 
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
-        """Method for assigning the time dependent bc values.
+        """Method for assigning Robin boundary condition values.
 
         Parameters:
             subdomains: List of subdomains on which to define boundary conditions.
@@ -107,6 +107,8 @@ class BoundaryAndInitialCond:
             )
 
         elif self.time_manager.time_index == 0:
+            # The first time this method is called is on initialization of the boundary
+            # values.
             return self.initial_condition_bc(boundary_grid)
 
         displacement_values = np.reshape(
@@ -193,9 +195,6 @@ class BoundaryAndInitialCond:
 class SolutionStrategyABC:
     def _is_nonlinear_problem(self) -> bool:
         return True
-
-    def robin_operator(self, bgs) -> pp.ad.Operator:
-        return self.create_boundary_operator(name=self.bc_robin_key, domains=bgs)
 
 
 class ConstitutiveLawsABC:

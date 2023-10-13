@@ -124,3 +124,21 @@ time_manager_tf50_ts2000 = pp.TimeManager(
 
 time_manager_tf50_ts2000.time_steps = time_steps
 # --------------------------------------------------------
+
+# --------------------------------------------------------
+t_shift = 0.0
+tf = 5.0
+time_steps = 100
+dt = tf / time_steps
+
+
+time_manager_tf5_ts100 = pp.TimeManager(
+    schedule=[0.0 + t_shift, tf + t_shift],
+    dt_init=dt,
+    constant_dt=True,
+    iter_max=10,
+    print_info=True,
+)
+
+time_manager_tf5_ts100.time_steps = time_steps
+# --------------------------------------------------------

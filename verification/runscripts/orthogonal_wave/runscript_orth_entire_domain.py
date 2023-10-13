@@ -26,21 +26,17 @@ class EntireDomainWave:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
-    def initial_condition(self):
+    def initial_condition_bc(self, bg):
         """Assigning initial bc values."""
-        super().initial_condition()
-
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-        data = self.mdg.subdomain_data(sd)
-
         cp = self.primary_wave_speed
         t = 0
+        sd = bg.parent
         x = sd.face_centers[0, :]
         y = sd.face_centers[1, :]
 
         inds_east = get_boundary_cells(self=self, sd=sd, side="east", return_faces=True)
 
-        bc_vals = np.zeros((sd.dim, sd.num_faces))
+        bc_vals = np.zeros((self.nd, sd.num_faces))
 
         # East
         bc_vals[0, :][inds_east] = np.sin(
@@ -50,20 +46,9 @@ class EntireDomainWave:
             t - (x[inds_east] * np.cos(0) + y[inds_east] * np.sin(0)) / (cp)
         )
 
-        bc_vals = bc_vals.ravel("F")
+        bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
 
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            time_step_index=0,
-        )
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            iterate_index=0,
-        )
+        return bc_vals
 
 
 class ExportErrors:
@@ -122,22 +107,27 @@ class MyGeometry7Meter:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 10.0 / self.units.m
-        y = 10.0 / self.units.m
+        x = 5.0 / self.units.m
+        y = 5.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.225 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.2 / self.units.m}
         return mesh_args
 
 
-class Model(EntireDomainWave, MyGeometry7Meter, ExportErrors, BaseScriptModel):
+class Model(
+    EntireDomainWave,
+    MyGeometry7Meter,
+    # ExportErrors,
+    BaseScriptModel,
+):
     ...
 
 
 t_shift = 0.0
 tf = 20.0
-time_steps = 6400
+time_steps = 200
 dt = tf / time_steps
 
 
@@ -164,6 +154,6 @@ model = Model(params)
 
 pp.run_time_dependent_model(model, params)
 
-dx = model.meshing_arguments()["cell_size"]
-dt = time_manager.dt
-cp = model.primary_wave_speed
+# dx = model.meshing_arguments()["cell_size"]
+# dt = time_manager.dt
+# cp = model.primary_wave_speed
