@@ -18,7 +18,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.05 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.5 / self.units.m}
         return mesh_args
 
 
@@ -55,11 +55,5 @@ params = {
 }
 
 model = TestSetup(params)
-
-import os
-import sys
-
-runscript_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-model.filename = f"ts{time_steps}_{runscript_name}.txt"
 
 pp.run_time_dependent_model(model, params)

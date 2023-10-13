@@ -69,46 +69,61 @@ class BoundaryConditionsUnitTest:
         bc.robin_weight = value
         return bc
 
-    def time_dependent_bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> np.ndarray:
-        """Method for assigning the time dependent bc values.
-
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Array of boundary values.
-
-        """
-        assert len(subdomains) == 1
-        sd = subdomains[0]
-        face_areas = sd.face_areas
-        data = self.mdg.subdomain_data(sd)
+    def bc_values_displacement(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        x = bg.cell_centers[0, :]
+        y = bg.cell_centers[1, :]
         t = self.time_manager.time
+
+        alpha = self.rotation_angle
         cp = self.primary_wave_speed
 
-        values = np.zeros((self.nd, sd.num_faces))
-        bounds = self.domain_boundary_sides(sd)
+        values = np.zeros((self.nd, bg.num_cells))
+        bounds = self.domain_boundary_sides(bg)
 
+        values = np.reshape(values, (self.nd, bg.num_cells), "F")
+
+        values[0][bounds.west] += np.sin(
+            np.ones(len(x[bounds.west])) * t - 1 / (cp) * y[bounds.west] * np.sin(alpha)
+        )
+        values[1][bounds.west] += np.sin(
+            np.ones(len(y[bounds.west])) * t - 1 / (cp) * y[bounds.west] * np.sin(alpha)
+        )
+        values[0][bounds.south] += np.sin(
+            np.ones(len(x[bounds.south])) * t
+            - 1 / (cp) * x[bounds.south] * np.cos(alpha)
+        )
+        values[1][bounds.south] += np.sin(
+            np.ones(len(y[bounds.south])) * t
+            - 1 / (cp) * x[bounds.south] * np.cos(alpha)
+        )
+
+        return values.ravel("F")
+
+    def bc_values_robin(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        face_areas = bg.cell_volumes
+        data = self.mdg.boundary_grid_data(bg)
+
+        values = np.zeros((self.nd, bg.num_cells))
+        bounds = self.domain_boundary_sides(bg)
         if self.time_manager.time_index > 1:
-            # "Get face displacement": Create them using bound_displacement_face/
-            # bound_displacement_cell from second timestep and ongoing.
+            sd = bg.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
 
-        else:
-            # On first timestep, initial values are fetched from the data dictionary.
-            # These initial values are assigned in the initial_condition function.
+            displacement_values = bg.projection(self.nd) @ displacement_values
+
+        elif self.time_manager.time_index == 1:
             displacement_values = pp.get_solution_values(
-                name=self.bc_values_mechanics_key, data=data, time_step_index=0
+                name="bc_robin", data=data, time_step_index=0
             )
 
-        # Note to self: The "F" here is crucial.
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(bg)
+
         displacement_values = np.reshape(
-            displacement_values, (self.nd, sd.num_faces), "F"
+            displacement_values, (self.nd, bg.num_cells), "F"
         )
 
         # Values for the absorbing boundaries
@@ -133,35 +148,12 @@ class BoundaryConditionsUnitTest:
             self.robin_weight_value(direction="tensile", side="north")
             * displacement_values[1][bounds.north]
         ) * face_areas[bounds.north]
-
-        # Values for the western and southern side sine wave
-        x = sd.face_centers[0, :]
-        y = sd.face_centers[1, :]
-        alpha = self.rotation_angle
-
-        values[0][bounds.west] += np.sin(
-            np.ones(len(x[bounds.west])) * t - 1 / (cp) * y[bounds.west] * np.sin(alpha)
-        )
-        values[1][bounds.west] += np.sin(
-            np.ones(len(y[bounds.west])) * t - 1 / (cp) * y[bounds.west] * np.sin(alpha)
-        )
-        values[0][bounds.south] += np.sin(
-            np.ones(len(x[bounds.south])) * t
-            - 1 / (cp) * x[bounds.south] * np.cos(alpha)
-        )
-        values[1][bounds.south] += np.sin(
-            np.ones(len(y[bounds.south])) * t
-            - 1 / (cp) * x[bounds.south] * np.cos(alpha)
-        )
-
         return values.ravel("F")
 
 
 class InitialConditionSourceTermUnitTest:
-    def initial_condition(self):
+    def initial_condition_bc(self, bg):
         """Assigning initial bc values."""
-        super().initial_condition()
-
         sd = self.mdg.subdomains(dim=self.nd)[0]
         data = self.mdg.subdomain_data(sd)
 
@@ -196,18 +188,8 @@ class InitialConditionSourceTermUnitTest:
 
         bc_vals = bc_vals.ravel("F")
 
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            time_step_index=0,
-        )
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            iterate_index=0,
-        )
+        bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
+        return bc_vals
 
     def source_values(self, f, sd, t) -> np.ndarray:
         """Computes the integrated source values by the source function.
