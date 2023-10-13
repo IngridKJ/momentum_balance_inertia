@@ -55,58 +55,34 @@ class BoundaryConditionsUnitTest:
         bc.robin_weight = value
         return bc
 
-    def time_dependent_bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> np.ndarray:
-        """Method for assigning the time dependent bc values.
+    def bc_values_robin(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        face_areas = bg.cell_volumes
+        data = self.mdg.boundary_grid_data(bg)
 
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Array of boundary values.
-
-        """
-        assert len(subdomains) == 1
-        sd = subdomains[0]
-        face_areas = sd.face_areas
-        data = self.mdg.subdomain_data(sd)
-        t = self.time_manager.time
-
-        values = np.zeros((self.nd, sd.num_faces))
-        bounds = self.domain_boundary_sides(sd)
-
+        values = np.zeros((self.nd, bg.num_cells))
+        bounds = self.domain_boundary_sides(bg)
         if self.time_manager.time_index > 1:
-            # "Get face displacement": Create them using bound_displacement_face/
-            # bound_displacement_cell from second timestep and ongoing.
+            sd = bg.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
 
-        else:
-            # On first timestep, initial values are fetched from the data dictionary.
-            # These initial values are assigned in the initial_condition function.
+            displacement_values = bg.projection(self.nd) @ displacement_values
+
+        elif self.time_manager.time_index == 1:
             displacement_values = pp.get_solution_values(
-                name=self.bc_values_mechanics_key, data=data, time_step_index=0
+                name="bc_robin", data=data, time_step_index=0
             )
 
-        # Note to self: The "F" here is crucial.
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(bg)
+
         displacement_values = np.reshape(
-            displacement_values, (self.nd, sd.num_faces), "F"
+            displacement_values, (self.nd, bg.num_cells), "F"
         )
 
-        # Zero Neumann on top - Waves are just allowed to slide alongside the
-        # boundaries.
-        values[0][bounds.north] = np.zeros(len(displacement_values[0][bounds.north]))
-        values[1][bounds.north] = np.zeros(len(displacement_values[1][bounds.north]))
-
-        values[0][bounds.south] = np.zeros(len(displacement_values[0][bounds.south]))
-        values[1][bounds.south] = np.zeros(len(displacement_values[1][bounds.south]))
-
-        # Values for the absorbing boundary
-        # Scaling with face area is crucial for the ABCs.This is due to the way we
-        # handle the time derivative.
+        # Values for the absorbing boundaries
         values[1][bounds.east] += (
             self.robin_weight_value(direction="shear", side="east")
             * displacement_values[1][bounds.east]
@@ -124,7 +100,6 @@ class BoundaryConditionsUnitTest:
             self.robin_weight_value(direction="tensile", side="west")
             * displacement_values[0][bounds.west]
         ) * face_areas[bounds.west]
-
         return values.ravel("F")
 
 
@@ -235,32 +210,6 @@ class FourthOrderTensorUnitTest(object):
         return C
 
 
-class CustomEta:
-    def set_discretization_parameters(self) -> None:
-        """Set discretization parameters for the simulation.
-
-        Sets eta = 1/3 on all faces if it is a simplex grid.
-
-        """
-
-        super().set_discretization_parameters()
-        if self.params["grid_type"] == "simplex":
-            num_subfaces = 0
-            for sd, data in self.mdg.subdomains(return_data=True):
-                subcell_topology = pp.fvutils.SubcellTopology(sd)
-                num_subfaces += subcell_topology.num_subfno
-                eta_values = np.ones(num_subfaces) * 1 / 3
-                if sd.dim == self.nd:
-                    pp.initialize_data(
-                        sd,
-                        data,
-                        self.stress_keyword,
-                        {
-                            "mpsa_eta": eta_values,
-                        },
-                    )
-
-
 class ExportErrors:
     def data_to_export(self):
         """Define the data to export to vtu.
@@ -289,8 +238,7 @@ class ExportErrors:
 class BaseScriptModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawUnitTest,
-    CustomEta,
-    ExportErrors,
+    # ExportErrors,
     MomentumBalanceABC,
 ):
     ...

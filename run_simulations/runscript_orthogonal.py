@@ -22,12 +22,9 @@ class EntireDomainWave:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
-    def initial_condition(self):
+    def initial_condition_bc(self, bg):
         """Assigning initial bc values."""
-        super().initial_condition()
-
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-        data = self.mdg.subdomain_data(sd)
+        sd = bg.parent
 
         cp = self.primary_wave_speed
         t = 0
@@ -49,20 +46,9 @@ class EntireDomainWave:
             t - (x[inds_west] * np.cos(0) + y[inds_west] * np.sin(0)) / (cp)
         )
 
-        bc_vals = bc_vals.ravel("F")
+        bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
 
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            time_step_index=0,
-        )
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            iterate_index=0,
-        )
+        return bc_vals
 
 
 class MyGeometry7Meter:
@@ -74,12 +60,12 @@ class MyGeometry7Meter:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
+        x = 25.0 / self.units.m
+        y = 25.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.05 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.5 / self.units.m}
         return mesh_args
 
 
@@ -89,7 +75,7 @@ class Model(EntireDomainWave, MyGeometry7Meter, BaseScriptModel):
 
 t_shift = 0.0
 tf = 0.8 * 4
-time_steps = 2304
+time_steps = 1000
 dt = tf / time_steps
 
 
