@@ -30,13 +30,9 @@ class RotationAngle:
 
 
 class InitialConditionSourceTermUnitTest:
-    def initial_condition(self):
+    def initial_condition_bc(self, bg):
         """Assigning initial bc values."""
-        super().initial_condition()
-
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-        data = self.mdg.subdomain_data(sd)
-
+        sd = bg.parent
         cp = self.primary_wave_speed
         t = 0
         x = sd.face_centers[0, :]
@@ -88,18 +84,8 @@ class InitialConditionSourceTermUnitTest:
 
         bc_vals = bc_vals.ravel("F")
 
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            time_step_index=0,
-        )
-        pp.set_solution_values(
-            name=self.bc_values_mechanics_key,
-            values=bc_vals,
-            data=data,
-            iterate_index=0,
-        )
+        bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
+        return bc_vals
 
     def source_values(self, f, sd, t) -> np.ndarray:
         """Computes the integrated source values by the source function.
