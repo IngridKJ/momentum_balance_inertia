@@ -188,10 +188,7 @@ class BoundaryGridStuff:
     of methods belong to which files are signified by a comment above the first method
     in the chunk.
 
-    It also contains some brief "documentation" of other adaptations that were needed
-    and a TODO for assignment of initial values. This is found below the list of
-    methods.
-
+    It also contains some brief "documentation" of other adaptations that were needed.
     Methods herein include:
     * _combine_boundary_operators: Signature now contains a robin_operator. The code
         within is adapted such that all three boundary operators are combined, not only
@@ -228,9 +225,9 @@ class BoundaryGridStuff:
         (now deprecated) method bc_values_mechanics was found. Now we have to use the
         _combine_boundary_operators method instead.
 
-    TODO: Fix location and time for assignment of initial boundary values
+    Changes related to non-trivial initial boundary values:
     * Certain simulations with ABCs include some non-trivial boundary values to be set.
-        That is, something other than a constant value.
+        That is, a value that is dependent on the previous boundary displcement value.
 
         These values need to be initialized properly, and the way this was done before
         was to simply assign them before the simulation started. In the new set up,
@@ -239,8 +236,11 @@ class BoundaryGridStuff:
         before this occurs, the method assumes the initial call has already been made
         and starts assigning new values and thus overriding the initial ones.
 
-        This can be solved within bc_values_robin by distinguishing what to return on
-        the very first call to the method (self.time_manager.time_index == 0).
+        This is solved within bc_values_robin by distinguishing what to return on the
+        very first call to the method (self.time_manager.time_index == 0). This leads to
+        the existence of an initial condition method specific for boundary values. The
+        method itself is not too different from the previous method for setting initial
+        bc values.
 
     """
 
