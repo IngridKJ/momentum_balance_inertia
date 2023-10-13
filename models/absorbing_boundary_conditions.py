@@ -103,14 +103,11 @@ class BoundaryAndInitialCond:
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
             displacement_values = pp.get_solution_values(
-                name="u", data=data, time_step_index=0
+                name="bc_robin", data=data, time_step_index=0
             )
 
-        else:
-            # values = self.initial_condition_bc(bg=boundary_grid)
-            displacement_values = pp.get_solution_values(
-                name="u", data=data, time_step_index=0
-            )
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(boundary_grid)
 
         displacement_values = np.reshape(
             displacement_values, (self.nd, boundary_grid.num_cells), "F"
@@ -190,7 +187,7 @@ class BoundaryAndInitialCond:
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        pass
+        return np.ones((self.nd, bg.num_cells))
 
 
 class SolutionStrategyABC:
