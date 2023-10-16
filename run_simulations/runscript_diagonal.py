@@ -13,12 +13,12 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
+        x = 10.0 / self.units.m
+        y = 10.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.05 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.2 / self.units.m}
         return mesh_args
 
     def source_values(self, f, sd, t) -> np.ndarray:
@@ -43,12 +43,12 @@ class TestSetup(
 ):
     @property
     def rotation_angle(self) -> float:
-        return np.pi / 10
+        return np.pi / 2
 
 
 t_shift = 0.0
-tf = 0.8 * 4
-time_steps = 2304
+tf = 10.0
+time_steps = 1000.0
 dt = tf / time_steps
 
 
@@ -63,7 +63,7 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "testing_visualization_",
+    "folder_name": "testing_visualization_pi2",
     "manufactured_solution": "diag_wave",
     "progressbars": True,
 }

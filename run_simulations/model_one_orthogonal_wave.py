@@ -238,7 +238,7 @@ class ExportErrors:
 class BaseScriptModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawUnitTest,
-    # ExportErrors,
+    ExportErrors,
     MomentumBalanceABC,
 ):
     ...

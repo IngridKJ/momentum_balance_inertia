@@ -60,12 +60,12 @@ class MyGeometry7Meter:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 25.0 / self.units.m
-        y = 25.0 / self.units.m
+        x = 10.0 / self.units.m
+        y = 10.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.5 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.2 / self.units.m}
         return mesh_args
 
 
@@ -74,8 +74,8 @@ class Model(EntireDomainWave, MyGeometry7Meter, BaseScriptModel):
 
 
 t_shift = 0.0
-tf = 0.8 * 4
-time_steps = 1000
+tf = 10.0
+time_steps = 1000.0
 dt = tf / time_steps
 
 
@@ -92,7 +92,7 @@ time_manager.time_steps = time_steps
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "testing_visualization_",
+    "folder_name": "testing_visualization_orthogonal",
     "manufactured_solution": "unit_test",
     "progressbars": True,
     "write_errors": True,
