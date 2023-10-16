@@ -147,18 +147,14 @@ class MySolutionStrategy:
 
         super().set_discretization_parameters()
         if self.params["grid_type"] == "simplex":
-            num_subfaces = 0
             for sd, data in self.mdg.subdomains(return_data=True):
-                subcell_topology = pp.fvutils.SubcellTopology(sd)
-                num_subfaces += subcell_topology.num_subfno
-                eta_values = np.ones(num_subfaces) * 1 / 3
                 if sd.dim == self.nd:
                     pp.initialize_data(
                         sd,
                         data,
                         self.stress_keyword,
                         {
-                            "mpsa_eta": eta_values,
+                            "mpsa_eta": 1 / 3,
                         },
                     )
 
@@ -421,12 +417,18 @@ class TimeDependentSourceTerm:
         return external_sources
 
 
+class BoundaryGridRelated:
+    def bc_values_robin(self, bg):
+        return np.zeros(bg.num_cells)
+
+
 class DynamicMomentumBalance(
     NamesAndConstants,
     MyGeometry,
     MyEquations,
     TimeDependentSourceTerm,
     MySolutionStrategy,
+    BoundaryGridRelated,
     MomentumBalance,
 ):
     ...
