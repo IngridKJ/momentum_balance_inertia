@@ -77,7 +77,6 @@ class BoundaryAndInitialCond:
             Array of boundary values.
 
         """
-        # Equidimensional hard code
         face_areas = boundary_grid.cell_volumes
         data = self.mdg.boundary_grid_data(boundary_grid)
 
@@ -189,7 +188,7 @@ class BoundaryAndInitialCond:
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        return np.ones((self.nd, bg.num_cells))
+        return np.zeros((self.nd, bg.num_cells))
 
 
 class SolutionStrategyABC:
