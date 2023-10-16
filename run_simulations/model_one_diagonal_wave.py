@@ -78,7 +78,7 @@ class InitialConditionSourceTermUnitTest:
         bc_vals[0, :][inds_south] = np.sin(
             t - (x[inds_south] * np.cos(alpha) + y[inds_south] * np.sin(alpha)) / (cp)
         )
-        bc_vals[1, :][inds_west] = np.sin(
+        bc_vals[1, :][inds_south] = np.sin(
             t - (x[inds_south] * np.cos(alpha) + y[inds_south] * np.sin(alpha)) / (cp)
         )
 
