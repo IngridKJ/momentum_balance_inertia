@@ -17,6 +17,7 @@ import sys
 
 sys.path.append("../")
 
+from utils import u_v_a_wrap
 from models import MomentumBalanceABC
 
 
@@ -50,36 +51,38 @@ class InitialConditionSourceTermUnitTest:
 
         bc_vals = np.zeros((sd.dim, sd.num_faces))
 
+        displacement_function = u_v_a_wrap(model=self)
+
         # North
-        bc_vals[0, :][inds_north] = np.sin(
-            t - (x[inds_north] * np.cos(alpha) + y[inds_north] * np.sin(alpha)) / (cp)
+        bc_vals[0, :][inds_north] = displacement_function[0](
+            x[inds_north], y[inds_north], t
         )
-        bc_vals[1, :][inds_north] = np.sin(
-            t - (x[inds_north] * np.cos(alpha) + y[inds_north] * np.sin(alpha)) / (cp)
+        bc_vals[1, :][inds_north] = displacement_function[1](
+            x[inds_north], y[inds_north], t
         )
 
         # East
-        bc_vals[0, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(alpha) + y[inds_east] * np.sin(alpha)) / (cp)
+        bc_vals[0, :][inds_east] = displacement_function[0](
+            x[inds_east], y[inds_east], t
         )
-        bc_vals[1, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(alpha) + y[inds_east] * np.sin(alpha)) / (cp)
+        bc_vals[1, :][inds_east] = displacement_function[1](
+            x[inds_east], y[inds_east], t
         )
 
         # West
-        bc_vals[0, :][inds_west] = np.sin(
-            t - (x[inds_west] * np.cos(alpha) + y[inds_west] * np.sin(alpha)) / (cp)
+        bc_vals[0, :][inds_west] = displacement_function[0](
+            x[inds_west], y[inds_west], t
         )
-        bc_vals[1, :][inds_west] = np.sin(
-            t - (x[inds_west] * np.cos(alpha) + y[inds_west] * np.sin(alpha)) / (cp)
+        bc_vals[1, :][inds_west] = displacement_function[1](
+            x[inds_west], y[inds_west], t
         )
 
         # South
-        bc_vals[0, :][inds_south] = np.sin(
-            t - (x[inds_south] * np.cos(alpha) + y[inds_south] * np.sin(alpha)) / (cp)
+        bc_vals[0, :][inds_south] = displacement_function[0](
+            x[inds_south], y[inds_south], t
         )
-        bc_vals[1, :][inds_south] = np.sin(
-            t - (x[inds_south] * np.cos(alpha) + y[inds_south] * np.sin(alpha)) / (cp)
+        bc_vals[1, :][inds_south] = displacement_function[1](
+            x[inds_south], y[inds_south], t
         )
 
         bc_vals = bc_vals.ravel("F")
