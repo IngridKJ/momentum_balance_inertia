@@ -194,6 +194,10 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         alpha = model.rotation_angle
         u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
         u = [u1, u2]
+    elif manufactured_sol == "diagonal_wave":
+        alpha = model.rotation_angle
+        u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
+        u = [sym.cos(alpha) * u1, sym.sin(alpha) * u2]
     elif manufactured_sol == "bubble_30":
         u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
         u = [u1, u2]
