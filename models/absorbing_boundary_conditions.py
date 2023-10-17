@@ -609,6 +609,7 @@ class MomentumBalanceABC(
     BoundaryAndInitialCond,
     SolutionStrategyABC,
     ConstitutiveLawsABC,
+    BoundaryGridStuff,
     MomentumBalanceTimeDepSource,
 ):
     ...
