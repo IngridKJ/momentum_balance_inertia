@@ -4,6 +4,7 @@ import numpy as np
 from model_one_orthogonal_wave import BaseScriptModel
 
 from utils import get_boundary_cells
+from utils import u_v_a_wrap
 
 
 class EntireDomainWave:
@@ -36,14 +37,16 @@ class EntireDomainWave:
 
         bc_vals = np.zeros((sd.dim, sd.num_faces))
 
+        displacement_function = u_v_a_wrap(model=self)
+
         # East
-        bc_vals[0, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(0) + y[inds_east] * np.sin(0)) / (cp)
+        bc_vals[0, :][inds_east] = displacement_function[0](
+            x[inds_east], y[inds_east], t
         )
 
         # West
-        bc_vals[0, :][inds_west] = np.sin(
-            t - (x[inds_west] * np.cos(0) + y[inds_west] * np.sin(0)) / (cp)
+        bc_vals[0, :][inds_west] = displacement_function[0](
+            x[inds_west], y[inds_west], t
         )
 
         bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")

@@ -4,6 +4,8 @@ import numpy as np
 from base_script import BaseScriptModel
 
 from utils import get_boundary_cells
+from utils import u_v_a_wrap
+
 from plot_l2_error import plot_the_error
 
 with open("errors.txt", "w") as file:
@@ -28,7 +30,6 @@ class EntireDomainWave:
 
     def initial_condition_bc(self, bg):
         """Assigning initial bc values."""
-        cp = self.primary_wave_speed
         t = 0
         sd = bg.parent
         x = sd.face_centers[0, :]
@@ -38,16 +39,17 @@ class EntireDomainWave:
 
         bc_vals = np.zeros((self.nd, sd.num_faces))
 
+        displacement_function = u_v_a_wrap(model=self)
+
         # East
-        bc_vals[0, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(0) + y[inds_east] * np.sin(0)) / (cp)
+        bc_vals[0, :][inds_east] = displacement_function[0](
+            x[inds_east], y[inds_east], t
         )
-        bc_vals[1, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(0) + y[inds_east] * np.sin(0)) / (cp)
+        bc_vals[1, :][inds_east] = displacement_function[1](
+            x[inds_east], y[inds_east], t
         )
 
         bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
-
         return bc_vals
 
 

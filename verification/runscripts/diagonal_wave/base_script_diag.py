@@ -19,6 +19,7 @@ sys.path.append("../../../")
 from models import MomentumBalanceABC
 
 from utils import get_boundary_cells
+from utils import u_v_a_wrap
 
 
 class RotationAngle:
@@ -170,20 +171,22 @@ class InitialConditionSourceTermUnitTest:
 
         bc_vals = np.zeros((sd.dim, sd.num_faces))
 
+        displacement_function = u_v_a_wrap(model=self)
+
         # North
-        bc_vals[0, :][inds_north] = np.sin(
-            t - (x[inds_north] * np.cos(alpha) + y[inds_north] * np.sin(alpha)) / (cp)
+        bc_vals[0, :][inds_north] = displacement_function[0](
+            x[inds_north], y[inds_north], t
         )
-        bc_vals[1, :][inds_north] = np.sin(
-            t - (x[inds_north] * np.cos(alpha) + y[inds_north] * np.sin(alpha)) / (cp)
+        bc_vals[1, :][inds_north] = displacement_function[1](
+            x[inds_north], y[inds_north], t
         )
 
         # East
-        bc_vals[0, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(alpha) + y[inds_east] * np.sin(alpha)) / (cp)
+        bc_vals[0, :][inds_east] = displacement_function[0](
+            x[inds_east], y[inds_east], t
         )
-        bc_vals[1, :][inds_east] = np.sin(
-            t - (x[inds_east] * np.cos(alpha) + y[inds_east] * np.sin(alpha)) / (cp)
+        bc_vals[1, :][inds_east] = displacement_function[1](
+            x[inds_east], y[inds_east], t
         )
 
         bc_vals = bc_vals.ravel("F")
