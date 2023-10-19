@@ -4,9 +4,13 @@ This repo is dedicated to including inertia term to this model class, such that 
 dynamic momentum balance equation (elastic wave equation) can be solved.
 
 Specifically, this includes implementation of the Newmark time discretization scheme.
-The implementation is verified by convergence analysis using manufactured analytical
-solution. Every time the source code concerning the "core" implementation has been
-refactored, a convergence analysis is run prior to pushing - just in case.
+The implementation is verified by:
+* Convergence analysis using manufactured analytical
+solution
+
+In addition to this I have implemented some absorbing boundary conditions. They are/will be verified through:
+* Convergence analysis
+* Investigation of how energy is exiting the system as a wave is allowed to propagate out of the domain
 
 ## Models
 Models are found within the [models](./models/) directory:
@@ -34,12 +38,15 @@ Other runscripts:
   balance. No absorbing boundaries, just zero Dirichlet.
 
 ## Test setups for the absorbing boundary conditions (ABCs)
-* [Orthogonal wave](./verification/Verification%20and%20runscripts/Orthogonal%20wave/)
-  contains a setup for propagation of an orthogonal wave. It is ready with a few
-  different choices for time stepping, parameter value and grid.
+
+Wave sent into an "empty" domain by a time dependent Dirichlet boundary condition:
 * [unit_test_3D_ABC](./unit_test_3D_ABC.py) is for running the 3D quasi-1D model with
 one absorbing boundary.
 
+The domain is fully filled with the wave and no energy is added to the system. 
+The only things driving the wave are initial values for displacement, velocity and acceleration:
+* [runscript_orthogonal.py](./run_simulations/runscript_orthogonal.py) is for running the 2D quasi-1D model with absorbing boundary on the west and east side. 
+* [runscript_diagonal.py](./run_simulations/runscript_diagonal.py) is for running a simulation with all absorbing boundaries. The wave is a rotation of the wave in [runscript_orthogonal.py](./run_simulations/runscript_orthogonal.py). 
 ## Verification setup for the dynamic momentum balance
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
 follows:
