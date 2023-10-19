@@ -56,6 +56,11 @@ class Source:
         ]
 
     def before_nonlinear_loop(self) -> None:
+        super().before_nonlinear_loop()
+
+        self.update_mechanics_source()
+
+    def update_mechanics_source(self) -> None:
         """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)

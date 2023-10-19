@@ -120,6 +120,11 @@ class BoundaryAndInitialCond:
 
 class Source:
     def before_nonlinear_loop(self) -> None:
+        super().before_nonlinear_loop()
+
+        self.update_mechanics_source()
+
+    def update_mechanics_source(self) -> None:
         """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
@@ -135,13 +140,6 @@ class Source:
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
-
-        # Reset counter for nonlinear iterations.
-        self._nonlinear_iteration = 0
-        # Update time step size.
-        self.ad_time_step.set_value(self.time_manager.dt)
-        # Update the boundary conditions to both the time step and iterate solution.
-        self.update_time_dependent_ad_arrays()
 
     def source_values(self, f, sd, t) -> np.ndarray:
         """Computes the integrated source values by the source function.
