@@ -8,26 +8,10 @@ from utils import u_v_a_wrap
 
 
 class EntireDomainWave:
-    def source_values(self, f, sd, t) -> np.ndarray:
-        """Computes the integrated source values by the source function.
-
-        Parameters:
-            f: Function depending on time and space for the source term.
-            sd: Subdomain where the source term is defined.
-            t: Current time in the time-stepping.
-
-        Returns:
-            An array of source values.
-
-        """
-        vals = np.zeros((self.nd, sd.num_cells))
-        return vals.ravel("F")
-
     def initial_condition_bc(self, bg):
         """Assigning initial bc values."""
         sd = bg.parent
 
-        cp = self.primary_wave_speed
         t = 0
         x = sd.face_centers[0, :]
         y = sd.face_centers[1, :]
@@ -77,8 +61,8 @@ class Model(EntireDomainWave, MyGeometry7Meter, BaseScriptModel):
 
 
 t_shift = 0.0
-tf = 10.0
-time_steps = 1000.0
+tf = 20.0
+time_steps = 6400.0
 dt = tf / time_steps
 
 

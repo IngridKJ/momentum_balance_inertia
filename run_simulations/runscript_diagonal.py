@@ -3,6 +3,9 @@ import numpy as np
 
 from model_one_diagonal_wave import BaseScriptModel
 
+with open("energy_vals.txt", "w") as file:
+    pass
+
 
 class MyGeometry:
     def nd_rect_domain(self, x, y) -> pp.Domain:
@@ -18,7 +21,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.4 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.2 / self.units.m}
         return mesh_args
 
     def source_values(self, f, sd, t) -> np.ndarray:
@@ -43,12 +46,12 @@ class TestSetup(
 ):
     @property
     def rotation_angle(self) -> float:
-        return np.pi / 6
+        return np.pi / 2
 
 
 t_shift = 0.0
-tf = 10.0
-time_steps = 1000.0
+tf = 12.5
+time_steps = 1250.0
 dt = tf / time_steps
 
 

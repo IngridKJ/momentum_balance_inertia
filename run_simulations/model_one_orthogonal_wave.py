@@ -118,6 +118,21 @@ class ConstitutiveLawUnitTest:
         mu = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
         return FourthOrderTensorUnitTest(mu, lmbda)
 
+    def source_values(self, f, sd, t) -> np.ndarray:
+        """Computes the integrated source values by the source function.
+
+        Parameters:
+            f: Function depending on time and space for the source term.
+            sd: Subdomain where the source term is defined.
+            t: Current time in the time-stepping.
+
+        Returns:
+            An array of source values.
+
+        """
+        vals = np.zeros((self.nd, sd.num_cells))
+        return vals.ravel("F")
+
 
 class FourthOrderTensorUnitTest(object):
     """Cell-wise representation of fourth order tensor, represented by (3^2, 3^2 ,Nc)-array, where Nc denotes the number of cells, i.e. the tensor values are stored discretely.
