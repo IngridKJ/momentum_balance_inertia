@@ -196,7 +196,7 @@ class BoundaryAndInitialCond:
 
 class SolutionStrategyABC:
     def _is_nonlinear_problem(self) -> bool:
-        return True
+        return False
 
 
 class ConstitutiveLawsABC:
