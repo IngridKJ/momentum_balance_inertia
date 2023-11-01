@@ -5,32 +5,24 @@ The test shows that the eastern boundary absorbs the traveling sine wave. To mim
 setup, all off-diagonal terms of the fourth order stiffness tensor, C, are removed.
 
 Boundary conditions are: 
-* West: Dirichlet. Time dependent towards-right-travelling sine wave. 
 * North and south: Zero Neumann. 
-* East: Low order absorbing boundary condition.
+* East and west: Low order absorbing boundary condition.
 
 """
 
 import porepy as pp
 import numpy as np
 
+
 import sys
 
-sys.path.append("../../../")
+sys.path.append("../")
 
 from models import MomentumBalanceABC
-from utils import get_solution_values
 
 
 class BoundaryConditionsUnitTest:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        # Approximating the time derivative in the BCs and rewriting the BCs on "Robin
-        # form" gives need for Robin weights.
-
-        # These two lines provide an array with 2 components. The first component is a
-        # 2d array with ones in the first row and zeros in the second. The second
-        # component is also a 2d array, but now the first row is zeros and the second
-        # row is ones.
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
@@ -43,72 +35,54 @@ class BoundaryConditionsUnitTest:
             direction="tensile", side="east"
         )
 
+        value[1][1][bounds.west] *= self.robin_weight_value(
+            direction="shear", side="west"
+        )
+        value[0][0][bounds.west] *= self.robin_weight_value(
+            direction="tensile", side="west"
+        )
+
         # Choosing type of boundary condition for the different domain sides.
         bc = pp.BoundaryConditionVectorial(
             sd,
             bounds.north + bounds.south + bounds.east + bounds.west,
             "rob",
         )
-        bc.is_rob[:, bounds.west + bounds.north + bounds.south] = False
+        bc.is_rob[:, bounds.north + bounds.south] = False
 
-        bc.is_dir[:, bounds.west] = True
         bc.is_neu[:, bounds.north + bounds.south] = True
 
         bc.robin_weight = value
         return bc
 
-    def time_dependent_bc_values_mechanics(
-        self, subdomains: list[pp.Grid]
-    ) -> np.ndarray:
-        """Method for assigning the time dependent bc values.
+    def bc_values_robin(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        face_areas = bg.cell_volumes
+        data = self.mdg.boundary_grid_data(bg)
 
-        Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
-
-        Returns:
-            Array of boundary values.
-
-        """
-        assert len(subdomains) == 1
-        sd = subdomains[0]
-        face_areas = sd.face_areas
-        data = self.mdg.subdomain_data(sd)
-        t = self.time_manager.time
-
-        values = np.zeros((self.nd, sd.num_faces))
-        bounds = self.domain_boundary_sides(sd)
-
+        values = np.zeros((self.nd, bg.num_cells))
+        bounds = self.domain_boundary_sides(bg)
         if self.time_manager.time_index > 1:
-            # "Get face displacement": Create them using bound_displacement_face/
-            # bound_displacement_cell from second timestep and ongoing.
+            sd = bg.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
             displacement_values = displacement_boundary_operator.evaluate(
                 self.equation_system
             ).val
 
-        else:
-            # On first timestep, initial values are fetched from the data dictionary.
-            # These initial values are assigned in the initial_condition function.
-            displacement_values = get_solution_values(
-                name=self.bc_values_mechanics_key, data=data, time_step_index=0
+            displacement_values = bg.projection(self.nd) @ displacement_values
+
+        elif self.time_manager.time_index == 1:
+            displacement_values = pp.get_solution_values(
+                name="bc_robin", data=data, time_step_index=0
             )
 
-        # Note to self: The "F" here is crucial.
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(bg)
+
         displacement_values = np.reshape(
-            displacement_values, (self.nd, sd.num_faces), "F"
+            displacement_values, (self.nd, bg.num_cells), "F"
         )
 
-        # Zero Neumann on top - Waves are just allowed to slide alongside the
-        # boundaries.
-        values[0][bounds.north] = np.zeros(len(displacement_values[0][bounds.north]))
-        values[1][bounds.north] = np.zeros(len(displacement_values[1][bounds.north]))
-
-        values[0][bounds.south] = np.zeros(len(displacement_values[0][bounds.south]))
-        values[1][bounds.south] = np.zeros(len(displacement_values[1][bounds.south]))
-
-        # Values for the absorbing boundary
-        # Scaling with face area is crucial for the ABCs.This is due to the way we
-        # handle the time derivative.
+        # Values for the absorbing boundaries
         values[1][bounds.east] += (
             self.robin_weight_value(direction="shear", side="east")
             * displacement_values[1][bounds.east]
@@ -118,11 +92,14 @@ class BoundaryConditionsUnitTest:
             * displacement_values[0][bounds.east]
         ) * face_areas[bounds.east]
 
-        # Values for the western side sine wave
-        values[0][bounds.west] += np.ones(
-            len(displacement_values[0][bounds.west])
-        ) * np.sin(t)
-
+        values[1][bounds.west] += (
+            self.robin_weight_value(direction="shear", side="west")
+            * displacement_values[1][bounds.west]
+        ) * face_areas[bounds.west]
+        values[0][bounds.west] += (
+            self.robin_weight_value(direction="tensile", side="west")
+            * displacement_values[0][bounds.west]
+        ) * face_areas[bounds.west]
         return values.ravel("F")
 
 
@@ -140,6 +117,21 @@ class ConstitutiveLawUnitTest:
         lmbda = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
         mu = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
         return FourthOrderTensorUnitTest(mu, lmbda)
+
+    def source_values(self, f, sd, t) -> np.ndarray:
+        """Computes the integrated source values by the source function.
+
+        Parameters:
+            f: Function depending on time and space for the source term.
+            sd: Subdomain where the source term is defined.
+            t: Current time in the time-stepping.
+
+        Returns:
+            An array of source values.
+
+        """
+        vals = np.zeros((self.nd, sd.num_cells))
+        return vals.ravel("F")
 
 
 class FourthOrderTensorUnitTest(object):
@@ -233,32 +225,6 @@ class FourthOrderTensorUnitTest(object):
         return C
 
 
-class CustomEta:
-    def set_discretization_parameters(self) -> None:
-        """Set discretization parameters for the simulation.
-
-        Sets eta = 1/3 on all faces if it is a simplex grid.
-
-        """
-
-        super().set_discretization_parameters()
-        if self.params["grid_type"] == "simplex":
-            num_subfaces = 0
-            for sd, data in self.mdg.subdomains(return_data=True):
-                subcell_topology = pp.fvutils.SubcellTopology(sd)
-                num_subfaces += subcell_topology.num_subfno
-                eta_values = np.ones(num_subfaces) * 1 / 3
-                if sd.dim == self.nd:
-                    pp.initialize_data(
-                        sd,
-                        data,
-                        self.stress_keyword,
-                        {
-                            "mpsa_eta": eta_values,
-                        },
-                    )
-
-
 class ExportErrors:
     def data_to_export(self):
         """Define the data to export to vtu.
@@ -270,45 +236,23 @@ class ExportErrors:
         """
         data = super().data_to_export()
         for sd in self.mdg.subdomains(dim=self.nd):
-            x = sd.cell_centers[0, :]
-            t = self.time_manager.time
-            cp = self.primary_wave_speed
-
-            d = self.mdg.subdomain_data(sd)
-            # disp_vals = d[pp.TIME_STEP_SOLUTIONS]["u"][0]
-            disp_vals = get_solution_values(name="u", data=d, time_step_index=0)
-
-            u_h = np.reshape(disp_vals, (self.nd, sd.num_cells), "F")[0]
-
-            u_e = np.sin(t - x / cp)
-
-            du = u_e - u_h
-
-            relative_l2_error = pp.error_computation.l2_error(
-                grid=sd,
-                true_array=u_e,
-                approx_array=u_h,
-                is_scalar=True,
-                is_cc=True,
-                relative=True,
+            vel_op = self.velocity_time_dep_array([sd]) * self.velocity_time_dep_array(
+                [sd]
             )
+            vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=2)
+            vel_op_int_val = vel_op_int.evaluate(self.equation_system)
 
-            data.append((sd, "diff_anal_num", du))
-            data.append((sd, "analytical_solution", u_e))
+            data.append((sd, "energy", vel_op_int_val))
 
-            x_max = self.domain.bounding_box["xmax"]
-            # Don't bother collecting the errors before the wave has traveled the
-            # entire domain.
-            if self.time_manager.time >= x_max / cp:
-                with open(self.filename, "a") as file:
-                    file.write(str(relative_l2_error))
+            with open("energy_vals.txt", "a") as file:
+                file.write(f"{np.sum(vel_op_int_val)},")
+
         return data
 
 
 class BaseScriptModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawUnitTest,
-    CustomEta,
     ExportErrors,
     MomentumBalanceABC,
 ):

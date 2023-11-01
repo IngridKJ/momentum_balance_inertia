@@ -3,6 +3,9 @@ import numpy as np
 
 from models import DynamicMomentumBalance
 
+from functools import cached_property
+from typing import Callable, Sequence, cast
+
 import sys
 
 sys.path.append("../utils")
@@ -117,6 +120,11 @@ class BoundaryAndInitialCond:
 
 class Source:
     def before_nonlinear_loop(self) -> None:
+        super().before_nonlinear_loop()
+
+        self.update_mechanics_source()
+
+    def update_mechanics_source(self) -> None:
         """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
@@ -166,7 +174,6 @@ class Source:
 
         vals[0] = x_val * cell_volume
         vals[1] = y_val * cell_volume
-
         return vals.ravel("F")
 
 

@@ -20,7 +20,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.125 / 2 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.155 / 2**3 / self.units.m}
         return mesh_args
 
 
@@ -32,8 +32,8 @@ class MomentumBalanceModifiedGeometry(
 
 
 t_shift = 0.0
-time_steps = 20.0
-tf = 10.0
+time_steps = 1.0
+tf = 1.0
 dt = tf / time_steps
 
 
@@ -57,7 +57,8 @@ material_constants = {"solid": solid_constants}
 
 params = {
     "time_manager": time_manager,
-    "grid_type": "cartesian",
+    "grid_type": "simplex",
+    # "grid_type": "cartesian",
     "material_constants": material_constants,
     "folder_name": "center_source",
     "manufactured_solution": "bubble",

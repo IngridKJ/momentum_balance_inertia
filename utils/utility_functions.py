@@ -39,46 +39,6 @@ import sympy as sym
 # -------- Fetching/Computing values
 
 
-def get_solution_values(
-    name: str,
-    data: dict,
-    time_step_index: Optional[int] = None,
-    iterate_index: Optional[int] = None,
-) -> np.ndarray:
-    """Function for fetching values stored in data dictionary.
-
-    This function should be used to fetch solution values that are not related to a
-    variable. This is to avoid the time consuming alternative of writing e.g.:
-    `data["solution_name"][pp.TIME_STEP_SOLUTION/pp.ITERATE_SOLUTION][0]`.
-
-    Parameters:
-        name: Name of the parameter whose values we are interested in.
-        data: The data dictionary.
-        time_step_index: Which time step we want to get values for. 0 is current, 1 is
-            one time step back in time. Only limited by how many time steps are stored
-           from before.
-        iterate_index: Which iterate we want to get values for. 0 is current, 1 is one
-            iterate back in time. Only limited by how many iterates are stored from
-            before.
-
-    Returns:
-        An array containing the solution values.
-
-    """
-    if (time_step_index is None and iterate_index is None) or (
-        time_step_index is not None and iterate_index is not None
-    ):
-        raise ValueError(
-            "Both time_step_index and iterate_index cannot be None/assigned a value."
-            "Only one at a time."
-        )
-
-    if time_step_index is not None:
-        return data[pp.TIME_STEP_SOLUTIONS][name][time_step_index].copy()
-    else:
-        return data[pp.ITERATE_SOLUTIONS][name][iterate_index].copy()
-
-
 def acceleration_velocity_displacement(
     model,
     data: dict,
@@ -97,18 +57,18 @@ def acceleration_velocity_displacement(
         displacement.
 
     """
-    a_previous = get_solution_values(
+    a_previous = pp.get_solution_values(
         name=model.acceleration_key, data=data, time_step_index=0
     )
-    v_previous = get_solution_values(
+    v_previous = pp.get_solution_values(
         name=model.velocity_key, data=data, time_step_index=0
     )
 
-    u_current = get_solution_values(
+    u_current = pp.get_solution_values(
         name=model.displacement_variable, data=data, iterate_index=0
     )
 
-    u_previous = get_solution_values(
+    u_previous = pp.get_solution_values(
         name=model.displacement_variable, data=data, time_step_index=0
     )
 
@@ -218,11 +178,10 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
 
     x, y, t = sym.symbols("x y t")
     cp = model.primary_wave_speed
-    cs = model.secondary_wave_speed
 
     manufactured_sol = model.params.get("manufactured_solution", "bubble")
     if manufactured_sol == "unit_test":
-        u1 = sym.sin(x - cp * t)
+        u1 = sym.sin(t - x / cp)
         u2 = 0
         u = [u1, u2]
     elif manufactured_sol == "bubble":
@@ -235,6 +194,10 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         alpha = model.rotation_angle
         u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
         u = [u1, u2]
+    elif manufactured_sol == "diagonal_wave":
+        alpha = model.rotation_angle
+        u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
+        u = [sym.cos(alpha) * u1, sym.sin(alpha) * u2]
     elif manufactured_sol == "bubble_30":
         u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
         u = [u1, u2]

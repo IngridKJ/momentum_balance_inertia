@@ -3,13 +3,17 @@ from porepy.models.momentum_balance import MomentumBalance
 import porepy as pp
 import time_derivatives
 
-from utils import get_solution_values
 from utils import acceleration_velocity_displacement
 
 import numpy as np
 
 
 class NamesAndConstants:
+    @property
+    def bc_robin_key(self):
+        # Key for robin boundary conditions
+        return "bc_robin"
+
     @property
     def beta(self) -> float:
         return 0.25
@@ -237,10 +241,12 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
-        # Be careful about this one.
-        # self.update_time_dependent_ad_arrays(initial=True)
-
     def before_nonlinear_loop(self) -> None:
+        super().before_nonlinear_loop()
+
+        self.update_mechanics_source()
+
+    def update_mechanics_source(self) -> None:
         """Update values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
@@ -320,7 +326,7 @@ class MySolutionStrategy:
         )
         return a
 
-    def update_time_dependent_ad_arrays(self, initial: bool) -> None:
+    def update_time_dependent_ad_arrays_loc(self, initial: bool) -> None:
         """Update the time dependent arrays for the velocity and acceleration.
 
         Parameters:
@@ -330,7 +336,7 @@ class MySolutionStrategy:
                 updated by copying the iterate.
 
         """
-        super().update_time_dependent_ad_arrays(initial)
+        # super().update_time_dependent_ad_arrays(initial)
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             vals_acceleration = self.acceleration_values([sd])
             vals_velocity = self.velocity_values([sd])
@@ -350,10 +356,10 @@ class MySolutionStrategy:
                 )
             else:
                 # Copy old values from iterate to the solution.
-                vals_velocity_it = get_solution_values(
+                vals_velocity_it = pp.get_solution_values(
                     name=self.velocity_key, data=data, iterate_index=0
                 )
-                vals_acceleration_it = get_solution_values(
+                vals_acceleration_it = pp.get_solution_values(
                     name=self.acceleration_key, data=data, iterate_index=0
                 )
                 pp.set_solution_values(
@@ -398,7 +404,7 @@ class MySolutionStrategy:
         """
         solution = self.equation_system.get_variable_values(iterate_index=0)
 
-        self.update_time_dependent_ad_arrays(initial=True)
+        self.update_time_dependent_ad_arrays_loc(initial=True)
 
         self.equation_system.shift_time_step_values()
         self.equation_system.set_variable_values(
@@ -414,10 +420,15 @@ class TimeDependentSourceTerm:
 
         external_sources = pp.ad.TimeDependentDenseArray(
             name="source_mechanics",
-            subdomains=subdomains,
+            domains=subdomains,
             previous_timestep=False,
         )
         return external_sources
+
+
+class BoundaryGridRelated:
+    def bc_values_robin(self, bg):
+        return np.zeros(bg.num_cells)
 
 
 class DynamicMomentumBalance(
@@ -426,6 +437,7 @@ class DynamicMomentumBalance(
     MyEquations,
     TimeDependentSourceTerm,
     MySolutionStrategy,
+    BoundaryGridRelated,
     MomentumBalance,
 ):
     ...

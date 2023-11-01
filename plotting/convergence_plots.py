@@ -1,16 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def RGB(r, g, b):
-    return (r / 255, g / 255, b / 255)
-
-
-def convergence_ratio(error_values):
-    ratios = np.zeros(len(error_values) - 1)
-    for i in range(len(error_values) - 1):
-        ratios[i] = error_values[i] / error_values[i + 1]
-    return ratios
+import plot_utils as pu
 
 
 def read_convergence_files(filename: str) -> dict:
@@ -35,8 +26,8 @@ def read_convergence_files(filename: str) -> dict:
     info_dict["error_displacement"] = np.loadtxt(filename)[:, 2]
     info_dict["error_force"] = np.loadtxt(filename)[:, 3]
 
-    ratio_displacement = convergence_ratio(info_dict["error_displacement"])
-    ratio_force = convergence_ratio(info_dict["error_force"])
+    ratio_displacement = pu.convergence_ratio(info_dict["error_displacement"])
+    ratio_force = pu.convergence_ratio(info_dict["error_force"])
 
     info_dict["ratio_displacement"] = ratio_displacement
     info_dict["ratio_force"] = ratio_force
@@ -44,7 +35,13 @@ def read_convergence_files(filename: str) -> dict:
     return info_dict
 
 
-def plotting(keyword: str, dic: dict) -> None:
+def plotting(
+    keyword: str,
+    dic: dict,
+    ref_1: bool = False,
+    ref_2: bool = False,
+    scaling: float = 1,
+) -> None:
     """"""
     if keyword == "temporal":
         axis_name = "time_step"
@@ -56,14 +53,14 @@ def plotting(keyword: str, dic: dict) -> None:
         dic["error_displacement"],
         "o--",
         label="displacement",
-        color=RGB(157, 77, 159),
+        color=pu.RGB(157 - 20 * 0.5, 77 + 40 * 0.5, 159 + 20 * 0.5),
     )
     plt.loglog(
         dic[axis_name],
         dic["error_force"],
-        "o-.",
+        "o--",
         label="force",
-        color=RGB(49, 135, 152),
+        color=pu.RGB(49, 135, 152),
     )
 
     plt.title(f"Convergence rates: {keyword}")
@@ -71,18 +68,38 @@ def plotting(keyword: str, dic: dict) -> None:
     plt.ylabel("Relative l2 error")
 
     plt.grid(True, which="both", linestyle="--", color=(0.87, 0.87, 0.87))
-    plt.legend()
 
+    # Reference slope lines
+    if ref_1 is True:
+        plt.loglog(
+            dic[axis_name],
+            0.225 * dic[axis_name],
+            label="Slope 1 reference line",
+            color=pu.RGB(49, 135, 152),
+        )
+    if ref_2 is True:
+        plt.loglog(
+            dic[axis_name],
+            scaling * 0.25 * dic[axis_name] ** 2,
+            label="Slope 2 reference line",
+            color=pu.RGB(157 - 20 * 0.5, 77 + 40 * 0.5, 159 + 20 * 0.5),
+        )
+
+    plt.legend()
     plt.show()
 
 
 # Uncomment the one you are interested in:
-# plotting(
-#     keyword="spatial",
-#     dic=read_convergence_files(filename="error_analysis.txt"),
-# )
+plotting(
+    keyword="spatial",
+    dic=read_convergence_files(filename="spatial_10_ts_6_levels.txt"),
+    ref_1=True,
+    ref_2=True,
+)
 
 plotting(
     keyword="temporal",
-    dic=read_convergence_files(filename="error_analysis.txt"),
+    dic=read_convergence_files(filename="temporal_128_6_levels.txt"),
+    ref_2=True,
+    scaling=10,
 )
