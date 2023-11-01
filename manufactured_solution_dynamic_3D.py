@@ -13,6 +13,7 @@ from models import MomentumBalanceTimeDepSource
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
 from porepy.viz.data_saving_model_mixin import VerificationDataSaving
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 from utils import symbolic_representation
 from utils import symbolic_equation_terms
@@ -91,7 +92,7 @@ class ManuMechDataSaving(VerificationDataSaving):
         exact_displacement = self.exact_sol.displacement(sd=sd, time=t)
         displacement_ad = self.displacement([sd])
         approx_displacement = displacement_ad.evaluate(self.equation_system).val
-        error_displacement = pp.error_computation.l2_error(
+        error_displacement = ConvergenceAnalysis.l2_error(
             grid=sd,
             true_array=exact_displacement,
             approx_array=approx_displacement,
@@ -103,7 +104,7 @@ class ManuMechDataSaving(VerificationDataSaving):
         exact_force = self.exact_sol.elastic_force(sd=sd, time=t)
         force_ad = self.stress([sd])
         approx_force = force_ad.evaluate(self.equation_system).val
-        error_force = pp.error_computation.l2_error(
+        error_force = ConvergenceAnalysis.l2_error(
             grid=sd,
             true_array=exact_force,
             approx_array=approx_force,

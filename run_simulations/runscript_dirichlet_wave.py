@@ -3,6 +3,7 @@ import porepy as pp
 import numpy as np
 
 from model_one_orthogonal_wave import BaseScriptModel
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 from utils import get_boundary_cells
 from utils import u_v_a_wrap
@@ -165,7 +166,7 @@ class Exporting:
 
             u_h = np.reshape(u_h, (self.nd, sd.num_cells), "F")[0]
 
-            error = pp.error_computation.l2_error(
+            error = ConvergenceAnalysis.l2_error(
                 grid=sd,
                 true_array=u_e,
                 approx_array=u_h,
