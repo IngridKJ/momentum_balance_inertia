@@ -38,15 +38,15 @@ Other runscripts:
   balance. No absorbing boundaries, just zero Dirichlet.
 
 ## Test setups for the absorbing boundary conditions (ABCs)
-
-Wave sent into an "empty" domain by a time dependent Dirichlet boundary condition:
-* [unit_test_3D_ABC](./unit_test_3D_ABC.py) is for running the 3D quasi-1D model with
-one absorbing boundary.
+The domain starts out empty and a wave propagates from west to east:
+* [runscript_dirichlet_wave.py](./run_simulations/runscript_dirichlet_wave.py) has a wave that is initiated by a time dependent Dirichlet condition on the west boundary
 
 The domain is fully filled with the wave and no energy is added to the system. 
 The only things driving the wave are initial values for displacement, velocity and acceleration:
 * [runscript_orthogonal.py](./run_simulations/runscript_orthogonal.py) is for running the 2D quasi-1D model with absorbing boundary on the west and east side. 
 * [runscript_diagonal.py](./run_simulations/runscript_diagonal.py) is for running a simulation with all absorbing boundaries. The wave is a rotation of the wave in [runscript_orthogonal.py](./run_simulations/runscript_orthogonal.py). 
+
+
 ## Verification setup for the dynamic momentum balance
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
 follows:
