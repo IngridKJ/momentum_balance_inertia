@@ -738,6 +738,37 @@ def body_force_func(model) -> list:
 # -------- Functions related to subdomains
 
 
+def inner_domain_cells(self, sd: pp.Grid, width: float) -> np.ndarray:
+    """Function for fetching cells a certain width from the domain center.
+
+    Relevant for e.g. constructing an inner anisotropic domain within an outer isotropic
+    one.I need the cell numbers of the inner cells. For now it will return cell indices
+    of a cubic inner "domain" based on the size of the outer domain in x-direction
+
+    TODO: Rename width and allow for passing a tuple or something for finding inner
+    domains that are not cubic.
+
+    Parameters:
+        self: Kind of wrong to call it self.. Anyways, it is the model class. Same
+            holds for the other functions being passed a "self".
+        sd: Subdomain where the inner cells are to be found.
+        width: Sidelength of the cubic inner domain.
+
+    Returns:
+        An array of the cell indices of the cells within the "specified" inner domain.
+
+    """
+    cell_indices = []
+    domain_width = self.domain.bounding_box["xmax"]
+    cell_centers = sd.cell_centers.T
+    for i, _ in enumerate(cell_centers):
+        if np.all(cell_centers[i] < (domain_width + width) / 2.0) and (
+            np.all(cell_centers[i] > (domain_width - width) / 2.0)
+        ):
+            cell_indices.append(i)
+    return cell_indices
+
+
 def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarray:
     """Grab cell indices of a certain side of a subdomain.
 
