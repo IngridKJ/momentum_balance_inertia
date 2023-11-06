@@ -9,3 +9,5 @@ from .utility_functions import (
     inner_domain_cells,
     get_boundary_cells,
 )
+
+from .anisotropy_mixins import TransverselyAnisotropicStiffnessTensor, SimpleAnisotropy

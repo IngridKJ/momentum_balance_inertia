@@ -1,7 +1,9 @@
 import porepy as pp
 import numpy as np
 
-from base_script_anisotropic_media import AnisotropicBaseModel
+from models import MomentumBalanceABC
+
+from utils import TransverselyAnisotropicStiffnessTensor
 
 
 class ModifiedBoundaryConditions:
@@ -48,7 +50,7 @@ class ModifiedBoundaryConditions:
             bounds.north + bounds.south + bounds.east + bounds.bottom + bounds.west,
             "rob",
         )
-        # Only the eastern boundary will be Robin (absorbing)
+
         bc.is_neu[:, bounds.top] = False
 
         # Top boundary is Dirichlet
@@ -87,14 +89,15 @@ class ModifiedGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.5 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 1.0 / self.units.m}
         return mesh_args
 
 
 class EntireAnisotropy3DModel(
     ModifiedBoundaryConditions,
     ModifiedGeometry,
-    AnisotropicBaseModel,
+    TransverselyAnisotropicStiffnessTensor,
+    MomentumBalanceABC,
 ):
     ...
 
@@ -113,7 +116,12 @@ time_manager = pp.TimeManager(
     print_info=True,
 )
 
-anisotropy_constants = {"lmbda1": 0, "lmbda2": 0, "lmbda3": 10}
+anisotropy_constants = {
+    "mu_parallel": 1,
+    "mu_orthogonal": 2,
+    "lambda_parallel": 1,
+    "lambda_orthogonal": 2,
+}
 
 params = {
     "time_manager": time_manager,
