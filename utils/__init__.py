@@ -10,4 +10,10 @@ from .utility_functions import (
     get_boundary_cells,
 )
 
-from .anisotropy_mixins import TransverselyAnisotropicStiffnessTensor, SimpleAnisotropy
+from .anisotropy_mixins import (
+    TransverselyAnisotropicStiffnessTensor,
+    SimpleAnisotropy,
+    InnerDomainVTIStiffnessTensorMixin,
+)
+
+from .stiffness_tensors import StiffnessTensorInnerVTI

@@ -4,8 +4,13 @@ import porepy as pp
 import numpy as np
 from utils import inner_domain_cells
 
+from utils.stiffness_tensors import StiffnessTensorInnerVTI
+
 
 class TransverselyAnisotropicStiffnessTensor:
+    """To be deprecated: there is a less brute-force version in the bottom of this
+    file."""
+
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
 
@@ -109,7 +114,7 @@ class TransverselyAnisotropicStiffnessTensor:
                 [0, 0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
             ]
         )
 
@@ -244,3 +249,57 @@ class SimpleAnisotropy:
 
             values = lmbda1_mat * lmbda1 + lmbda2_mat * lmbda2 + lmbda3_mat * lmbda3
             return values
+
+
+class InnerDomainVTIStiffnessTensorMixin:
+    """Mixin for a stiffness tensor corresponding to an VTI inner domain, isotropic
+    outer domain.
+
+    Instead of using the pp.FourthOrderTensor object (found within PorePy) and then
+    overriding certain values, we now use another tensor object specifically tailored
+    for a VTI medium.
+
+    """
+
+    def stiffness_tensor(self, subdomain: pp.Grid) -> StiffnessTensorInnerVTI:
+        # Fetch inner domain indices such that we can distribute values of the material
+        # parameters in arrays according to cell numbers.
+        inner_domain_width = self.params.get("inner_domain_width", 0)
+        inner_cell_indices = inner_domain_cells(
+            self=self, sd=subdomain, width=inner_domain_width
+        )
+
+        # Preparing basis arrays for inner and outer domains
+        inner = np.zeros(subdomain.num_cells)
+        inner[inner_cell_indices] = 1
+
+        outer = np.ones(subdomain.num_cells)
+        outer = outer - inner
+
+        # Standard material values: These are assigned to the outer domain
+        lmbda = self.solid.lame_lambda() * outer
+        mu = self.solid.shear_modulus() * outer
+
+        # Anisotropy related values: These are assigned to the inner domain
+        anisotropy_constants = self.params["anisotropy_constants"]
+
+        mu_parallel = anisotropy_constants["mu_parallel"] * inner
+        mu_orthogonal = anisotropy_constants["mu_orthogonal"] * inner
+
+        volumetric_compr_lambda = self.solid.lame_lambda() * inner
+
+        lambda_parallel = anisotropy_constants["lambda_parallel"] * inner
+        lambda_orthogonal = anisotropy_constants["lambda_orthogonal"] * inner
+
+        # Finally a call to the stiffness tensor object itself
+        stiffness_tensor = StiffnessTensorInnerVTI(
+            mu=mu,
+            lmbda=lmbda,
+            mu_parallel=mu_parallel,
+            mu_orthogonal=mu_orthogonal,
+            lambda_parallel=lambda_parallel,
+            lambda_orthogonal=lambda_orthogonal,
+            volumetric_compr_lambda=volumetric_compr_lambda,
+        )
+
+        return stiffness_tensor

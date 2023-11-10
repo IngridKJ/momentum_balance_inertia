@@ -3,7 +3,7 @@ import numpy as np
 
 from models import MomentumBalanceABC
 
-from utils import TransverselyAnisotropicStiffnessTensor
+from utils import InnerDomainVTIStiffnessTensorMixin
 
 
 class ModifiedBoundaryConditions:
@@ -96,7 +96,7 @@ class ModifiedGeometry:
 class EntireAnisotropy3DModel(
     ModifiedBoundaryConditions,
     ModifiedGeometry,
-    TransverselyAnisotropicStiffnessTensor,
+    InnerDomainVTIStiffnessTensorMixin,
     MomentumBalanceABC,
 ):
     ...
@@ -117,16 +117,17 @@ time_manager = pp.TimeManager(
 )
 
 anisotropy_constants = {
-    "mu_parallel": 1,
-    "mu_orthogonal": 2,
-    "lambda_parallel": 1,
-    "lambda_orthogonal": 2,
+    "mu_parallel": 4,
+    "mu_orthogonal": 5,
+    "lambda_parallel": 2,
+    "lambda_orthogonal": 1,
 }
+
 
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "testing__",
+    "folder_name": "testing_values",
     "manufactured_solution": "simply_zero",
     "inner_domain_width": 10,
     "progressbars": True,
