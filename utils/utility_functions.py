@@ -1,15 +1,16 @@
 """This file contains some utility functions used in various files throughout this repo.
 
-In short, functions in this file are called for fetching values from data dictionary and
-for creating source terms corresponding to analytical solutions. These analytical
+In short, functions in this file are called for e.g. fetching subdomain-related
+quantities and for utilizing symbolic representations of analytical solutions (e.g.
+creating source terms, setting initial values, compute errors, etc.). These analytical
 solutions are determined by the "manufactured_solution" key value in the params
 dictionary. Creation of source terms uses symbolic differentiation provided by sympy.
 Therefore, running other manufactured solutions than those already present is easily
 done by adding the expression for it where the manufactured solution is defined.
 
-In addition to this there is a function for fetching cell indices of boundary cells. It
-might be done in a brute force way, and the functionality may already lie within PorePy,
-but I failed to find it.
+Specific note: there is a function for fetching cell indices of boundary cells. It might
+be done in a brute force way, and the functionality may already lie within PorePy, but I
+failed to find it.
 
 For comparison of the numerical and analytical solution, here are a couple analytical
 solutions in ParaView-calculator-language.

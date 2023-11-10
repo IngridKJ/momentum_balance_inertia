@@ -1,3 +1,8 @@
+"""File containing classes for a fourth order stiffness tensor. 
+
+Analogous to the tensors.py module within PorePy, but this one provides a tensor
+corresponding to an anisotropic medium."""
+
 import numpy as np
 
 

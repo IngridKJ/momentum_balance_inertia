@@ -1,4 +1,12 @@
-"""File for anisotropic tiffness tensor mixins"""
+"""File for anisotropic stiffness tensor mixins. 
+
+Currently, the following tensors are found here:
+    * Vertical transverse anisotropic stiffness tensor (for inner domain). Brute force
+      version, and thus to be deprecated.
+    * Simple anisotropy: Only increase stiffness in one direction. 
+    * Vertical transverse anisotropic stiffness tensor: Non-brute force version.
+      Constructed generally enough to allow for some flexibility in further
+      developments/enhancement of it."""
 
 import porepy as pp
 import numpy as np

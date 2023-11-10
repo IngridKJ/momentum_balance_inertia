@@ -8,9 +8,9 @@ The implementation is verified by:
 * Convergence analysis using manufactured analytical
 solution
 
-In addition to this I have implemented some absorbing boundary conditions. They are/will be verified through:
+In addition to this I have implemented some absorbing boundary conditions. Ongoing verification is happening through:
 * Convergence analysis
-* Investigation of how energy is exiting the system as a wave is allowed to propagate out of the domain
+* Energy decay analysis
 
 ## Models
 Models are found within the [models](./models/) directory:
@@ -32,6 +32,7 @@ is handled by the ABCs. All domain boundaries are absorbing.
   absorbing boundaries.
 * [center_source_3D_ABC](./center_source_3D_ABC.py) is for running the 3D model with
   absorbing boundaries.
+* [runscript_transverse_isotropy](./runscript_transverse_isotropy.py) is a 3D model with a vertical transverse isotropic inner domain. 
 
 Other runscripts:
 * [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
@@ -67,6 +68,14 @@ model.
 ### "Old" runscripts
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
   successfull attempt at MMS with static momentum balance equation.
+
+## Utility material
+A collection of utility material is found within the [utils](./utils/) directory:
+* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic stiffness tensors.
+* [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness tensor object for a transversely isotropic material.
+* [utility functions](./utils/utility_functions.py) contains mostly functions related to analytical solution expressions and fetching subdomain-related quantities (that I think are not already covered by PorePy functions, I might be mistaken)
+
+Refer to the files within the directory for more details about the specific contents.
 
 ## Sanity check
 Before the convergence rates for the dynamic momentum balance were as expected, a
