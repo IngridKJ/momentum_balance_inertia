@@ -93,8 +93,10 @@ class StiffnessTensorInnerVTI(object):
         m_ort_mat = m_ort_mat[:, :, np.newaxis]
 
         c = (
+            # Isotropic outer domain
             mu_mat * mu
             + lmbda_mat * lmbda
+            # VTI inner domain
             + l_mat * volumetric_compr_lambda
             + l_par_mat * lambda_parallel
             + l_ort_mat * lambda_orthogonal
