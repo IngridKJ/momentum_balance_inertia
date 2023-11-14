@@ -3,7 +3,7 @@ import numpy as np
 
 from models import MomentumBalanceABC
 
-from utils import TransverselyAnisotropicStiffnessTensor
+from utils import InnerDomainVTIStiffnessTensorMixin
 
 
 class ModifiedGeometry:
@@ -21,7 +21,7 @@ class ModifiedGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.5 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 1.0 / self.units.m}
         return mesh_args
 
 
@@ -40,31 +40,18 @@ class SolutionStratABC:
         """
         vals = np.zeros((self.nd, sd.num_cells))
 
-        # Assigning a one-cell source term in the middle of the domain. Only for testing
-        # purposes.
-        x_point = self.domain.bounding_box["xmax"] / 2.0 + 7
-        y_point = self.domain.bounding_box["ymax"] / 2.0
-        z_point = self.domain.bounding_box["zmax"] / 2.0
-
-        closest_cell = sd.closest_cell(np.array([[x_point], [y_point], [z_point]]))[0]
-
-        vals[0][closest_cell] = 1
-        vals[1][closest_cell] = 1
-        vals[2][closest_cell] = 1
-
-        if self.time_manager.time_index <= 20:
-            return vals.ravel("F") * self.time_manager.time
-        else:
-            return vals.ravel("F") * 0
+        return vals.ravel("F")
 
 
 class EntireAnisotropy3DModel(
     ModifiedGeometry,
-    TransverselyAnisotropicStiffnessTensor,
     SolutionStratABC,
+    InnerDomainVTIStiffnessTensorMixin,
     MomentumBalanceABC,
 ):
-    ...
+    @property
+    def rotation_angle(self):
+        return np.pi / 8
 
 
 t_shift = 0.0
@@ -82,18 +69,19 @@ time_manager = pp.TimeManager(
 )
 
 anisotropy_constants = {
-    "mu_parallel": 1,
-    "mu_orthogonal": 1,
-    "lambda_parallel": 1,
-    "lambda_orthogonal": 5,
-    "volumetric_compr_lambda": 9,
+    "mu_parallel": 4,
+    "mu_orthogonal": 500,
+    "lambda_parallel": 2,
+    "lambda_orthogonal": 100,
+    "volumetric_compr_lambda": 50,
 }
+
 
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "visualization",
-    "manufactured_solution": "simply_zero",
+    "folder_name": "testing_diagonal_vti_",
+    "manufactured_solution": "diag_wave",
     "inner_domain_width": 10,
     "progressbars": True,
     "anisotropy_constants": anisotropy_constants,

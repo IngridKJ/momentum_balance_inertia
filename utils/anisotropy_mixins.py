@@ -294,7 +294,9 @@ class InnerDomainVTIStiffnessTensorMixin:
         mu_parallel = anisotropy_constants["mu_parallel"] * inner
         mu_orthogonal = anisotropy_constants["mu_orthogonal"] * inner
 
-        volumetric_compr_lambda = self.solid.lame_lambda() * inner
+        volumetric_compr_lambda = (
+            anisotropy_constants["volumetric_compr_lambda"] * inner
+        )
 
         lambda_parallel = anisotropy_constants["lambda_parallel"] * inner
         lambda_orthogonal = anisotropy_constants["lambda_orthogonal"] * inner
