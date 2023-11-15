@@ -42,7 +42,7 @@ class SolutionStratABC:
 
         # Assigning a one-cell source term in the middle of the domain. Only for testing
         # purposes.
-        x_point = self.domain.bounding_box["xmax"] / 2.0 + 7
+        x_point = self.domain.bounding_box["xmax"] / 2.0
         y_point = self.domain.bounding_box["ymax"] / 2.0
         z_point = self.domain.bounding_box["zmax"] / 2.0
 
@@ -52,7 +52,7 @@ class SolutionStratABC:
         vals[1][closest_cell] = 1
         vals[2][closest_cell] = 1
 
-        if self.time_manager.time_index <= 20:
+        if self.time_manager.time_index <= 10:
             return vals.ravel("F") * self.time_manager.time
         else:
             return vals.ravel("F") * 0
@@ -81,18 +81,26 @@ time_manager = pp.TimeManager(
     print_info=True,
 )
 
+solid_constants = pp.SolidConstants(
+    {
+        "lame_lambda": 1.0,
+        "shear_modulus": 1.0,
+    }
+)
+
+material_constants = {"solid": solid_constants}
 anisotropy_constants = {
-    "mu_parallel": 1,
-    "mu_orthogonal": 1,
-    "lambda_parallel": 1,
-    "lambda_orthogonal": 5,
-    "volumetric_compr_lambda": 9,
+    "mu_parallel": 5,
+    "mu_orthogonal": 5,
+    "lambda_parallel": 2,
+    "lambda_orthogonal": 2,
+    "volumetric_compr_lambda": 4,
 }
 
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "visualization",
+    "folder_name": "visualization_cs",
     "manufactured_solution": "simply_zero",
     "inner_domain_width": 10,
     "progressbars": True,
