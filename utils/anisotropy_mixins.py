@@ -265,7 +265,7 @@ class InnerDomainVTIStiffnessTensorMixin:
 
     Instead of using the pp.FourthOrderTensor object (found within PorePy) and then
     overriding certain values, we now use another tensor object specifically tailored
-    for a VTI medium.
+    for a VTI medium. That is, an isotropic medium with an inner VTI one.
 
     """
 
@@ -273,8 +273,12 @@ class InnerDomainVTIStiffnessTensorMixin:
         # Fetch inner domain indices such that we can distribute values of the material
         # parameters in arrays according to cell numbers.
         inner_domain_width = self.params.get("inner_domain_width", 0)
+        inner_domain_center = self.params.get("inner_domain_center", None)
         inner_cell_indices = inner_domain_cells(
-            self=self, sd=subdomain, width=inner_domain_width
+            self=self,
+            sd=subdomain,
+            width=inner_domain_width,
+            inner_domain_center=inner_domain_center,
         )
 
         # Preparing basis arrays for inner and outer domains
