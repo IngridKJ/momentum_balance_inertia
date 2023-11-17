@@ -131,16 +131,17 @@ def test_iso_vti_tensor():
     # Instantiate model with appropriate parameter values
     anisotropy_constants = {
         "mu_parallel": 20,
-        "mu_orthogonal": 15,
+        "mu_orthogonal": 20,
         "lambda_parallel": 10,
         "lambda_orthogonal": 5,
+        "volumetric_compr_lambda": 25,
     }
 
     solid_constants = pp.SolidConstants({"lame_lambda": 25, "shear_modulus": 30})
     material_constants = {"solid": solid_constants}
 
     params = {
-        "grid_type": "simplex",
+        "grid_type": "cartesian",
         "manufactured_solution": "simply_zero",
         "inner_domain_width": 3,
         "anisotropy_constants": anisotropy_constants,
