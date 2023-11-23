@@ -5,6 +5,9 @@ from models import MomentumBalanceABC
 
 from utils import InnerDomainVTIStiffnessTensorMixin
 
+with open("energy_vals.txt", "w") as file:
+    pass
+
 
 class ModifiedBoundaryConditions:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
@@ -83,9 +86,9 @@ class ModifiedGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 20.0 / self.units.m
-        y = 20.0 / self.units.m
-        z = 20.0 / self.units.m
+        x = 50.0 / self.units.m
+        y = 50.0 / self.units.m
+        z = 30.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
@@ -99,7 +102,31 @@ class EntireAnisotropy3DModel(
     InnerDomainVTIStiffnessTensorMixin,
     MomentumBalanceABC,
 ):
-    ...
+    def data_to_export(self):
+        """Define the data to export to vtu.
+
+        Returns:
+            list: List of tuples containing the subdomain, variable name,
+            and values to export.
+
+        """
+        data = super().data_to_export()
+        for sd in self.mdg.subdomains(dim=self.nd):
+            vel_op = self.velocity_time_dep_array([sd]) * self.velocity_time_dep_array(
+                [sd]
+            )
+            vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=3)
+            vel_op_int_val = vel_op_int.evaluate(self.equation_system)
+
+            vel = self.velocity_time_dep_array([sd]).evaluate(self.equation_system)
+
+            data.append((sd, "energy", vel_op_int_val))
+            data.append((sd, "velocity", vel))
+
+            with open("energy_vals.txt", "a") as file:
+                file.write(f"{np.sum(vel_op_int_val)},")
+
+        return data
 
 
 t_shift = 0.0
@@ -117,20 +144,20 @@ time_manager = pp.TimeManager(
 )
 
 anisotropy_constants = {
-    "mu_parallel": 4,
-    "mu_orthogonal": 5,
-    "lambda_parallel": 2,
-    "lambda_orthogonal": 1,
-    "volumetric_compr_lambda": 9,
+    "mu_parallel": 1,
+    "mu_orthogonal": 1,
+    "lambda_parallel": 5,
+    "lambda_orthogonal": 5,
+    "volumetric_compr_lambda": 5,
 }
 
 
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "testing_values",
+    "folder_name": "visualization",
     "manufactured_solution": "simply_zero",
-    "inner_domain_width": 10,
+    "inner_domain_width": 5,
     "progressbars": True,
     "anisotropy_constants": anisotropy_constants,
 }
