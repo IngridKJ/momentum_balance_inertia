@@ -17,7 +17,7 @@ from anisotropic_model_for_testing import AnisotropyModelForTesting
 from utils import inner_domain_cells
 
 
-class TestModel(AnisotropyModelForTesting):
+class Model(AnisotropyModelForTesting):
     def nd_rect_domain(self, x, y, z) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
 
@@ -148,7 +148,7 @@ def test_iso_vti_tensor():
         "material_constants": material_constants,
     }
 
-    model = TestModel(params)
+    model = Model(params)
 
     # Set geometry and discretization parameters
     model.set_materials()
@@ -175,3 +175,6 @@ def test_iso_vti_tensor():
 
     for i in range(num_cells):
         assert np.all(full_tensor[i, :, :] == stiffness_tensor[:, :, i])
+
+
+test_iso_vti_tensor()

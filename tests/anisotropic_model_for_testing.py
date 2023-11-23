@@ -1,8 +1,11 @@
 import porepy as pp
 import numpy as np
 
-from models import MomentumBalanceABC
+import sys
 
+sys.path.append("../")
+
+from models import MomentumBalanceABC
 from utils import InnerDomainVTIStiffnessTensorMixin
 
 
