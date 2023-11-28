@@ -32,8 +32,8 @@ def read_float_values(filename) -> np.ndarray:
 def create_and_save_animation(
     file_path: str,
     main_color: tuple,
-    additional_lines_info: list[tuple],
     y_ax: tuple,
+    additional_lines_info: list[tuple] = None,
     logarithmic: bool = True,
     output_file: str = None,
     save_as_mp4: bool = False,
@@ -75,7 +75,7 @@ def create_and_save_animation(
     """
     # Read float values from the main file
     float_values = read_float_values(file_path)
-    if relative:
+    if relative and additional_lines_info is not None:
         float_values = float_values / max(float_values)
 
         # Extract information for additional lines
@@ -87,7 +87,10 @@ def create_and_save_animation(
             )
             for file, (red, green, blue), label in additional_lines_info
         ]
-    else:
+    elif relative and additional_lines_info is None:
+        float_values = float_values / max(float_values)
+
+    elif not relative and additional_lines_info is not None:
         # Extract information for additional lines
         additional_lines = [
             (read_float_values(file), RGB(red, green, blue), label)
@@ -137,15 +140,19 @@ def create_and_save_animation(
         linewidth=1,
     )
 
-    # Then the other energy values:
-    additional_line_objects = [
-        ax.plot([], [], "--", label=label, color=color)[0]
-        for _, color, label in additional_lines
-    ]
+    if additional_lines_info is not None:
+        # Then the other energy values:
+        additional_line_objects = [
+            ax.plot([], [], "--", label=label, color=color)[0]
+            for _, color, label in additional_lines
+        ]
 
     # Create the initial red dashed line
     (red_line,) = ax.plot(
-        [], [], color=RGB(main_color[0], main_color[1], main_color[2]), label="Energy"
+        [],
+        [],
+        color=RGB(main_color[0], main_color[1], main_color[2]),
+        label="$\\theta = \pi/4$",
     )
 
     # Create the dynamic red dot
@@ -161,10 +168,13 @@ def create_and_save_animation(
         red_line.set_data([], [])
         red_dot.set_data([], [])
 
-        for line in additional_line_objects:
-            line.set_data([], [])
+        if additional_lines_info is not None:
+            for line in additional_line_objects:
+                line.set_data([], [])
 
-        return tuple([red_line, red_dot] + additional_line_objects)
+            return tuple([red_line, red_dot] + additional_line_objects)
+        else:
+            return tuple([red_line, red_dot])
 
     # Function to update the plot during animation
     def update(frame, red_line, red_dot, *additional_lines):
@@ -177,24 +187,38 @@ def create_and_save_animation(
         # Update the red dot for the current value
         red_dot.set_data(frame, float_values[frame])
 
-        # Update additional persistent lines with their values
-        for line, (values, _, _) in zip(additional_line_objects, additional_lines):
-            line.set_data(np.arange(len(values)), values)
+        if additional_lines_info is not None:
+            # Update additional persistent lines with their values
+            for line, (values, _, _) in zip(additional_line_objects, additional_lines):
+                line.set_data(np.arange(len(values)), values)
 
-        return tuple([red_line, red_dot] + additional_line_objects)
+            return tuple([red_line, red_dot] + additional_line_objects)
+        else:
+            return tuple([red_line, red_dot])
 
     # Calculate the number of frames based on the duration and framerate
     num_frames = int(duration_seconds * framerate)
 
-    # Create the animation
-    animation = FuncAnimation(
-        fig,
-        update,
-        init_func=init,
-        fargs=(red_line, red_dot) + tuple(additional_lines),
-        frames=num_frames,
-        interval=1000 / framerate,
-    )
+    if additional_lines_info is not None:
+        # Create the animation
+        animation = FuncAnimation(
+            fig,
+            update,
+            init_func=init,
+            fargs=(red_line, red_dot) + tuple(additional_lines),
+            frames=num_frames,
+            interval=1000 / framerate,
+        )
+    else:
+        # Create the animation
+        animation = FuncAnimation(
+            fig,
+            update,
+            init_func=init,
+            fargs=(red_line, red_dot),
+            frames=num_frames,
+            interval=1000 / framerate,
+        )
 
     # Calculate the correct fps for the desired duration
     correct_fps = num_frames / duration_seconds
