@@ -17,3 +17,9 @@ from .anisotropy_mixins import (
 )
 
 from .stiffness_tensors import StiffnessTensorInnerVTI
+
+from .perturbed_geometry_mixins import (
+    AllPerturbedGeometry,
+    InternalPerturbedGeometry,
+    BoundaryPerturbedGeometry,
+)
