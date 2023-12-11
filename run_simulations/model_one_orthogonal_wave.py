@@ -64,9 +64,9 @@ class BoundaryConditionsUnitTest:
         if self.time_manager.time_index > 1:
             sd = bg.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
-            displacement_values = displacement_boundary_operator.evaluate(
+            displacement_values = displacement_boundary_operator.value(
                 self.equation_system
-            ).val
+            )
 
             displacement_values = bg.projection(self.nd) @ displacement_values
 
@@ -240,7 +240,7 @@ class ExportErrors:
                 [sd]
             )
             vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=2)
-            vel_op_int_val = vel_op_int.evaluate(self.equation_system)
+            vel_op_int_val = vel_op_int.value(self.equation_system)
 
             data.append((sd, "energy", vel_op_int_val))
 
