@@ -55,9 +55,9 @@ class EntireDomainWave:
         if self.time_manager.time_index > 1:
             sd = bg.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
-            displacement_values = displacement_boundary_operator.evaluate(
+            displacement_values = displacement_boundary_operator.value(
                 self.equation_system
-            ).val
+            )
 
             displacement_values = bg.projection(self.nd) @ displacement_values
 

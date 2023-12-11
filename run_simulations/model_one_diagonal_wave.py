@@ -121,9 +121,9 @@ class ExportErrors:
                 [sd]
             )
             vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=2)
-            vel_op_int_val = vel_op_int.evaluate(self.equation_system)
+            vel_op_int_val = vel_op_int.value(self.equation_system)
 
-            vel = self.velocity_time_dep_array([sd]).evaluate(self.equation_system)
+            vel = self.velocity_time_dep_array([sd]).value(self.equation_system)
 
             data.append((sd, "energy", vel_op_int_val))
             data.append((sd, "velocity", vel))

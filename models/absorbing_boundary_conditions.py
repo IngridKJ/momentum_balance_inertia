@@ -91,9 +91,9 @@ class BoundaryAndInitialCond:
             # bound_displacement_face/-cell from second timestep and ongoing.
             sd = boundary_grid.parent
             displacement_boundary_operator = self.boundary_displacement([sd])
-            displacement_values = displacement_boundary_operator.evaluate(
+            displacement_values = displacement_boundary_operator.value(
                 self.equation_system
-            ).val
+            )
 
             displacement_values = (
                 boundary_grid.projection(self.nd) @ displacement_values

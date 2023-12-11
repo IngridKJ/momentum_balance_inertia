@@ -92,7 +92,7 @@ class ModifiedGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 1.0 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 5.0 / self.units.m}
         return mesh_args
 
 
@@ -116,9 +116,9 @@ class EntireAnisotropy3DModel(
                 [sd]
             )
             vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=3)
-            vel_op_int_val = vel_op_int.evaluate(self.equation_system)
+            vel_op_int_val = vel_op_int.value(self.equation_system)
 
-            vel = self.velocity_time_dep_array([sd]).evaluate(self.equation_system)
+            vel = self.velocity_time_dep_array([sd]).value(self.equation_system)
 
             data.append((sd, "energy", vel_op_int_val))
             data.append((sd, "velocity", vel))
@@ -131,7 +131,7 @@ class EntireAnisotropy3DModel(
 
 t_shift = 0.0
 tf = 15.0
-time_steps = 150.0
+time_steps = 10.0
 dt = tf / time_steps
 
 
