@@ -343,12 +343,20 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
     if manufactured_sol == "bubble":
         u1 = u2 = u3 = t**2 * x * (1 - x) * y * (1 - y) * z * (1 - z)
         u = [u1, u2, u3]
+    elif manufactured_sol == "drum_solution":
+        u1 = u2 = u3 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y) * z * (1 - z)
+        u = [u1, u2, u3]
     elif manufactured_sol == "simply_zero":
         u = [0, 0, 0]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = u3 = (
             sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y) * z * (1 - z)
         )
+        u = [u1, u2, u3]
+    elif manufactured_sol == "unit_test":
+        u1 = 0
+        u2 = 0
+        u3 = sym.sin(t + z / cp)
         u = [u1, u2, u3]
     elif manufactured_sol == "diag_wave":
         alpha = model.rotation_angle
