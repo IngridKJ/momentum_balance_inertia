@@ -72,6 +72,7 @@ model.
 ## Utility material
 A collection of utility material is found within the [utils](./utils/) directory:
 * [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic stiffness tensors.
+* [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for three types/configurations of perturbed geometry.
 * [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness tensor object for a transversely isotropic material.
 * [utility functions](./utils/utility_functions.py) contains mostly functions related to analytical solution expressions and fetching subdomain-related quantities (that I think are not already covered by PorePy functions, I might be mistaken)
 
