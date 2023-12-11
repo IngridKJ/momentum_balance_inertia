@@ -278,7 +278,7 @@ class BoundaryGridStuff:
     This mixin contains everything I needed to adapt in the source code for making the
     Robin boundary conditions (and thus absorbing boundary conditions (ABCs)) work with
     the boundary grid setup. Methods from three separate files are adapted. Which chunk
-    of methods belong to which files are signified by a comment above the first method
+    of methods belong to which files are mentioned by a comment above the first method
     in the chunk.
 
     It also contains some brief "documentation" of other adaptations that were needed.

@@ -1,15 +1,16 @@
 """This file contains some utility functions used in various files throughout this repo.
 
-In short, functions in this file are called for fetching values from data dictionary and
-for creating source terms corresponding to analytical solutions. These analytical
+In short, functions in this file are called for e.g. fetching subdomain-related
+quantities and for utilizing symbolic representations of analytical solutions (e.g.
+creating source terms, setting initial values, compute errors, etc.). These analytical
 solutions are determined by the "manufactured_solution" key value in the params
 dictionary. Creation of source terms uses symbolic differentiation provided by sympy.
 Therefore, running other manufactured solutions than those already present is easily
 done by adding the expression for it where the manufactured solution is defined.
 
-In addition to this there is a function for fetching cell indices of boundary cells. It
-might be done in a brute force way, and the functionality may already lie within PorePy,
-but I failed to find it.
+Specific note: there is a function for fetching cell indices of boundary cells. It might
+be done in a brute force way, and the functionality may already lie within PorePy, but I
+failed to find it.
 
 For comparison of the numerical and analytical solution, here are a couple analytical
 solutions in ParaView-calculator-language.
@@ -32,8 +33,9 @@ ParaView 3D polynomial bubble analytical solution: (time)^2 * (coords[0] * coord
 
 import numpy as np
 import porepy as pp
-from typing import Optional
 import sympy as sym
+
+from typing import Optional, Union
 
 
 # -------- Fetching/Computing values
@@ -336,10 +338,13 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
         )
 
     x, y, z, t = sym.symbols("x y z t")
-
+    cp = model.primary_wave_speed
     manufactured_sol = model.params.get("manufactured_solution", "bubble")
     if manufactured_sol == "bubble":
         u1 = u2 = u3 = t**2 * x * (1 - x) * y * (1 - y) * z * (1 - z)
+        u = [u1, u2, u3]
+    elif manufactured_sol == "drum_solution":
+        u1 = u2 = u3 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y) * z * (1 - z)
         u = [u1, u2, u3]
     elif manufactured_sol == "simply_zero":
         u = [0, 0, 0]
@@ -348,7 +353,16 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
             sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y) * z * (1 - z)
         )
         u = [u1, u2, u3]
-
+    elif manufactured_sol == "unit_test":
+        u1 = 0
+        u2 = 0
+        u3 = sym.sin(t + z / cp)
+        u = [u1, u2, u3]
+    elif manufactured_sol == "diag_wave":
+        alpha = model.rotation_angle
+        u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
+        u3 = 0
+        u = [u1, u2, u3]
     if return_dt:
         dt_u = [sym.diff(u[0], t), sym.diff(u[1], t), sym.diff(u[2], t)]
         return dt_u, x, y, z, t
@@ -738,6 +752,77 @@ def body_force_func(model) -> list:
 # -------- Functions related to subdomains
 
 
+def inner_domain_cells(
+    self,
+    sd: pp.Grid,
+    width: Optional[Union[float, tuple]],
+    inner_domain_center: Optional[tuple] = None,
+) -> np.ndarray:
+    """Function for fetching cells a certain width from the domain center.
+
+    Relevant for e.g. constructing an inner anisotropic domain within an outer isotropic
+    one.I need the cell numbers of the inner cells. For now it will return cell indices
+    of a cubic inner "domain" based on the size of the outer domain in x-direction
+
+    TODO:
+        * Allow for rectangular inner domains
+        * Raise an error if the inner domains are intersecting with the outer domain.
+
+    Raises:
+        ValueError if the inner domain width exceeds that of the outer domain.
+
+    Parameters:
+        self: Kind of wrong to call it self.. Anyways, it is the model class. Same
+            holds for the other functions being passed a "self".
+        sd: Subdomain where the inner cells are to be found.
+        width: Sidelength of the cubic inner domain. (Possibly) to come: A tuple
+            version of this which allows for non-cubic inner domains.
+        inner_domain_center: x, y, and z coordinate of the center of the inner domain.
+            Note that this center should not be placed in such a way that the inner
+            domain exceeds the boundaries of the outer domain. No error is raised at
+            this point, so caution is adviced #dramatic. The code will probably still
+            run, but then the absorbing boundaries are not correct anymore.
+
+    Returns:
+        An array of the cell indices of the cells within the "specified" inner domain.
+
+    """
+    cell_indices = []
+    domain_width = self.domain.bounding_box["xmax"]
+
+    if domain_width <= width:
+        raise ValueError("The domain width must be larger than the inner domain width.")
+
+    cell_centers = sd.cell_centers.T
+    for i, _ in enumerate(cell_centers):
+        cs = cell_centers[i]
+        if inner_domain_center is None:
+            if np.all(cs < (domain_width + width) / 2.0) and (
+                np.all(cs > (domain_width - width) / 2.0)
+            ):
+                cell_indices.append(i)
+        else:
+            inner_x_min = inner_domain_center[0] - width / 2
+            inner_x_max = inner_domain_center[0] + width / 2
+
+            inner_y_min = inner_domain_center[1] - width / 2
+            inner_y_max = inner_domain_center[1] + width / 2
+
+            inner_z_min = inner_domain_center[2] - width / 2
+            inner_z_max = inner_domain_center[2] + width / 2
+
+            if (
+                cs[0] > inner_x_min
+                and cs[1] > inner_y_min
+                and cs[2] > inner_z_min
+                and cs[0] < inner_x_max
+                and cs[1] < inner_y_max
+                and cs[2] < inner_z_max
+            ):
+                cell_indices.append(i)
+    return cell_indices
+
+
 def _get_boundary_cells(self, sd: pp.Grid, coord: str, extreme: str) -> np.ndarray:
     """Grab cell indices of a certain side of a subdomain.
 
@@ -783,6 +868,8 @@ def get_boundary_cells(
     Wrapper-like function for fetching boundary cell indices.
 
     This might already exist within PorePy, but I couldn't find it ...
+
+    TODO: Add possibility to return all boundary cells, not only for one side at a time.
 
     Parameters:
         sd: The subdomain

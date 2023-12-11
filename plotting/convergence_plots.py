@@ -41,6 +41,7 @@ def plotting(
     ref_1: bool = False,
     ref_2: bool = False,
     scaling: float = 1,
+    unit: str = "m",
 ) -> None:
     """"""
     if keyword == "temporal":
@@ -59,28 +60,28 @@ def plotting(
         dic[axis_name],
         dic["error_force"],
         "o--",
-        label="force",
+        label="traction",
         color=pu.RGB(49, 135, 152),
     )
 
-    plt.title(f"Convergence rates: {keyword}")
-    plt.xlabel(axis_name)
-    plt.ylabel("Relative l2 error")
+    plt.title(f"Convergence rates: {keyword}", fontsize=13)
+    plt.xlabel(f"{axis_name} [{unit}]", fontsize=13)
+    plt.ylabel("Relative l2 error", fontsize=13)
 
     plt.grid(True, which="both", linestyle="--", color=(0.87, 0.87, 0.87))
 
     # Reference slope lines
     if ref_1 is True:
         plt.loglog(
-            dic[axis_name],
-            0.225 * dic[axis_name],
+            dic[axis_name][:2],
+            0.1 * dic[axis_name][:2] * scaling,
             label="Slope 1 reference line",
             color=pu.RGB(49, 135, 152),
         )
     if ref_2 is True:
         plt.loglog(
-            dic[axis_name],
-            scaling * 0.25 * dic[axis_name] ** 2,
+            dic[axis_name][:2],
+            scaling * 0.25 * dic[axis_name][:2] ** 2,
             label="Slope 2 reference line",
             color=pu.RGB(157 - 20 * 0.5, 77 + 40 * 0.5, 159 + 20 * 0.5),
         )
@@ -95,11 +96,13 @@ plotting(
     dic=read_convergence_files(filename="spatial_10_ts_6_levels.txt"),
     ref_1=True,
     ref_2=True,
+    scaling=0.0065,
 )
 
 plotting(
     keyword="temporal",
     dic=read_convergence_files(filename="temporal_128_6_levels.txt"),
     ref_2=True,
-    scaling=10,
+    scaling=1,
+    unit="s",
 )
