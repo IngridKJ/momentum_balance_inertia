@@ -755,17 +755,16 @@ def body_force_func(model) -> list:
 def inner_domain_cells(
     self,
     sd: pp.Grid,
-    width: Optional[Union[float, tuple]],
+    width: Optional[Union[int, float, tuple]],
     inner_domain_center: Optional[tuple] = None,
 ) -> np.ndarray:
-    """Function for fetching cells a certain width from the domain center.
+    """Function for fetching cells a certain width from the domain center in 3D.
 
     Relevant for e.g. constructing an inner anisotropic domain within an outer isotropic
-    one.I need the cell numbers of the inner cells. For now it will return cell indices
-    of a cubic inner "domain" based on the size of the outer domain in x-direction
+    one. I need the cell numbers of the inner cells. Cell indices of the cells in the
+    internal domain is returned.
 
     TODO:
-        * Allow for rectangular inner domains
         * Raise an error if the inner domains are intersecting with the outer domain.
 
     Raises:
@@ -775,8 +774,9 @@ def inner_domain_cells(
         self: Kind of wrong to call it self.. Anyways, it is the model class. Same
             holds for the other functions being passed a "self".
         sd: Subdomain where the inner cells are to be found.
-        width: Sidelength of the cubic inner domain. (Possibly) to come: A tuple
-            version of this which allows for non-cubic inner domains.
+        width: If you want a cubic inner domain, pass an integer or a float. For a
+            rectangular inner domain, pass a tuple with sidelengths in x-, y-, and
+            z-direction.
         inner_domain_center: x, y, and z coordinate of the center of the inner domain.
             Note that this center should not be placed in such a way that the inner
             domain exceeds the boundaries of the outer domain. No error is raised at
@@ -790,26 +790,65 @@ def inner_domain_cells(
     cell_indices = []
     domain_width = self.domain.bounding_box["xmax"]
 
-    if domain_width <= width:
-        raise ValueError("The domain width must be larger than the inner domain width.")
+    if isinstance(width, float) or isinstance(width, int):
+        if domain_width <= width:
+            raise ValueError(
+                "The domain width must be larger than the inner domain width."
+            )
+        cell_centers = sd.cell_centers.T
+        for i, _ in enumerate(cell_centers):
+            cs = cell_centers[i]
+            if inner_domain_center is None:
+                if np.all(cs < (domain_width + width) / 2.0) and (
+                    np.all(cs > (domain_width - width) / 2.0)
+                ):
+                    cell_indices.append(i)
+            else:
+                inner_x_min = inner_domain_center[0] - width / 2
+                inner_x_max = inner_domain_center[0] + width / 2
 
-    cell_centers = sd.cell_centers.T
-    for i, _ in enumerate(cell_centers):
-        cs = cell_centers[i]
-        if inner_domain_center is None:
-            if np.all(cs < (domain_width + width) / 2.0) and (
-                np.all(cs > (domain_width - width) / 2.0)
-            ):
-                cell_indices.append(i)
-        else:
-            inner_x_min = inner_domain_center[0] - width / 2
-            inner_x_max = inner_domain_center[0] + width / 2
+                inner_y_min = inner_domain_center[1] - width / 2
+                inner_y_max = inner_domain_center[1] + width / 2
 
-            inner_y_min = inner_domain_center[1] - width / 2
-            inner_y_max = inner_domain_center[1] + width / 2
+                inner_z_min = inner_domain_center[2] - width / 2
+                inner_z_max = inner_domain_center[2] + width / 2
 
-            inner_z_min = inner_domain_center[2] - width / 2
-            inner_z_max = inner_domain_center[2] + width / 2
+                if (
+                    cs[0] > inner_x_min
+                    and cs[1] > inner_y_min
+                    and cs[2] > inner_z_min
+                    and cs[0] < inner_x_max
+                    and cs[1] < inner_y_max
+                    and cs[2] < inner_z_max
+                ):
+                    cell_indices.append(i)
+
+    elif isinstance(width, tuple):
+        domain_width_x = self.domain.bounding_box["xmax"]
+        domain_width_y = self.domain.bounding_box["ymax"]
+        domain_width_z = self.domain.bounding_box["zmax"]
+
+        if (
+            domain_width_x <= width[0]
+            or domain_width_y <= width[1]
+            or domain_width_z <= width[2]
+        ):
+            raise ValueError(
+                "The domain width must be larger than the inner domain width."
+            )
+
+        cell_centers = sd.cell_centers.T
+        for i, _ in enumerate(cell_centers):
+            cs = cell_centers[i]
+
+            inner_x_min = inner_domain_center[0] - width[0] / 2
+            inner_x_max = inner_domain_center[0] + width[0] / 2
+
+            inner_y_min = inner_domain_center[1] - width[1] / 2
+            inner_y_max = inner_domain_center[1] + width[1] / 2
+
+            inner_z_min = inner_domain_center[2] - width[2] / 2
+            inner_z_max = inner_domain_center[2] + width[2] / 2
 
             if (
                 cs[0] > inner_x_min

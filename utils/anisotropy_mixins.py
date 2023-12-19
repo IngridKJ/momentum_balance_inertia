@@ -40,10 +40,16 @@ class TransverselyAnisotropicStiffnessTensor:
         stiffness_tensor = pp.FourthOrderTensor(mu, lmbda)
 
         width = self.params.get("inner_domain_width", 0)
+        inner_domain_center = self.params.get("inner_domain_center", None)
         if width == 0:
             return stiffness_tensor
         else:
-            indices = inner_domain_cells(self=self, sd=subdomain, width=width)
+            indices = inner_domain_cells(
+                self=self,
+                sd=subdomain,
+                width=width,
+                inner_domain_center=inner_domain_center,
+            )
             anisotropic_stiffness_values = (
                 self.transversely_isotropic_stiffness_tensor()
             )
