@@ -20,10 +20,7 @@ ParaView polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1
 coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 -
 coords[1]) * jHat)
 
-ParaView quad time, sine space, analytical solution: sin(5.0/2.0 * acos(-1) * time) *
-(coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + sin(5.0/2.0 *
-acos(-1) * time) * (coords[0] * coords[1] * (1 -
-coords[0]) * (1 - coords[1]) * jHat
+ParaView sine time, quad space, analytical solution: sin(5.0/2.0 * acos(-1) * 1/20) * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
 
 
 3D:
