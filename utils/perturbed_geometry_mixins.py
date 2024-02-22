@@ -1,3 +1,13 @@
+"""File for perturbed geometry mixins. 
+
+Currently, the following geometries are found here:
+    * Geometry where all nodes are perturbed.
+    * Geometry where only one node among the "second closest" to the boundary is
+      perturbed.
+    * Geometry were one internal node is perturbed.
+    
+"""
+
 import porepy as pp
 import numpy as np
 

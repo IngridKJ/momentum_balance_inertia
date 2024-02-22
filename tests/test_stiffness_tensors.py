@@ -175,6 +175,3 @@ def test_iso_vti_tensor():
 
     for i in range(num_cells):
         assert np.all(full_tensor[i, :, :] == stiffness_tensor[:, :, i])
-
-
-test_iso_vti_tensor()
