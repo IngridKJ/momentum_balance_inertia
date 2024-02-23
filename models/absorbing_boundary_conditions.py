@@ -536,10 +536,6 @@ class BoundaryAndInitialConditionValues1:
             # These initial values are assigned in the initial_condition function that
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
-
-            # Is there a bug here? Should these values be multiplied by the Robin
-            # weight? It of course makes no difference when the value is zero, but this
-            # is strictly inconsistent.
             displacement_values = pp.get_solution_values(
                 name="bc_robin", data=data, time_step_index=0
             )

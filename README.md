@@ -26,13 +26,7 @@ Models are found within the [models](./models/) directory:
   source term](./models/time_dependent_source_term.py) model.
 
 ## Runscripts
-The two following runscripts have a centered source term to see how the propagating wave
-is handled by the ABCs. All domain boundaries are absorbing.
-* [center_source_2D_ABC](./center_source_2D_ABC.py) is for running the 2D model with
-  absorbing boundaries.
-* [center_source_3D_ABC](./center_source_3D_ABC.py) is for running the 3D model with
-  absorbing boundaries.
-* [runscript_transverse_isotropy](./runscript_transverse_isotropy.py) is a 3D model with a vertical transverse isotropic inner domain. 
+WIP: ABC and VTI runscripts 
 
 Other runscripts:
 * [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
