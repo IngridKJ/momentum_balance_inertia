@@ -1,4 +1,4 @@
 from .dynamic_momentum_balance import DynamicMomentumBalance
 from .no_inertia_momentum_balance import MomentumBalanceModified
 from .time_dependent_source_term import MomentumBalanceTimeDepSource
-from .absorbing_boundary_conditions import MomentumBalanceABC1
+from .absorbing_boundary_conditions import MomentumBalanceABC1, MomentumBalanceABC2

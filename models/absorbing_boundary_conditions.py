@@ -536,6 +536,10 @@ class BoundaryAndInitialConditionValues1:
             # These initial values are assigned in the initial_condition function that
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
+
+            # Is there a bug here? Should these values be multiplied by the Robin
+            # weight? It of course makes no difference when the value is zero, but this
+            # is strictly inconsistent.
             displacement_values = pp.get_solution_values(
                 name="bc_robin", data=data, time_step_index=0
             )
@@ -629,7 +633,212 @@ class BoundaryAndInitialConditionValues1:
 class BoundaryAndInitialConditionValues2:
     """Class with methods that are unique to ABC_2"""
 
-    ...
+    @property
+    def robin_weight_coefficient(self):
+        return 3 / 2
+
+    def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+        """Method for assigning ABCs with second order backward difference in time.
+
+        ABC expression:
+        \sigma * n + \alpha * 3/2 * u_n = \alpha * (2 * u_(n-1) - 0.5 * u_(n-2))
+
+        Parameters:
+            subdomains: List of subdomains on which to define boundary conditions.
+
+        Returns:
+            Array of boundary values.
+
+        """
+        face_areas = boundary_grid.cell_volumes
+        data = self.mdg.boundary_grid_data(boundary_grid)
+
+        values = np.zeros((self.nd, boundary_grid.num_cells))
+        bounds = self.domain_boundary_sides(boundary_grid)
+
+        if self.time_manager.time_index > 1:
+            # The displacement value for the previous time step is constructed and the
+            # one two time steps back in time is fetched from the dictionary.
+            location = pp.TIME_STEP_SOLUTIONS
+            name = "boundary_displacement_values"
+            for i in range(1, 0, -1):
+                data[location][name][i] = data[location][name][i - 1].copy()
+
+            displacement_values_1 = pp.get_solution_values(
+                name=name, data=data, time_step_index=1
+            )
+
+            sd = boundary_grid.parent
+            displacement_boundary_operator = self.boundary_displacement([sd])
+            displacement_values = displacement_boundary_operator.value(
+                self.equation_system
+            )
+
+            displacement_values_0 = (
+                boundary_grid.projection(self.nd) @ displacement_values
+            )
+            pp.set_solution_values(
+                name="boundary_displacement_values",
+                values=displacement_values_0,
+                data=data,
+                time_step_index=0,
+            )
+        elif self.time_manager.time_index == 1:
+            # On first time step we need to fetch both initial values from the storage
+            # location.
+            displacement_values_0 = pp.get_solution_values(
+                name="boundary_displacement_values", data=data, time_step_index=0
+            )
+            displacement_values_1 = pp.get_solution_values(
+                name="boundary_displacement_values", data=data, time_step_index=1
+            )
+        elif self.time_manager.time_index == 0:
+            # The first time this method is called is on initialization of the boundary
+            # values.
+            return self.initial_condition_bc(boundary_grid)
+
+        # Reshaping the displacement value arrays to have a shape that is easier to work
+        # with when assigning the robin bc values for the different domain sides.
+        displacement_values_0 = np.reshape(
+            displacement_values_0, (self.nd, boundary_grid.num_cells), "F"
+        )
+        displacement_values_1 = np.reshape(
+            displacement_values_1, (self.nd, boundary_grid.num_cells), "F"
+        )
+
+        # According to the expression for ABC_2 we have a coefficient 2 in front of the
+        # values u_(n-1) and -0.5 in front of u_(n-2):
+        displacement_values_0 *= 2
+        displacement_values_1 *= -0.5
+
+        # Assigning the values like this is a very brute force way. A
+        # tensor-normal-vector-product is considered as an altenative (but not
+        # implemented yet)
+        robin_weight_shear = self.robin_weight_value(direction="shear")
+        robin_weight_tensile = self.robin_weight_value(direction="tensile")
+
+        values[0][bounds.north] += (
+            robin_weight_shear
+            * (displacement_values_0[0] + displacement_values_1[0])[bounds.north]
+        ) * face_areas[bounds.north]
+        values[1][bounds.north] += (
+            robin_weight_tensile
+            * (displacement_values_0[1] + displacement_values_1[1])[bounds.north]
+        ) * face_areas[bounds.north]
+
+        values[0][bounds.south] += (
+            robin_weight_shear
+            * (displacement_values_0[0] + displacement_values_1[0])[bounds.south]
+        ) * face_areas[bounds.south]
+        values[1][bounds.south] += (
+            robin_weight_tensile
+            * (displacement_values_0[1] + displacement_values_1[1])[bounds.south]
+        ) * face_areas[bounds.south]
+
+        values[0][bounds.east] += (
+            robin_weight_tensile
+            * (displacement_values_0[0] + displacement_values_1[0])[bounds.east]
+        ) * face_areas[bounds.east]
+        values[1][bounds.east] += (
+            robin_weight_shear
+            * (displacement_values_0[1] + displacement_values_1[1])[bounds.east]
+        ) * face_areas[bounds.east]
+
+        values[0][bounds.west] += (
+            robin_weight_tensile
+            * (displacement_values_0[0] + displacement_values_1[0])[bounds.west]
+        ) * face_areas[bounds.west]
+        values[1][bounds.west] += (
+            robin_weight_shear
+            * (displacement_values_0[1] + displacement_values_1[1])[bounds.west]
+        ) * face_areas[bounds.west]
+
+        if self.nd == 3:
+            values[2][bounds.north] += (
+                robin_weight_shear
+                * (displacement_values_0[2] + displacement_values_1[2])[bounds.north]
+            ) * face_areas[bounds.north]
+
+            values[2][bounds.south] += (
+                robin_weight_shear
+                * (displacement_values_0[2] + displacement_values_1[2])[bounds.south]
+            ) * face_areas[bounds.south]
+
+            values[2][bounds.east] += (
+                robin_weight_shear
+                * (displacement_values_0[2] + displacement_values_1[2])[bounds.east]
+            ) * face_areas[bounds.east]
+
+            values[2][bounds.west] += (
+                robin_weight_shear
+                * (displacement_values_0[2] + displacement_values_1[2])[bounds.west]
+            ) * face_areas[bounds.west]
+
+            values[0][bounds.top] += (
+                robin_weight_shear
+                * (displacement_values_0[0] + displacement_values_1[0])[bounds.top]
+            ) * face_areas[bounds.top]
+            values[1][bounds.top] += (
+                robin_weight_shear
+                * (displacement_values_0[1] + displacement_values_1[1])[bounds.top]
+            ) * face_areas[bounds.top]
+            values[2][bounds.top] += (
+                robin_weight_tensile
+                * (displacement_values_0[2] + displacement_values_1[2])[bounds.top]
+            ) * face_areas[bounds.top]
+
+            values[0][bounds.bottom] += (
+                robin_weight_shear
+                * (displacement_values_0[0] + displacement_values_1[0])[bounds.bottom]
+            ) * face_areas[bounds.bottom]
+            values[1][bounds.bottom] += (
+                robin_weight_shear
+                * (displacement_values_0[1] + displacement_values_1[1])[bounds.bottom]
+            ) * face_areas[bounds.bottom]
+            values[2][bounds.bottom] += (
+                robin_weight_tensile
+                * (displacement_values_0[2] + displacement_values_1[2])[bounds.bottom]
+            ) * face_areas[bounds.bottom]
+        return values.ravel("F")
+
+    def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        """Method for setting initial values for 0th and -1st time step in
+        dictionary.
+
+        Parameters:
+            bg: Boundary grid whose boundary displacement value is to be set.
+
+        Returns:
+            An array with the initial displacement boundary values.
+
+        """
+        vals_0 = self.initial_condition_bc_0(bg=bg)
+        vals_1 = self.initial_condition_bc_1(bg=bg)
+
+        data = self.mdg.boundary_grid_data(bg)
+
+        # The values for the 0th and -1th time step are to be stored
+        pp.set_solution_values(
+            name="boundary_displacement_values",
+            values=vals_1,
+            data=data,
+            time_step_index=1,
+        )
+        pp.set_solution_values(
+            name="boundary_displacement_values",
+            values=vals_0,
+            data=data,
+            time_step_index=0,
+        )
+        return vals_0
+
+    def initial_condition_bc_0(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        """Initial boundary displacement values corresponding to time step 0."""
+        return np.zeros((self.nd, bg.num_cells))
+
+    def initial_condition_bc_1(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        """Initial boundary displacement values corresponding to time step -1."""
+        return np.zeros((self.nd, bg.num_cells))
 
 
 # Full model classes for the momentum balance with absorbing boundary conditions
