@@ -1,7 +1,7 @@
 import porepy as pp
 import numpy as np
 
-from models import MomentumBalanceABC
+from models import MomentumBalanceABC1
 
 from utils import InnerDomainVTIStiffnessTensorMixin
 
@@ -100,7 +100,7 @@ class EntireAnisotropy3DModel(
     ModifiedBoundaryConditions,
     ModifiedGeometry,
     InnerDomainVTIStiffnessTensorMixin,
-    MomentumBalanceABC,
+    MomentumBalanceABC1,
 ):
     def data_to_export(self):
         """Define the data to export to vtu.

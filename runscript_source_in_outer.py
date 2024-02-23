@@ -2,7 +2,7 @@ import porepy as pp
 
 import numpy as np
 
-from models.absorbing_boundary_conditions import MomentumBalanceABC
+from models.absorbing_boundary_conditions import MomentumBalanceABC1
 from utils import TransverselyAnisotropicStiffnessTensor
 
 
@@ -28,7 +28,7 @@ class MyGeometry:
 class MomentumBalanceABCModifiedGeometry(
     MyGeometry,
     TransverselyAnisotropicStiffnessTensor,
-    MomentumBalanceABC,
+    MomentumBalanceABC1,
 ):
 
     def initial_velocity(self, dofs: int) -> np.ndarray:

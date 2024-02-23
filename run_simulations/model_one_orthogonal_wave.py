@@ -18,7 +18,7 @@ import sys
 
 sys.path.append("../")
 
-from models import MomentumBalanceABC
+from models import MomentumBalanceABC1
 
 
 class BoundaryConditionsUnitTest:
@@ -254,6 +254,5 @@ class BaseScriptModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawUnitTest,
     ExportErrors,
-    MomentumBalanceABC,
-):
-    ...
+    MomentumBalanceABC1,
+): ...
