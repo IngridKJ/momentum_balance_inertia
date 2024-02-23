@@ -1,19 +1,3 @@
-from .anisotropy_mixins import (
-    TransverselyAnisotropicStiffnessTensor,
-    SimpleAnisotropy,
-    InnerDomainVTIStiffnessTensorMixin,
-)
-
-from .boundary_condition_setups import TimeDependentSineBC3D
-
-from .perturbed_geometry_mixins import (
-    AllPerturbedGeometry,
-    InternalPerturbedGeometry,
-    BoundaryPerturbedGeometry,
-)
-
-from .stiffness_tensors import StiffnessTensorInnerVTI
-
 from .utility_functions import (
     acceleration_velocity_displacement,
     cell_center_function_evaluation,
@@ -24,4 +8,18 @@ from .utility_functions import (
     symbolic_representation,
     inner_domain_cells,
     get_boundary_cells,
+)
+
+from .anisotropy_mixins import (
+    TransverselyAnisotropicStiffnessTensor,
+    SimpleAnisotropy,
+    InnerDomainVTIStiffnessTensorMixin,
+)
+
+from .stiffness_tensors import StiffnessTensorInnerVTI
+
+from .perturbed_geometry_mixins import (
+    AllPerturbedGeometry,
+    InternalPerturbedGeometry,
+    BoundaryPerturbedGeometry,
 )
