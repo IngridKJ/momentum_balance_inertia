@@ -18,7 +18,7 @@ import sys
 sys.path.append("../")
 
 from utils import u_v_a_wrap
-from models import MomentumBalanceABC
+from models import MomentumBalanceABC1
 
 
 from utils import get_boundary_cells
@@ -138,6 +138,5 @@ class BaseScriptModel(
     RotationAngle,
     InitialConditionSourceTermUnitTest,
     ExportErrors,
-    MomentumBalanceABC,
-):
-    ...
+    MomentumBalanceABC1,
+): ...
