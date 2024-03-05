@@ -8,9 +8,7 @@ The implementation is verified by:
 * Convergence analysis using manufactured analytical
 solution
 
-In addition to this I have implemented some absorbing boundary conditions. Ongoing verification is happening through:
-* Convergence analysis
-* Energy decay analysis
+In addition to this I have implemented some absorbing boundary conditions.
 
 ## Models
 Models are found within the [models](./models/) directory:
@@ -26,20 +24,11 @@ Models are found within the [models](./models/) directory:
   source term](./models/time_dependent_source_term.py) model.
 
 ## Runscripts
-WIP: ABC and VTI runscripts 
+Runscripts in the repository include:
+* Generic 3D runscript for time dependent source term
+* Heterogeneous and anisotropic 3D runscripts with Ricker wavelet as source 
 
-Other runscripts:
-* [runscript_3D](./runscript_3D.py) is a regular 3D runscript for the dynamic momentum
-  balance. No absorbing boundaries, just zero Dirichlet.
-
-## Test setups for the absorbing boundary conditions (ABCs)
-The domain starts out empty and a wave propagates from west to east:
-* [runscript_dirichlet_wave.py](./run_simulations/runscript_dirichlet_wave.py) has a wave that is initiated by a time dependent Dirichlet condition on the west boundary
-
-The domain is fully filled with the wave and no energy is added to the system. 
-The only things driving the wave are initial values for displacement, velocity and acceleration:
-* [runscript_orthogonal.py](./run_simulations/runscript_orthogonal.py) is for running the 2D quasi-1D model with absorbing boundary on the west and east side. 
-* [runscript_diagonal.py](./run_simulations/runscript_diagonal.py) is for running a simulation with all absorbing boundaries. The wave is a rotation of the wave in [runscript_orthogonal.py](./run_simulations/runscript_orthogonal.py). 
+All runscripts use the model classes listed above.
 
 
 ## Verification setup for the dynamic momentum balance
@@ -66,6 +55,7 @@ model.
 ## Utility material
 A collection of utility material is found within the [utils](./utils/) directory:
 * [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic stiffness tensors.
+* [boundary_condition_setups](./utils/boundary_condition_setups.py) contains a mixin that is to be deleted. Might be filled with other generalised setups at a later point.
 * [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for three types/configurations of perturbed geometry.
 * [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness tensor object for a transversely isotropic material.
 * [utility functions](./utils/utility_functions.py) contains mostly functions related to analytical solution expressions and fetching subdomain-related quantities (that I think are not already covered by PorePy functions, I might be mistaken)
