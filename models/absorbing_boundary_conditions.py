@@ -11,6 +11,12 @@ Scalar = pp.ad.Scalar
 
 class BoundaryConditionTypeParent:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
+        """Boundary condition type for the absorbing boundary condition model class.
+
+        Assigns Robin boundaries to all subdomain boundaries. This includes setting the
+        Robin weight.
+
+        """
         bounds = self.domain_boundary_sides(sd)
 
         # Assign type of boundary condition
@@ -32,16 +38,30 @@ class BoundaryConditionTypeParent:
     def assign_robin_weight(
         self, sd: pp.Grid, bc: pp.BoundaryConditionVectorial
     ) -> None:
-        boundary_faces = sd.get_all_boundary_faces()
-        # In the case of Robin boundaries we also need to assign the value for the Robin
-        # weight
+        """Method for assigning the Robin weight.
+
+        Using Robin boundary conditions we need to assign the robin weight. That is,
+        alpha in the following, general, Robin boundary condition expression:
+
+            sigma * n + alpha * u = G
+
+        This method assigns the weigt values corresponding to a first order absorbing
+        boundary condition.
+
+        Parameters:
+            sd: The subdomain whose boundary conditions are to be defined.
+            bc: The vectorial boundary condition object.
+
+        """
         # Initiating the shape of the Robin-weight array:
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
+        # Looping through all boundary faces to assign weight values
+        boundary_faces = sd.get_all_boundary_faces()
         for face in boundary_faces:
             if np.all(bc.is_rob[:, face]):
-                # Fetching the face normal vector and making it a unit vector
+                # Fetching the face normal vector and making it a unit vector.
                 fn_unit = (
                     (sd.face_normals[:, face] / sd.face_areas[face])[:-1]
                     if self.nd == 2
@@ -55,8 +75,9 @@ class BoundaryConditionTypeParent:
                 )
                 value[:, :, face] *= (
                     normal_coefficient_matrix + tangential_coefficient_matrix
-                )
-        # Finally setting the actual Robin weight
+                ) * self.robin_weight_coefficient
+
+        # Finally setting the actual Robin weight.
         bc.robin_weight = value
 
 
@@ -66,20 +87,32 @@ class SolutionStrategyABC:
 
 
 class HelperMethodsABC:
-    def coefficient_matrices_for_ABCs(self, n: np.ndarray):
+    def coefficient_matrices_for_ABCs(
+        self, n: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Helper function for computing the ABC coefficient matrix.
+
+        The boundary conditions are on the form:
+            sigma * n + D * u_t = 0
+
+        This method computes and returns the normal and tangential/shear components
+        (depending on the boundary we are at) to the coefficient matrix.
+
+        Parameters:
+            n: The normal vector of the boundary face whose coefficient matrix is to be
+                computed.
+
+        Returns:
+            A tuple of the tangential and normal ABC coefficient matrix.
+
+        """
         n_transpose = n.T
         normal_matrix = np.outer(n, n_transpose)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
 
-        normal_ABC_matrix = (
-            normal_matrix
-            * self.robin_weight_value(direction="tensile")
-            * self.robin_weight_coefficient
-        )
-        tangential_ABC_matrix = (
-            tangential_matrix
-            * self.robin_weight_value(direction="shear")
-            * self.robin_weight_coefficient
+        normal_ABC_matrix = normal_matrix * self.robin_weight_value(direction="tensile")
+        tangential_ABC_matrix = tangential_matrix * self.robin_weight_value(
+            direction="shear"
         )
         return normal_ABC_matrix, tangential_ABC_matrix
 
