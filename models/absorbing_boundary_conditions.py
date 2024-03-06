@@ -92,7 +92,7 @@ class HelperMethodsABC:
 
         Approximate the time derivative by a first or second order backward difference:
             1: \sigma * n + D_h * u_n = D_h * u_(n-1),
-            2:  \sigma * n + D_h * 3/2 * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)).
+            2: \sigma * n + D_h * 3/2 * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)).
 
             D_h = 1/dt * D.
 
@@ -107,7 +107,7 @@ class HelperMethodsABC:
 
         """
         # Fetching the normal vector of a face and creating the normal and tangential
-        # matrices from outer products
+        # matrices from outer products of the normal vector with itself (nn^T)
         n = self.boundary_normal_vector(face=face, grid=grid)
         normal_matrix = np.outer(n, n)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
@@ -148,13 +148,14 @@ class HelperMethodsABC:
         return n
 
     def robin_weight_value(self, direction: str) -> float:
-        """Shear Robin weight for Robin boundary conditions.
+        """Weight for Robin boundary conditions.
+
+        Either shear or tensile Robin weight will be returned by this method. This
+        depends on whether shear or tensile "direction" is chosen.
 
         Parameters:
             direction: Whether the boundary condition that uses the weight is the shear
                 or tensile component of the displacement.
-            side: Which boundary side is considered. This alters the sign of the
-                weight. To be deprecated.
 
         Returns:
             The weight/coefficient for use in the Robin boundary conditions.
@@ -628,18 +629,28 @@ class BoundaryAndInitialConditionValues1:
             displacement_values, (self.nd, boundary_grid.num_cells), "F"
         )
 
-        # Looping through all boundary faces to assign weight values
+        # Looping through all boundary faces to assign boundary values if the boundary
+        # is a Robin boundary
         sd = boundary_grid.parent
+        boundary_faces = sd.get_all_boundary_faces()
         boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        for boundary_cell in boundary_cells:
-            coefficient_matrix = self.total_coefficient_matrix(
-                grid=boundary_grid, face=boundary_cell
-            )
 
-            values[:, boundary_cell] += (
-                np.matmul(coefficient_matrix, displacement_values[:, boundary_cell])
-                * face_areas[boundary_cell]
-            )
+        # Need the boundary condition object to check whether the boundary face is Robin
+        # or not (not strictly necessary)
+        data = self.mdg.subdomain_data(sd)
+        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
+        bound = parameter_dictionary["bc"]
+        for boundary_cell in boundary_cells:
+            if np.all(bound.is_rob[:, boundary_faces[boundary_cell]]):
+                coefficient_matrix = self.total_coefficient_matrix(
+                    grid=boundary_grid, face=boundary_cell
+                )
+
+                values[:, boundary_cell] += (
+                    np.matmul(coefficient_matrix, displacement_values[:, boundary_cell])
+                    * face_areas[boundary_cell]
+                )
+
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
@@ -734,23 +745,33 @@ class BoundaryAndInitialConditionValues2:
         displacement_values_0 *= 2
         displacement_values_1 *= -0.5
 
+        # Looping through all boundary faces to assign boundary values if the boundary
+        # is a Robin boundary
         sd = boundary_grid.parent
+        boundary_faces = sd.get_all_boundary_faces()
         boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        for boundary_cell in boundary_cells:
-            coefficient_matrix = self.total_coefficient_matrix(
-                grid=boundary_grid, face=boundary_cell
-            )
 
-            values[:, boundary_cell] += (
-                np.matmul(
-                    coefficient_matrix,
-                    (
-                        displacement_values_0[:, boundary_cell]
-                        + displacement_values_1[:, boundary_cell]
-                    ),
+        # Need the boundary condition object to check whether the boundary face is Robin
+        # or not (not strictly necessary)
+        data = self.mdg.subdomain_data(sd)
+        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
+        bound = parameter_dictionary["bc"]
+        for boundary_cell in boundary_cells:
+            if np.all(bound.is_rob[:, boundary_faces[boundary_cell]]):
+                coefficient_matrix = self.total_coefficient_matrix(
+                    grid=boundary_grid, face=boundary_cell
                 )
-                * face_areas[boundary_cell]
-            )
+
+                values[:, boundary_cell] += (
+                    np.matmul(
+                        coefficient_matrix,
+                        (
+                            displacement_values_0[:, boundary_cell]
+                            + displacement_values_1[:, boundary_cell]
+                        ),
+                    )
+                    * face_areas[boundary_cell]
+                )
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
