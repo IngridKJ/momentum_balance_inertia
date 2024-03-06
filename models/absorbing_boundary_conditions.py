@@ -61,17 +61,10 @@ class BoundaryConditionTypeParent:
         boundary_faces = sd.get_all_boundary_faces()
         for face in boundary_faces:
             if np.all(bc.is_rob[:, face]):
-                # Fetching the face normal vector and making it a unit vector.
-                fn_unit = (
-                    (sd.face_normals[:, face] / sd.face_areas[face])[:-1]
-                    if self.nd == 2
-                    else (sd.face_normals[:, face] / sd.face_areas[face])
-                )
-
                 # Fetching the coefficient matrices for the ABC boundaries and assigning
                 # them to the i-th submatrix within the Robin weight value array.
                 normal_coefficient_matrix, tangential_coefficient_matrix = (
-                    self.coefficient_matrices_for_ABCs(n=fn_unit)
+                    self.coefficient_matrices_robin_weight(face=face, sd=sd)
                 )
                 value[:, :, face] *= (
                     normal_coefficient_matrix + tangential_coefficient_matrix
@@ -87,27 +80,8 @@ class SolutionStrategyABC:
 
 
 class HelperMethodsABC:
-    def coefficient_matrices_for_ABCs(
-        self, n: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Helper function for computing the ABC coefficient matrix.
-
-        The boundary conditions are on the form:
-            sigma * n + D * u_t = 0
-
-        This method computes and returns the normal and tangential/shear components
-        (depending on the boundary we are at) to the coefficient matrix.
-
-        Parameters:
-            n: The normal vector of the boundary face whose coefficient matrix is to be
-                computed.
-
-        Returns:
-            A tuple of the tangential and normal ABC coefficient matrix.
-
-        """
-        n_transpose = n.T
-        normal_matrix = np.outer(n, n_transpose)
+    def coefficient_matrix_common(self, n: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        normal_matrix = np.outer(n, n)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
 
         normal_ABC_matrix = normal_matrix * self.robin_weight_value(direction="tensile")
@@ -115,6 +89,45 @@ class HelperMethodsABC:
             direction="shear"
         )
         return normal_ABC_matrix, tangential_ABC_matrix
+
+    def coefficient_matrices_robin_weight(
+        self, sd: pp.Grid, face: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """ """
+        n = self.normal_vector_grid(face=face, sd=sd)
+        return self.coefficient_matrix_common(n=n)
+
+    def coefficient_matrices_rhs(
+        self, boundary_grid: pp.Grid, boundary_face: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """ """
+        sd = boundary_grid.parent
+        n = self.normal_vector_boundary_grid(face=boundary_face, sd=sd)
+        return self.coefficient_matrix_common(n=n)
+
+    def normal_vector_grid(self, face: int, sd: pp.Grid):
+        n = (
+            (sd.face_normals[:, face] / sd.face_areas[face])[:-1]
+            if self.nd == 2
+            else (sd.face_normals[:, face] / sd.face_areas[face])
+        )
+        return n
+
+    def normal_vector_boundary_grid(self, face: int, sd: pp.Grid):
+        boundary_faces = sd.get_all_boundary_faces()
+        # Fetching the face normal vector and making it a unit vector.
+        n = (
+            (
+                sd.face_normals[:, boundary_faces[face]]
+                / sd.face_areas[boundary_faces[face]]
+            )[:-1]
+            if self.nd == 2
+            else (
+                sd.face_normals[:, boundary_faces[face]]
+                / sd.face_areas[boundary_faces[face]]
+            )
+        )
+        return n
 
     def robin_weight_value(self, direction: str) -> float:
         """Shear Robin weight for Robin boundary conditions.
@@ -555,7 +568,6 @@ class BoundaryAndInitialConditionValues1:
         data = self.mdg.boundary_grid_data(boundary_grid)
 
         values = np.zeros((self.nd, boundary_grid.num_cells))
-        bounds = self.domain_boundary_sides(boundary_grid)
 
         if self.time_manager.time_index > 1:
             # "Get face displacement"-strategy: Create them using
@@ -588,77 +600,25 @@ class BoundaryAndInitialConditionValues1:
             displacement_values, (self.nd, boundary_grid.num_cells), "F"
         )
 
-        # Assigning the values like this is a very brute force way. A
-        # tensor-normal-vector-product is considered as an altenative (but not
-        # implemented yet)
-        robin_weight_shear = self.robin_weight_value(direction="shear")
-        robin_weight_tensile = self.robin_weight_value(direction="tensile")
+        # Looping through all boundary faces to assign weight values
+        sd = boundary_grid.parent
+        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
+        for boundary_cell in boundary_cells:
+            normal_coefficient_matrix, tangential_coefficient_matrix = (
+                self.coefficient_matrices_rhs(
+                    boundary_grid=boundary_grid, boundary_face=boundary_cell
+                )
+            )
 
-        values[0][bounds.north] += (
-            robin_weight_shear * displacement_values[0][bounds.north]
-        ) * face_areas[bounds.north]
-        values[1][bounds.north] += (
-            robin_weight_tensile * displacement_values[1][bounds.north]
-        ) * face_areas[bounds.north]
-
-        values[0][bounds.south] += (
-            robin_weight_shear * displacement_values[0][bounds.south]
-        ) * face_areas[bounds.south]
-        values[1][bounds.south] += (
-            robin_weight_tensile * displacement_values[1][bounds.south]
-        ) * face_areas[bounds.south]
-
-        values[0][bounds.east] += (
-            robin_weight_tensile * displacement_values[0][bounds.east]
-        ) * face_areas[bounds.east]
-        values[1][bounds.east] += (
-            robin_weight_shear * displacement_values[1][bounds.east]
-        ) * face_areas[bounds.east]
-
-        values[0][bounds.west] += (
-            robin_weight_tensile * displacement_values[0][bounds.west]
-        ) * face_areas[bounds.west]
-        values[1][bounds.west] += (
-            robin_weight_shear * displacement_values[1][bounds.west]
-        ) * face_areas[bounds.west]
-
-        if self.nd == 3:
-            values[2][bounds.north] += (
-                robin_weight_shear * displacement_values[2][bounds.north]
-            ) * face_areas[bounds.north]
-
-            values[2][bounds.south] += (
-                robin_weight_shear * displacement_values[2][bounds.south]
-            ) * face_areas[bounds.south]
-
-            values[2][bounds.east] += (
-                robin_weight_shear * displacement_values[2][bounds.east]
-            ) * face_areas[bounds.east]
-
-            values[2][bounds.west] += (
-                robin_weight_shear * displacement_values[2][bounds.west]
-            ) * face_areas[bounds.west]
-
-            values[0][bounds.top] += (
-                robin_weight_shear * displacement_values[0][bounds.top]
-            ) * face_areas[bounds.top]
-            values[1][bounds.top] += (
-                robin_weight_shear * displacement_values[1][bounds.top]
-            ) * face_areas[bounds.top]
-            values[2][bounds.top] += (
-                robin_weight_tensile * displacement_values[2][bounds.top]
-            ) * face_areas[bounds.top]
-
-            values[0][bounds.bottom] += (
-                robin_weight_shear * displacement_values[0][bounds.bottom]
-            ) * face_areas[bounds.bottom]
-            values[1][bounds.bottom] += (
-                robin_weight_shear * displacement_values[1][bounds.bottom]
-            ) * face_areas[bounds.bottom]
-            values[2][bounds.bottom] += (
-                robin_weight_tensile * displacement_values[2][bounds.bottom]
-            ) * face_areas[bounds.bottom]
-
+            total_coefficient_matrix = (
+                normal_coefficient_matrix + tangential_coefficient_matrix
+            )
+            values[:, boundary_cell] += (
+                np.matmul(
+                    total_coefficient_matrix, displacement_values[:, boundary_cell]
+                )
+                * face_areas[boundary_cell]
+            )
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
