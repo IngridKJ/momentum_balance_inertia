@@ -3,6 +3,8 @@ import numpy as np
 
 from models import MomentumBalanceTimeDepSource
 
+from utils import get_boundary_cells
+
 from functools import cached_property
 from typing import Callable, Sequence, cast
 
@@ -11,51 +13,10 @@ Scalar = pp.ad.Scalar
 
 class BoundaryConditionTypeParent:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        # Initializing the robin weight value array
-        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
-        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
-
-        # Fetching the robin weight coefficients
-        robin_weight_shear = (
-            self.robin_weight_value(direction="shear") * self.robin_weight_coefficient
-        )
-        robin_weight_tensile = (
-            self.robin_weight_value(direction="tensile") * self.robin_weight_coefficient
-        )
-
         bounds = self.domain_boundary_sides(sd)
+        boundary_faces = sd.get_all_boundary_faces()
 
-        # Assigning shear weight to the boundaries who have x-direction as shear
-        # direction.
-        value[0][0][
-            bounds.north + bounds.south + bounds.bottom + bounds.top
-        ] *= robin_weight_shear
-
-        # Assigning tensile weight to the boundaries who have x-direction as tensile
-        # direction.
-        value[0][0][bounds.east + bounds.west] *= robin_weight_tensile
-
-        # Assigning shear weight to the boundaries who have y-direction as shear
-        # direction.
-        value[1][1][
-            bounds.east + bounds.west + bounds.bottom + bounds.top
-        ] *= robin_weight_shear
-
-        # Assigning tensile weight to the boundaries who have y-direction as tensile
-        # direction.
-        value[1][1][bounds.north + bounds.south] *= robin_weight_tensile
-
-        if self.nd == 3:
-            # Assigning shear weight to the boundaries who have z-direction as shear
-            # direction.
-            value[2][2][
-                bounds.north + bounds.south + bounds.east + bounds.west
-            ] *= robin_weight_shear
-
-            # Assigning tensile weight to the boundaries who have z-direction as tensile
-            # direction.
-            value[2][2][bounds.top + bounds.bottom] *= robin_weight_tensile
-
+        # Assign type of boundary condition
         bc = pp.BoundaryConditionVectorial(
             sd,
             bounds.north
@@ -67,6 +28,31 @@ class BoundaryConditionTypeParent:
             "rob",
         )
 
+        # In the case of Robin boundaries we also need to assign the value for the Robin
+        # weight
+        # Initiating the shape of the Robin-weight array:
+        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
+        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
+
+        for face in boundary_faces:
+            if np.all(bc.is_rob[:, face]):
+                # Fetching the face normal vector and making it a unit vector
+                fn_unit = (
+                    (sd.face_normals[:, face] / sd.face_areas[face])[:-1]
+                    if self.nd == 2
+                    else (sd.face_normals[:, face] / sd.face_areas[face])
+                )
+
+                # Fetching the coefficient matrices for the ABC boundaries and assigning
+                # them to the i-th submatrix within the Robin weight value array.
+                normal_coefficient_matrix, tangential_coefficient_matrix = (
+                    self.coefficient_matrices_for_ABCs(n=fn_unit)
+                )
+                value[:, :, face] *= (
+                    normal_coefficient_matrix + tangential_coefficient_matrix
+                )
+
+        # Finally setting the actual Robin weight
         bc.robin_weight = value
         return bc
 
@@ -76,8 +62,25 @@ class SolutionStrategyABC:
         return False
 
 
-class ConstitutiveLawsABC:
-    def robin_weight_value(self, direction: str, side: str = None) -> float:
+class HelperMethodsABC:
+    def coefficient_matrices_for_ABCs(self, n: np.ndarray):
+        n_transpose = n.T
+        normal_matrix = np.outer(n, n_transpose)
+        tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
+
+        normal_ABC_matrix = (
+            normal_matrix
+            * self.robin_weight_value(direction="tensile")
+            * self.robin_weight_coefficient
+        )
+        tangential_ABC_matrix = (
+            tangential_matrix
+            * self.robin_weight_value(direction="shear")
+            * self.robin_weight_coefficient
+        )
+        return normal_ABC_matrix, tangential_ABC_matrix
+
+    def robin_weight_value(self, direction: str) -> float:
         """Shear Robin weight for Robin boundary conditions.
 
         Parameters:
@@ -485,7 +488,7 @@ class BoundaryGridStuff:
 class AbsorbingBoundaryConditionsParent(
     BoundaryConditionTypeParent,
     SolutionStrategyABC,
-    ConstitutiveLawsABC,
+    HelperMethodsABC,
     BoundaryGridStuff,
 ):
     """Class of subclasses/methods that are common for ABC_1 and ABC_2."""
