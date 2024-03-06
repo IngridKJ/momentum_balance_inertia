@@ -4,7 +4,8 @@ import numpy as np
 from models import MomentumBalanceTimeDepSource
 
 from functools import cached_property
-from typing import Callable, Sequence, cast
+from typing import Callable, Sequence, cast, Union
+
 
 Scalar = pp.ad.Scalar
 
@@ -17,9 +18,9 @@ class BoundaryConditionTypeParent:
         Robin weight.
 
         """
+        # Fetch boundary sides and assign type of boundary condition for the different
+        # sides
         bounds = self.domain_boundary_sides(sd)
-
-        # Assign type of boundary condition
         bc = pp.BoundaryConditionVectorial(
             sd,
             bounds.north
@@ -79,21 +80,57 @@ class SolutionStrategyABC:
 
 
 class HelperMethodsABC:
-    def total_coefficient_matrix(
-        self, grid: pp.Grid, face: int
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """ """
+    def total_coefficient_matrix(self, grid: pp.Grid, face: int) -> np.ndarray:
+        """Coefficient matrix for the absorbing boundary conditions.
+
+        Used together with Robin boundary condition assignment.
+
+        The absorbing boundary conditions look like the following:
+            \sigma * n + D * u_t = 0,
+
+            where D is a matrix containing material parameters and wave velocities.
+
+        Approximate the time derivative by a first or second order backward difference:
+            1: \sigma * n + D_h * u_n = D_h * u_(n-1),
+            2:  \sigma * n + D_h * 3/2 * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)).
+
+            D_h = 1/dt * D.
+
+        Parameters:
+            grid: The grid where the boundary conditions are assigned.
+            face: The global face index of the face whose coefficient matrix we are
+                seeking.
+
+        Returns:
+            An array which is the sum of the normal and tangential component of the
+            coefficient matrices.
+
+        """
+        # Fetching the normal vector of a face and creating the normal and tangential
+        # matrices from outer products
         n = self.boundary_normal_vector(face=face, grid=grid)
         normal_matrix = np.outer(n, n)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
 
-        normal_ABC_matrix = normal_matrix * self.robin_weight_value(direction="tensile")
-        tangential_ABC_matrix = tangential_matrix * self.robin_weight_value(
-            direction="shear"
-        )
-        return normal_ABC_matrix + tangential_ABC_matrix
+        normal_matrix *= self.robin_weight_value(direction="tensile")
+        tangential_matrix *= self.robin_weight_value(direction="shear")
+        return normal_matrix + tangential_matrix
 
-    def boundary_normal_vector(self, face: int, grid: pp.Grid):
+    def boundary_normal_vector(
+        self, face: int, grid: Union[pp.Grid, pp.BoundaryGrid]
+    ) -> np.ndarray:
+        """Compute normal vector for a boundary face/cell for grids/boundary grids.
+
+        Specifically, the function computes the unit normal vector.
+
+        Parameters:
+            face: Global face index of the face.
+            grid: The grid where the face lives. Either a subdomain or a boundary grid.
+
+        Returns:
+            An array representing the unit normal vector.
+
+        """
         if isinstance(grid, pp.BoundaryGrid):
             sd = grid.parent
             boundary_faces = sd.get_all_boundary_faces()
@@ -158,7 +195,6 @@ class HelperMethodsABC:
         discr = self.stress_discretization(subdomains)
 
         # Boundary conditions on external boundaries
-        # bc = self.bc_values_mechanics(subdomains)
         bc = self._combine_boundary_operators(  # type: ignore [call-arg]
             subdomains=subdomains,
             dirichlet_operator=self.displacement,
@@ -532,14 +568,25 @@ class BoundaryAndInitialConditionValues1:
     """Class with methods that are unique to ABC_1"""
 
     @property
-    def robin_weight_coefficient(self):
-        return 1
+    def robin_weight_coefficient(self) -> float:
+        """Additional coefficient for discrete Robin boundary conditions.
+
+        After discretizing the time derivative in the absorbing boundary condition
+        expressions, there might appear coefficients additional to those within the
+        coefficient matrix. This model property assigns that coefficient.
+
+        Returns:
+            The Robin weight coefficient.
+
+        """
+        return 1.0
 
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
         Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
+            boundary_grid: List of boundary grids on which to define boundary
+                conditions.
 
         Returns:
             Array of boundary values.
@@ -596,6 +643,7 @@ class BoundaryAndInitialConditionValues1:
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        """Initial values for the boundary displacement."""
         return np.zeros((self.nd, bg.num_cells))
 
 
@@ -603,17 +651,25 @@ class BoundaryAndInitialConditionValues2:
     """Class with methods that are unique to ABC_2"""
 
     @property
-    def robin_weight_coefficient(self):
+    def robin_weight_coefficient(self) -> float:
+        """Additional coefficient for discrete Robin boundary conditions.
+
+        After discretizing the time derivative in the absorbing boundary condition
+        expressions, there might appear coefficients additional to those within the
+        coefficient matrix. This model property assigns that coefficient.
+
+        Returns:
+            The Robin weight coefficient.
+
+        """
         return 3 / 2
 
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning ABCs with second order backward difference in time.
 
-        ABC expression:
-        \sigma * n + \alpha * 3/2 * u_n = \alpha * (2 * u_(n-1) - 0.5 * u_(n-2))
-
         Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
+            boundary_grid: List of boundary grids on which to define boundary
+                conditions.
 
         Returns:
             Array of boundary values.
@@ -623,8 +679,6 @@ class BoundaryAndInitialConditionValues2:
         data = self.mdg.boundary_grid_data(boundary_grid)
 
         values = np.zeros((self.nd, boundary_grid.num_cells))
-        bounds = self.domain_boundary_sides(boundary_grid)
-
         if self.time_manager.time_index > 1:
             # The displacement value for the previous time step is constructed and the
             # one two time steps back in time is fetched from the dictionary.
