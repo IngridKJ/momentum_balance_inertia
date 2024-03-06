@@ -3,8 +3,6 @@ import numpy as np
 
 from models import MomentumBalanceTimeDepSource
 
-from utils import get_boundary_cells
-
 from functools import cached_property
 from typing import Callable, Sequence, cast
 
@@ -14,7 +12,6 @@ Scalar = pp.ad.Scalar
 class BoundaryConditionTypeParent:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         bounds = self.domain_boundary_sides(sd)
-        boundary_faces = sd.get_all_boundary_faces()
 
         # Assign type of boundary condition
         bc = pp.BoundaryConditionVectorial(
@@ -28,6 +25,14 @@ class BoundaryConditionTypeParent:
             "rob",
         )
 
+        # Calling helper function for assigning the Robin weight
+        self.assign_robin_weight(sd=sd, bc=bc)
+        return bc
+
+    def assign_robin_weight(
+        self, sd: pp.Grid, bc: pp.BoundaryConditionVectorial
+    ) -> None:
+        boundary_faces = sd.get_all_boundary_faces()
         # In the case of Robin boundaries we also need to assign the value for the Robin
         # weight
         # Initiating the shape of the Robin-weight array:
@@ -51,10 +56,8 @@ class BoundaryConditionTypeParent:
                 value[:, :, face] *= (
                     normal_coefficient_matrix + tangential_coefficient_matrix
                 )
-
         # Finally setting the actual Robin weight
         bc.robin_weight = value
-        return bc
 
 
 class SolutionStrategyABC:
