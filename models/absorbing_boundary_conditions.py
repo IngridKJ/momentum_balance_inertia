@@ -4,58 +4,23 @@ import numpy as np
 from models import MomentumBalanceTimeDepSource
 
 from functools import cached_property
-from typing import Callable, Sequence, cast
+from typing import Callable, Sequence, cast, Union
+
 
 Scalar = pp.ad.Scalar
 
 
 class BoundaryConditionTypeParent:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        # Initializing the robin weight value array
-        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
-        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
+        """Boundary condition type for the absorbing boundary condition model class.
 
-        # Fetching the robin weight coefficients
-        robin_weight_shear = (
-            self.robin_weight_value(direction="shear") * self.robin_weight_coefficient
-        )
-        robin_weight_tensile = (
-            self.robin_weight_value(direction="tensile") * self.robin_weight_coefficient
-        )
+        Assigns Robin boundaries to all subdomain boundaries. This includes setting the
+        Robin weight.
 
+        """
+        # Fetch boundary sides and assign type of boundary condition for the different
+        # sides
         bounds = self.domain_boundary_sides(sd)
-
-        # Assigning shear weight to the boundaries who have x-direction as shear
-        # direction.
-        value[0][0][
-            bounds.north + bounds.south + bounds.bottom + bounds.top
-        ] *= robin_weight_shear
-
-        # Assigning tensile weight to the boundaries who have x-direction as tensile
-        # direction.
-        value[0][0][bounds.east + bounds.west] *= robin_weight_tensile
-
-        # Assigning shear weight to the boundaries who have y-direction as shear
-        # direction.
-        value[1][1][
-            bounds.east + bounds.west + bounds.bottom + bounds.top
-        ] *= robin_weight_shear
-
-        # Assigning tensile weight to the boundaries who have y-direction as tensile
-        # direction.
-        value[1][1][bounds.north + bounds.south] *= robin_weight_tensile
-
-        if self.nd == 3:
-            # Assigning shear weight to the boundaries who have z-direction as shear
-            # direction.
-            value[2][2][
-                bounds.north + bounds.south + bounds.east + bounds.west
-            ] *= robin_weight_shear
-
-            # Assigning tensile weight to the boundaries who have z-direction as tensile
-            # direction.
-            value[2][2][bounds.top + bounds.bottom] *= robin_weight_tensile
-
         bc = pp.BoundaryConditionVectorial(
             sd,
             bounds.north
@@ -67,8 +32,46 @@ class BoundaryConditionTypeParent:
             "rob",
         )
 
-        bc.robin_weight = value
+        # Calling helper function for assigning the Robin weight
+        self.assign_robin_weight(sd=sd, bc=bc)
         return bc
+
+    def assign_robin_weight(
+        self, sd: pp.Grid, bc: pp.BoundaryConditionVectorial
+    ) -> None:
+        """Method for assigning the Robin weight.
+
+        Using Robin boundary conditions we need to assign the robin weight. That is,
+        alpha in the following, general, Robin boundary condition expression:
+
+            sigma * n + alpha * u = G
+
+        This method assigns the weigt values corresponding to a first order absorbing
+        boundary condition.
+
+        Parameters:
+            sd: The subdomain whose boundary conditions are to be defined.
+            bc: The vectorial boundary condition object.
+
+        """
+        # Initiating the shape of the Robin-weight array:
+        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
+        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
+
+        # Looping through all boundary faces to assign weight values
+        boundary_faces = sd.get_all_boundary_faces()
+        for face in boundary_faces:
+            if np.all(bc.is_rob[:, face]):
+                # Fetching the coefficient matrices for the ABC boundaries and assigning
+                # them to the i-th submatrix within the Robin weight value array.
+                coefficient_matrix = self.total_coefficient_matrix(face=face, grid=sd)
+
+                value[:, :, face] *= (
+                    coefficient_matrix
+                ) * self.robin_weight_coefficient
+
+        # Finally setting the actual Robin weight.
+        bc.robin_weight = value
 
 
 class SolutionStrategyABC:
@@ -76,15 +79,83 @@ class SolutionStrategyABC:
         return False
 
 
-class ConstitutiveLawsABC:
-    def robin_weight_value(self, direction: str, side: str = None) -> float:
-        """Shear Robin weight for Robin boundary conditions.
+class HelperMethodsABC:
+    def total_coefficient_matrix(self, grid: pp.Grid, face: int) -> np.ndarray:
+        """Coefficient matrix for the absorbing boundary conditions.
+
+        Used together with Robin boundary condition assignment.
+
+        The absorbing boundary conditions look like the following:
+            \sigma * n + D * u_t = 0,
+
+            where D is a matrix containing material parameters and wave velocities.
+
+        Approximate the time derivative by a first or second order backward difference:
+            1: \sigma * n + D_h * u_n = D_h * u_(n-1),
+            2: \sigma * n + D_h * 3/2 * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)).
+
+            D_h = 1/dt * D.
+
+        Parameters:
+            grid: The grid where the boundary conditions are assigned.
+            face: The global face index of the face whose coefficient matrix we are
+                seeking.
+
+        Returns:
+            An array which is the sum of the normal and tangential component of the
+            coefficient matrices.
+
+        """
+        # Fetching the normal vector of a face and creating the normal and tangential
+        # matrices from outer products of the normal vector with itself (nn^T)
+        n = self.boundary_normal_vector(face=face, grid=grid)
+        normal_matrix = np.outer(n, n)
+        tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
+
+        normal_matrix *= self.robin_weight_value(direction="tensile")
+        tangential_matrix *= self.robin_weight_value(direction="shear")
+        return normal_matrix + tangential_matrix
+
+    def boundary_normal_vector(
+        self, face: int, grid: Union[pp.Grid, pp.BoundaryGrid]
+    ) -> np.ndarray:
+        """Compute normal vector for a boundary face/cell for grids/boundary grids.
+
+        Specifically, the function computes the unit normal vector.
+
+        Parameters:
+            face: Global face index of the face.
+            grid: The grid where the face lives. Either a subdomain or a boundary grid.
+
+        Returns:
+            An array representing the unit normal vector.
+
+        """
+        if isinstance(grid, pp.BoundaryGrid):
+            sd = grid.parent
+            boundary_faces = sd.get_all_boundary_faces()
+            face_normal = sd.face_normals[:, boundary_faces[face]]
+            face_areas = sd.face_areas[boundary_faces[face]]
+        else:
+            face_normal = grid.face_normals[:, face]
+            face_areas = grid.face_areas[face]
+
+        n = face_normal / face_areas
+
+        if self.nd == 2:
+            n = n[:-1]
+
+        return n
+
+    def robin_weight_value(self, direction: str) -> float:
+        """Weight for Robin boundary conditions.
+
+        Either shear or tensile Robin weight will be returned by this method. This
+        depends on whether shear or tensile "direction" is chosen.
 
         Parameters:
             direction: Whether the boundary condition that uses the weight is the shear
                 or tensile component of the displacement.
-            side: Which boundary side is considered. This alters the sign of the
-                weight. To be deprecated.
 
         Returns:
             The weight/coefficient for use in the Robin boundary conditions.
@@ -125,7 +196,6 @@ class ConstitutiveLawsABC:
         discr = self.stress_discretization(subdomains)
 
         # Boundary conditions on external boundaries
-        # bc = self.bc_values_mechanics(subdomains)
         bc = self._combine_boundary_operators(  # type: ignore [call-arg]
             subdomains=subdomains,
             dirichlet_operator=self.displacement,
@@ -147,6 +217,41 @@ class ConstitutiveLawsABC:
 
         boundary_displacement.set_name("boundary_displacement")
         return boundary_displacement
+
+    def _misc_boundary_related_quantities(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> tuple[pp.BoundaryConditionVectorial, np.ndarray, np.ndarray, np.ndarray]:
+        """Method for fetching various boundary related quantities.
+
+        Parameters:
+            boundary_grid: The boundary grid that owns the quantities we are seeking.
+
+        Returns:
+            A tuple with four elements:
+                bc: The boundary condition operator.
+
+                boundary_faces: An array with boundary faces. These are boundary faces
+                    indexed with global indexing.
+
+                boundary_cells: An array with boundary grid cells. This is boundary grid
+                    cells that are indexed with boundary grid-local indexing. The length
+                    is the same as boundary_faces.
+
+                face_areas: An array with cell volumes for the boundary grid (face
+                    areas).
+
+        """
+        sd = boundary_grid.parent
+        boundary_faces = sd.get_all_boundary_faces()
+        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
+        face_areas = boundary_grid.cell_volumes
+
+        # Need the boundary condition object to check whether the boundary face is Robin
+        # or not (not strictly necessary)
+        data = self.mdg.subdomain_data(sd)
+        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
+        bc = parameter_dictionary["bc"]
+        return bc, boundary_faces, boundary_cells, face_areas
 
 
 class BoundaryGridStuff:
@@ -485,7 +590,7 @@ class BoundaryGridStuff:
 class AbsorbingBoundaryConditionsParent(
     BoundaryConditionTypeParent,
     SolutionStrategyABC,
-    ConstitutiveLawsABC,
+    HelperMethodsABC,
     BoundaryGridStuff,
 ):
     """Class of subclasses/methods that are common for ABC_1 and ABC_2."""
@@ -499,25 +604,75 @@ class BoundaryAndInitialConditionValues1:
     """Class with methods that are unique to ABC_1"""
 
     @property
-    def robin_weight_coefficient(self):
-        return 1
+    def robin_weight_coefficient(self) -> float:
+        """Additional coefficient for discrete Robin boundary conditions.
+
+        After discretizing the time derivative in the absorbing boundary condition
+        expressions, there might appear coefficients additional to those within the
+        coefficient matrix. This model property assigns that coefficient.
+
+        Returns:
+            The Robin weight coefficient.
+
+        """
+        return 1.0
 
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
         Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
+            boundary_grid: List of boundary grids on which to define boundary
+                conditions.
 
         Returns:
             Array of boundary values.
 
         """
-        face_areas = boundary_grid.cell_volumes
-        data = self.mdg.boundary_grid_data(boundary_grid)
+        if self.time_manager.time_index != 0:
+            # After initialization, we need to fetch previous displacement values. This
+            # is done by a helper function.
+            displacement_values = self._previous_displacement_values(
+                boundary_grid=boundary_grid
+            )
+        elif self.time_manager.time_index == 0:
+            # The first time this method is called is on initialization of the boundary
+            # values.
+            return self.initial_condition_bc(boundary_grid)
 
+        # Looping through all boundary faces to assign boundary values if the boundary
+        # is a Robin boundary
         values = np.zeros((self.nd, boundary_grid.num_cells))
-        bounds = self.domain_boundary_sides(boundary_grid)
+        bc, boundary_faces, boundary_cells, face_areas = (
+            self._misc_boundary_related_quantities(boundary_grid=boundary_grid)
+        )
+        for boundary_cell in boundary_cells:
+            # Checking if the face is a Robin boundary. boundary_faces[boundary_cell]
+            # gives the global face indexing of a boundary cell.
+            if np.all(bc.is_rob[:, boundary_faces[boundary_cell]]):
+                coefficient_matrix = self.total_coefficient_matrix(
+                    grid=boundary_grid, face=boundary_cell
+                )
+                values[:, boundary_cell] += (
+                    np.matmul(coefficient_matrix, displacement_values[:, boundary_cell])
+                    * face_areas[boundary_cell]
+                )
+        return values.ravel("F")
 
+    def _previous_displacement_values(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> np.ndarray:
+        """Method for constructing/fetching previous boundary displacement values.
+
+        Parameters:
+            boundary_grid: The boundary grid whose displacement values we are
+                interested in.
+
+        Returns:
+            An array with the displacement values on the boundary for the previous time
+            step.
+
+        """
+        data = self.mdg.boundary_grid_data(boundary_grid)
         if self.time_manager.time_index > 1:
             # "Get face displacement"-strategy: Create them using
             # bound_displacement_face/-cell from second timestep and ongoing.
@@ -540,89 +695,13 @@ class BoundaryAndInitialConditionValues1:
                 name="bc_robin", data=data, time_step_index=0
             )
 
-        elif self.time_manager.time_index == 0:
-            # The first time this method is called is on initialization of the boundary
-            # values.
-            return self.initial_condition_bc(boundary_grid)
-
         displacement_values = np.reshape(
             displacement_values, (self.nd, boundary_grid.num_cells), "F"
         )
-
-        # Assigning the values like this is a very brute force way. A
-        # tensor-normal-vector-product is considered as an altenative (but not
-        # implemented yet)
-        robin_weight_shear = self.robin_weight_value(direction="shear")
-        robin_weight_tensile = self.robin_weight_value(direction="tensile")
-
-        values[0][bounds.north] += (
-            robin_weight_shear * displacement_values[0][bounds.north]
-        ) * face_areas[bounds.north]
-        values[1][bounds.north] += (
-            robin_weight_tensile * displacement_values[1][bounds.north]
-        ) * face_areas[bounds.north]
-
-        values[0][bounds.south] += (
-            robin_weight_shear * displacement_values[0][bounds.south]
-        ) * face_areas[bounds.south]
-        values[1][bounds.south] += (
-            robin_weight_tensile * displacement_values[1][bounds.south]
-        ) * face_areas[bounds.south]
-
-        values[0][bounds.east] += (
-            robin_weight_tensile * displacement_values[0][bounds.east]
-        ) * face_areas[bounds.east]
-        values[1][bounds.east] += (
-            robin_weight_shear * displacement_values[1][bounds.east]
-        ) * face_areas[bounds.east]
-
-        values[0][bounds.west] += (
-            robin_weight_tensile * displacement_values[0][bounds.west]
-        ) * face_areas[bounds.west]
-        values[1][bounds.west] += (
-            robin_weight_shear * displacement_values[1][bounds.west]
-        ) * face_areas[bounds.west]
-
-        if self.nd == 3:
-            values[2][bounds.north] += (
-                robin_weight_shear * displacement_values[2][bounds.north]
-            ) * face_areas[bounds.north]
-
-            values[2][bounds.south] += (
-                robin_weight_shear * displacement_values[2][bounds.south]
-            ) * face_areas[bounds.south]
-
-            values[2][bounds.east] += (
-                robin_weight_shear * displacement_values[2][bounds.east]
-            ) * face_areas[bounds.east]
-
-            values[2][bounds.west] += (
-                robin_weight_shear * displacement_values[2][bounds.west]
-            ) * face_areas[bounds.west]
-
-            values[0][bounds.top] += (
-                robin_weight_shear * displacement_values[0][bounds.top]
-            ) * face_areas[bounds.top]
-            values[1][bounds.top] += (
-                robin_weight_shear * displacement_values[1][bounds.top]
-            ) * face_areas[bounds.top]
-            values[2][bounds.top] += (
-                robin_weight_tensile * displacement_values[2][bounds.top]
-            ) * face_areas[bounds.top]
-
-            values[0][bounds.bottom] += (
-                robin_weight_shear * displacement_values[0][bounds.bottom]
-            ) * face_areas[bounds.bottom]
-            values[1][bounds.bottom] += (
-                robin_weight_shear * displacement_values[1][bounds.bottom]
-            ) * face_areas[bounds.bottom]
-            values[2][bounds.bottom] += (
-                robin_weight_tensile * displacement_values[2][bounds.bottom]
-            ) * face_areas[bounds.bottom]
-
-        return values.ravel("F")
+        return displacement_values
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        """Initial values for the boundary displacement."""
         return np.zeros((self.nd, bg.num_cells))
 
 
@@ -630,28 +709,78 @@ class BoundaryAndInitialConditionValues2:
     """Class with methods that are unique to ABC_2"""
 
     @property
-    def robin_weight_coefficient(self):
+    def robin_weight_coefficient(self) -> float:
+        """Additional coefficient for discrete Robin boundary conditions.
+
+        After discretizing the time derivative in the absorbing boundary condition
+        expressions, there might appear coefficients additional to those within the
+        coefficient matrix. This model property assigns that coefficient.
+
+        Returns:
+            The Robin weight coefficient.
+
+        """
         return 3 / 2
 
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning ABCs with second order backward difference in time.
 
-        ABC expression:
-        \sigma * n + \alpha * 3/2 * u_n = \alpha * (2 * u_(n-1) - 0.5 * u_(n-2))
-
         Parameters:
-            subdomains: List of subdomains on which to define boundary conditions.
+            boundary_grid: List of boundary grids on which to define boundary
+                conditions.
 
         Returns:
             Array of boundary values.
 
         """
-        face_areas = boundary_grid.cell_volumes
-        data = self.mdg.boundary_grid_data(boundary_grid)
+        if self.time_manager.time_index != 0:
+            displacement_values_0, displacement_values_1 = (
+                self._previous_displacement_values(boundary_grid=boundary_grid)
+            )
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(boundary_grid)
 
         values = np.zeros((self.nd, boundary_grid.num_cells))
-        bounds = self.domain_boundary_sides(boundary_grid)
+        bc, boundary_faces, boundary_cells, face_areas = (
+            self._misc_boundary_related_quantities(boundary_grid=boundary_grid)
+        )
+        for boundary_cell in boundary_cells:
+            if np.all(bc.is_rob[:, boundary_faces[boundary_cell]]):
+                # Fetching the coefficient matrix and constructing the displacement
+                # values for the right-hand side
+                coefficient_matrix = self.total_coefficient_matrix(
+                    grid=boundary_grid, face=boundary_cell
+                )
+                rhs_displacement_values = (
+                    displacement_values_0[:, boundary_cell]
+                    + displacement_values_1[:, boundary_cell]
+                )
 
+                values[:, boundary_cell] += (
+                    np.matmul(coefficient_matrix, rhs_displacement_values)
+                    * face_areas[boundary_cell]
+                )
+        return values.ravel("F")
+
+    def _previous_displacement_values(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Method for constructing/fetching previous boundary displacement values.
+
+        It also makes sure to scale the displcement values with the appropriate
+        coefficient. This coefficient is related to the choice of time derivative
+        approximation. For ABC_2 the coefficients are 2 and -0.5.
+
+        Parameters:
+            boundary_grid: The boundary grid whose displacement values we are
+                interested in.
+
+        Returns:
+            A tuple with the scaled displacement values one time step back in time and
+            two time steps back in time.
+
+        """
+        data = self.mdg.boundary_grid_data(boundary_grid)
         if self.time_manager.time_index > 1:
             # The displacement value for the previous time step is constructed and the
             # one two time steps back in time is fetched from the dictionary.
@@ -688,10 +817,6 @@ class BoundaryAndInitialConditionValues2:
             displacement_values_1 = pp.get_solution_values(
                 name="boundary_displacement_values", data=data, time_step_index=1
             )
-        elif self.time_manager.time_index == 0:
-            # The first time this method is called is on initialization of the boundary
-            # values.
-            return self.initial_condition_bc(boundary_grid)
 
         # Reshaping the displacement value arrays to have a shape that is easier to work
         # with when assigning the robin bc values for the different domain sides.
@@ -707,95 +832,7 @@ class BoundaryAndInitialConditionValues2:
         displacement_values_0 *= 2
         displacement_values_1 *= -0.5
 
-        # Assigning the values like this is a very brute force way. A
-        # tensor-normal-vector-product is considered as an altenative (but not
-        # implemented yet)
-        robin_weight_shear = self.robin_weight_value(direction="shear")
-        robin_weight_tensile = self.robin_weight_value(direction="tensile")
-
-        values[0][bounds.north] += (
-            robin_weight_shear
-            * (displacement_values_0[0] + displacement_values_1[0])[bounds.north]
-        ) * face_areas[bounds.north]
-        values[1][bounds.north] += (
-            robin_weight_tensile
-            * (displacement_values_0[1] + displacement_values_1[1])[bounds.north]
-        ) * face_areas[bounds.north]
-
-        values[0][bounds.south] += (
-            robin_weight_shear
-            * (displacement_values_0[0] + displacement_values_1[0])[bounds.south]
-        ) * face_areas[bounds.south]
-        values[1][bounds.south] += (
-            robin_weight_tensile
-            * (displacement_values_0[1] + displacement_values_1[1])[bounds.south]
-        ) * face_areas[bounds.south]
-
-        values[0][bounds.east] += (
-            robin_weight_tensile
-            * (displacement_values_0[0] + displacement_values_1[0])[bounds.east]
-        ) * face_areas[bounds.east]
-        values[1][bounds.east] += (
-            robin_weight_shear
-            * (displacement_values_0[1] + displacement_values_1[1])[bounds.east]
-        ) * face_areas[bounds.east]
-
-        values[0][bounds.west] += (
-            robin_weight_tensile
-            * (displacement_values_0[0] + displacement_values_1[0])[bounds.west]
-        ) * face_areas[bounds.west]
-        values[1][bounds.west] += (
-            robin_weight_shear
-            * (displacement_values_0[1] + displacement_values_1[1])[bounds.west]
-        ) * face_areas[bounds.west]
-
-        if self.nd == 3:
-            values[2][bounds.north] += (
-                robin_weight_shear
-                * (displacement_values_0[2] + displacement_values_1[2])[bounds.north]
-            ) * face_areas[bounds.north]
-
-            values[2][bounds.south] += (
-                robin_weight_shear
-                * (displacement_values_0[2] + displacement_values_1[2])[bounds.south]
-            ) * face_areas[bounds.south]
-
-            values[2][bounds.east] += (
-                robin_weight_shear
-                * (displacement_values_0[2] + displacement_values_1[2])[bounds.east]
-            ) * face_areas[bounds.east]
-
-            values[2][bounds.west] += (
-                robin_weight_shear
-                * (displacement_values_0[2] + displacement_values_1[2])[bounds.west]
-            ) * face_areas[bounds.west]
-
-            values[0][bounds.top] += (
-                robin_weight_shear
-                * (displacement_values_0[0] + displacement_values_1[0])[bounds.top]
-            ) * face_areas[bounds.top]
-            values[1][bounds.top] += (
-                robin_weight_shear
-                * (displacement_values_0[1] + displacement_values_1[1])[bounds.top]
-            ) * face_areas[bounds.top]
-            values[2][bounds.top] += (
-                robin_weight_tensile
-                * (displacement_values_0[2] + displacement_values_1[2])[bounds.top]
-            ) * face_areas[bounds.top]
-
-            values[0][bounds.bottom] += (
-                robin_weight_shear
-                * (displacement_values_0[0] + displacement_values_1[0])[bounds.bottom]
-            ) * face_areas[bounds.bottom]
-            values[1][bounds.bottom] += (
-                robin_weight_shear
-                * (displacement_values_0[1] + displacement_values_1[1])[bounds.bottom]
-            ) * face_areas[bounds.bottom]
-            values[2][bounds.bottom] += (
-                robin_weight_tensile
-                * (displacement_values_0[2] + displacement_values_1[2])[bounds.bottom]
-            ) * face_areas[bounds.bottom]
-        return values.ravel("F")
+        return displacement_values_0, displacement_values_1
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Method for setting initial values for 0th and -1st time step in
