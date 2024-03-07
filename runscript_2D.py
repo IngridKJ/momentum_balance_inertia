@@ -6,21 +6,20 @@ from models import MomentumBalanceABC2
 
 
 class MyGeometry:
-    def nd_rect_domain(self, x, y, z) -> pp.Domain:
+    def nd_rect_domain(self, x, y) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
 
-        box.update({"ymin": 0, "ymax": y, "zmin": 0, "zmax": z})
+        box.update({"ymin": 0, "ymax": y})
 
         return pp.Domain(box)
 
     def set_domain(self) -> None:
         x = 1.0 / self.units.m
         y = 1.0 / self.units.m
-        z = 1.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y, z)
+        self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.025 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.01 / self.units.m}
         return mesh_args
 
 
@@ -35,7 +34,6 @@ class MomentumBalanceModifiedGeometry(
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
-        z = sd.cell_centers[2, :]
 
         vals = np.zeros((self.nd, sd.num_cells))
 
@@ -43,12 +41,12 @@ class MomentumBalanceModifiedGeometry(
         lam = 0.125
 
         common_part = theta * np.exp(
-            -np.pi**2 * ((x - 0.5) ** 2 + (y - 0.5) ** 2 + (z - 0.5) ** 2) / lam**2
+            -np.pi**2 * ((x - 0.5) ** 2 + (y - 0.5) ** 2) / lam**2
         )
 
         vals[0] = common_part * (x - 0.5)
+
         vals[1] = common_part * (y - 0.5)
-        vals[2] = common_part * (z - 0.5)
 
         return vals.ravel("F")
 
