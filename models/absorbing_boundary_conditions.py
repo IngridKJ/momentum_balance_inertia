@@ -218,6 +218,41 @@ class HelperMethodsABC:
         boundary_displacement.set_name("boundary_displacement")
         return boundary_displacement
 
+    def _misc_boundary_related_quantities(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> tuple[pp.BoundaryConditionVectorial, np.ndarray, np.ndarray, np.ndarray]:
+        """Method for fetching various boundary related quantities.
+
+        Parameters:
+            boundary_grid: The boundary grid that owns the quantities we are seeking.
+
+        Returns:
+            A tuple with four elements:
+                bc: The boundary condition operator.
+
+                boundary_faces: An array with boundary faces. These are boundary faces
+                    indexed with global indexing.
+
+                boundary_cells: An array with boundary grid cells. This is boundary grid
+                    cells that are indexed with boundary grid-local indexing. The length
+                    is the same as boundary_faces.
+
+                face_areas: An array with cell volumes for the boundary grid (face
+                    areas).
+
+        """
+        sd = boundary_grid.parent
+        boundary_faces = sd.get_all_boundary_faces()
+        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
+        face_areas = boundary_grid.cell_volumes
+
+        # Need the boundary condition object to check whether the boundary face is Robin
+        # or not (not strictly necessary)
+        data = self.mdg.subdomain_data(sd)
+        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
+        bc = parameter_dictionary["bc"]
+        return bc, boundary_faces, boundary_cells, face_areas
+
 
 class BoundaryGridStuff:
     """Mixin for adaptations related to Robin boundary conditions with boundary grids.
@@ -593,11 +628,38 @@ class BoundaryAndInitialConditionValues1:
             Array of boundary values.
 
         """
-        face_areas = boundary_grid.cell_volumes
-        data = self.mdg.boundary_grid_data(boundary_grid)
+        if self.time_manager.time_index != 0:
+            # After initialization, we need to fetch previous displacement values. This
+            # is done by a helper function.
+            displacement_values = self._previous_displacement_values(
+                boundary_grid=boundary_grid
+            )
+        elif self.time_manager.time_index == 0:
+            # The first time this method is called is on initialization of the boundary
+            # values.
+            return self.initial_condition_bc(boundary_grid)
 
+        # Looping through all boundary faces to assign boundary values if the boundary
+        # is a Robin boundary
         values = np.zeros((self.nd, boundary_grid.num_cells))
+        bc, boundary_faces, boundary_cells, face_areas = (
+            self._misc_boundary_related_quantities(boundary_grid=boundary_grid)
+        )
+        for boundary_cell in boundary_cells:
+            # Checking if the face is a Robin boundary. boundary_faces[boundary_cell]
+            # gives the global face indexing of a boundary cell.
+            if np.all(bc.is_rob[:, boundary_faces[boundary_cell]]):
+                coefficient_matrix = self.total_coefficient_matrix(
+                    grid=boundary_grid, face=boundary_cell
+                )
+                values[:, boundary_cell] += (
+                    np.matmul(coefficient_matrix, displacement_values[:, boundary_cell])
+                    * face_areas[boundary_cell]
+                )
+        return values.ravel("F")
 
+    def _previous_displacement_values(self, boundary_grid: pp.BoundaryGrid):
+        data = self.mdg.boundary_grid_data(boundary_grid)
         if self.time_manager.time_index > 1:
             # "Get face displacement"-strategy: Create them using
             # bound_displacement_face/-cell from second timestep and ongoing.
@@ -620,38 +682,10 @@ class BoundaryAndInitialConditionValues1:
                 name="bc_robin", data=data, time_step_index=0
             )
 
-        elif self.time_manager.time_index == 0:
-            # The first time this method is called is on initialization of the boundary
-            # values.
-            return self.initial_condition_bc(boundary_grid)
-
         displacement_values = np.reshape(
             displacement_values, (self.nd, boundary_grid.num_cells), "F"
         )
-
-        # Looping through all boundary faces to assign boundary values if the boundary
-        # is a Robin boundary
-        sd = boundary_grid.parent
-        boundary_faces = sd.get_all_boundary_faces()
-        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-
-        # Need the boundary condition object to check whether the boundary face is Robin
-        # or not (not strictly necessary)
-        data = self.mdg.subdomain_data(sd)
-        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
-        bound = parameter_dictionary["bc"]
-        for boundary_cell in boundary_cells:
-            if np.all(bound.is_rob[:, boundary_faces[boundary_cell]]):
-                coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid, face=boundary_cell
-                )
-
-                values[:, boundary_cell] += (
-                    np.matmul(coefficient_matrix, displacement_values[:, boundary_cell])
-                    * face_areas[boundary_cell]
-                )
-
-        return values.ravel("F")
+        return displacement_values
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Initial values for the boundary displacement."""
@@ -686,10 +720,37 @@ class BoundaryAndInitialConditionValues2:
             Array of boundary values.
 
         """
-        face_areas = boundary_grid.cell_volumes
-        data = self.mdg.boundary_grid_data(boundary_grid)
+        if self.time_manager.time_index != 0:
+            displacement_values_0, displacement_values_1 = (
+                self._previous_displacement_values(boundary_grid=boundary_grid)
+            )
+        elif self.time_manager.time_index == 0:
+            return self.initial_condition_bc(boundary_grid)
 
         values = np.zeros((self.nd, boundary_grid.num_cells))
+        bc, boundary_faces, boundary_cells, face_areas = (
+            self._misc_boundary_related_quantities(boundary_grid=boundary_grid)
+        )
+        for boundary_cell in boundary_cells:
+            if np.all(bc.is_rob[:, boundary_faces[boundary_cell]]):
+                # Fetching the coefficient matrix and constructing the displacement
+                # values for the right-hand side
+                coefficient_matrix = self.total_coefficient_matrix(
+                    grid=boundary_grid, face=boundary_cell
+                )
+                rhs_displacement_values = (
+                    displacement_values_0[:, boundary_cell]
+                    + displacement_values_1[:, boundary_cell]
+                )
+
+                values[:, boundary_cell] += (
+                    np.matmul(coefficient_matrix, rhs_displacement_values)
+                    * face_areas[boundary_cell]
+                )
+        return values.ravel("F")
+
+    def _previous_displacement_values(self, boundary_grid: pp.BoundaryGrid):
+        data = self.mdg.boundary_grid_data(boundary_grid)
         if self.time_manager.time_index > 1:
             # The displacement value for the previous time step is constructed and the
             # one two time steps back in time is fetched from the dictionary.
@@ -726,10 +787,6 @@ class BoundaryAndInitialConditionValues2:
             displacement_values_1 = pp.get_solution_values(
                 name="boundary_displacement_values", data=data, time_step_index=1
             )
-        elif self.time_manager.time_index == 0:
-            # The first time this method is called is on initialization of the boundary
-            # values.
-            return self.initial_condition_bc(boundary_grid)
 
         # Reshaping the displacement value arrays to have a shape that is easier to work
         # with when assigning the robin bc values for the different domain sides.
@@ -745,34 +802,7 @@ class BoundaryAndInitialConditionValues2:
         displacement_values_0 *= 2
         displacement_values_1 *= -0.5
 
-        # Looping through all boundary faces to assign boundary values if the boundary
-        # is a Robin boundary
-        sd = boundary_grid.parent
-        boundary_faces = sd.get_all_boundary_faces()
-        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-
-        # Need the boundary condition object to check whether the boundary face is Robin
-        # or not (not strictly necessary)
-        data = self.mdg.subdomain_data(sd)
-        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
-        bound = parameter_dictionary["bc"]
-        for boundary_cell in boundary_cells:
-            if np.all(bound.is_rob[:, boundary_faces[boundary_cell]]):
-                coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid, face=boundary_cell
-                )
-
-                values[:, boundary_cell] += (
-                    np.matmul(
-                        coefficient_matrix,
-                        (
-                            displacement_values_0[:, boundary_cell]
-                            + displacement_values_1[:, boundary_cell]
-                        ),
-                    )
-                    * face_areas[boundary_cell]
-                )
-        return values.ravel("F")
+        return displacement_values_0, displacement_values_1
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Method for setting initial values for 0th and -1st time step in
