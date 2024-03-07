@@ -658,7 +658,20 @@ class BoundaryAndInitialConditionValues1:
                 )
         return values.ravel("F")
 
-    def _previous_displacement_values(self, boundary_grid: pp.BoundaryGrid):
+    def _previous_displacement_values(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> np.ndarray:
+        """Method for constructing/fetching previous boundary displacement values.
+
+        Parameters:
+            boundary_grid: The boundary grid whose displacement values we are
+                interested in.
+
+        Returns:
+            An array with the displacement values on the boundary for the previous time
+            step.
+
+        """
         data = self.mdg.boundary_grid_data(boundary_grid)
         if self.time_manager.time_index > 1:
             # "Get face displacement"-strategy: Create them using
@@ -749,7 +762,24 @@ class BoundaryAndInitialConditionValues2:
                 )
         return values.ravel("F")
 
-    def _previous_displacement_values(self, boundary_grid: pp.BoundaryGrid):
+    def _previous_displacement_values(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Method for constructing/fetching previous boundary displacement values.
+
+        It also makes sure to scale the displcement values with the appropriate
+        coefficient. This coefficient is related to the choice of time derivative
+        approximation. For ABC_2 the coefficients are 2 and -0.5.
+
+        Parameters:
+            boundary_grid: The boundary grid whose displacement values we are
+                interested in.
+
+        Returns:
+            A tuple with the scaled displacement values one time step back in time and
+            two time steps back in time.
+
+        """
         data = self.mdg.boundary_grid_data(boundary_grid)
         if self.time_manager.time_index > 1:
             # The displacement value for the previous time step is constructed and the
