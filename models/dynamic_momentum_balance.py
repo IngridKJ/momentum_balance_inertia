@@ -439,5 +439,4 @@ class DynamicMomentumBalance(
     MySolutionStrategy,
     BoundaryGridRelated,
     MomentumBalance,
-):
-    ...
+): ...

@@ -181,5 +181,4 @@ class MomentumBalanceTimeDepSource(
     BoundaryAndInitialCond,
     Source,
     DynamicMomentumBalance,
-):
-    ...
+): ...
