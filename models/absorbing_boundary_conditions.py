@@ -611,7 +611,7 @@ class BoundaryAndInitialConditionValues1:
 
         # Fetching the boundary grid cell centers and creating a local bg cell indexing
         bg_cell_centers = boundary_grid.cell_centers
-        boundary_cells = np.arange(0, len(bg_cell_centers[0]), 1)
+        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
 
         # Fetching boundary condition object
         data = self.mdg.subdomain_data(sd)
@@ -731,7 +731,7 @@ class BoundaryAndInitialConditionValues2:
 
         # Fetching the boundary grid cell centers and creating a local bg cell indexing
         bg_cell_centers = boundary_grid.cell_centers
-        boundary_cells = np.arange(0, len(bg_cell_centers[0]), 1)
+        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
 
         # Fetching boundary condition object
         data = self.mdg.subdomain_data(sd)
