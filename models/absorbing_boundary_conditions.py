@@ -132,12 +132,10 @@ class HelperMethodsABC:
 
         """
         if isinstance(grid, pp.BoundaryGrid):
-            sd = grid.parent
-            face_normal = sd.face_normals[:, face]
-            face_areas = sd.face_areas[face]
-        else:
-            face_normal = grid.face_normals[:, face]
-            face_areas = grid.face_areas[face]
+            grid = grid.parent
+
+        face_normal = grid.face_normals[:, face]
+        face_areas = grid.face_areas[face]
 
         n = face_normal / face_areas
 
