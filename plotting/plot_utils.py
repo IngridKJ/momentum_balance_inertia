@@ -150,21 +150,38 @@ def draw_multiple_loglog_slopes(
     right_center_disp = b_disp + 0.5 * (c_disp - b_disp)
     right_center = ax.transData.inverted().transform(right_center_disp)
 
-    # Label alignment depending on inversion parameter
-    va_xlabel = "top" if not inverted else "bottom"
-    ha_ylabel = "left" if not inverted else "right"
+    # Label alignment depending on inversion parameter and whether or not the slope is
+    # negative or positive
+    if np.any(slopes > np.zeros(len(slopes))):
+        va_xlabel = "top" if not inverted else "bottom"
+        ha_ylabel = "left" if not inverted else "right"
 
-    # Label offset depending on inversion parameter
-    offset_xlabel = (
-        [0.0, -0.33 * label_kwargs["fontsize"]]
-        if not inverted
-        else [0.0, 0.33 * label_kwargs["fontsize"]]
-    )
-    offset_ylabel = (
-        [0.33 * label_kwargs["fontsize"], 0.0]
-        if not inverted
-        else [-0.33 * label_kwargs["fontsize"], 0.0]
-    )
+        # Label offset depending on inversion parameter
+        offset_xlabel = (
+            [0.0, -0.33 * label_kwargs["fontsize"]]
+            if not inverted
+            else [0.0, 0.33 * label_kwargs["fontsize"]]
+        )
+        offset_ylabel = (
+            [0.33 * label_kwargs["fontsize"], 0.0]
+            if not inverted
+            else [-0.33 * label_kwargs["fontsize"], 0.0]
+        )
+    elif np.any(slopes < np.zeros(len(slopes))):
+        va_xlabel = "bottom" if not inverted else "top"
+        ha_ylabel = "right" if not inverted else "left"
+
+        # Label offset depending on inversion parameter
+        offset_xlabel = (
+            [0.0, 0.33 * label_kwargs["fontsize"]]
+            if not inverted
+            else [0.0, -0.33 * label_kwargs["fontsize"]]
+        )
+        offset_ylabel = (
+            [-0.33 * label_kwargs["fontsize"], 0.0]
+            if not inverted
+            else [0.33 * label_kwargs["fontsize"], 0.0]
+        )
 
     # Draw the slope labels
     ax.annotate(
@@ -197,7 +214,7 @@ def draw_multiple_loglog_slopes(
                 label_va = "top"
 
         ax.annotate(
-            f"${max(slopes)}$",
+            f"${abs(max(slopes))}$",
             label_point,
             xytext=[0, 0],
             textcoords="offset points",
