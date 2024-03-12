@@ -607,9 +607,11 @@ class BoundaryAndInitialConditionValues1:
         values = np.zeros((self.nd, boundary_grid.num_cells))
         sd = boundary_grid.parent
 
-        # Fetching the boundary grid cell centers and creating a local bg cell indexing
-        bg_cell_centers = boundary_grid.cell_centers
+        # Creating local bg indexing and fetching the global face indices. These two
+        # arrays should "match", in the sense that boundary_cells[index] corresponds to
+        # the same face/cell as global_face_indices[index].
         boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
+        global_face_indices = sd.get_all_boundary_faces()
 
         # Fetching boundary condition object
         data = self.mdg.subdomain_data(sd)
@@ -618,12 +620,9 @@ class BoundaryAndInitialConditionValues1:
 
         # Actual boundary condition value assignment
         for boundary_cell in boundary_cells:
-            # Find the global face index of the boundary_cell via the cell center
-            # coordinates.
-            bg_cell_center = bg_cell_centers[:, boundary_cell]
-            global_face_index = np.where(
-                np.all(sd.face_centers.T == bg_cell_center, axis=1)
-            )[0][0]
+            # Find the global face index of the boundary_cell via the boundary faces of
+            # the parent grid.
+            global_face_index = global_face_indices[boundary_cell]
 
             # Checking if it is a Robin boundary
             if np.all(bc.is_rob[:, global_face_index]):
@@ -727,9 +726,11 @@ class BoundaryAndInitialConditionValues2:
         values = np.zeros((self.nd, boundary_grid.num_cells))
         sd = boundary_grid.parent
 
-        # Fetching the boundary grid cell centers and creating a local bg cell indexing
-        bg_cell_centers = boundary_grid.cell_centers
+        # Creating local bg indexing and fetching the global face indices. These two
+        # arrays should "match", in the sense that boundary_cells[index] corresponds to
+        # the same face/cell as global_face_indices[index].
         boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
+        global_face_indices = sd.get_all_boundary_faces()
 
         # Fetching boundary condition object
         data = self.mdg.subdomain_data(sd)
@@ -738,12 +739,9 @@ class BoundaryAndInitialConditionValues2:
 
         # Actual boundary condition value assignment
         for boundary_cell in boundary_cells:
-            # Find the global face index of the boundary_cell via the cell center
-            # coordinates.
-            bg_cell_center = bg_cell_centers[:, boundary_cell]
-            global_face_index = np.where(
-                np.all(sd.face_centers.T == bg_cell_center, axis=1)
-            )[0][0]
+            # Find the global face index of the boundary_cell via the boundary faces of
+            # the parent grid.
+            global_face_index = global_face_indices[boundary_cell]
 
             # Checking if it is a Robin boundary
             if np.all(bc.is_rob[:, global_face_index]):
