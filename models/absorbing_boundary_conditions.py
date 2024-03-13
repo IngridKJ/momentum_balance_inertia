@@ -59,16 +59,25 @@ class BoundaryConditionTypeParent:
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
         # Looping through all boundary faces to assign weight values
-        boundary_faces = sd.get_all_boundary_faces()
+        boundary_faces = sd.get_boundary_faces()
+        # self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
+        #     faces=boundary_faces
+        # )[1]
+        i = 0
         for face in boundary_faces:
             if np.all(bc.is_rob[:, face]):
                 # Fetching the coefficient matrices for the ABC boundaries and assigning
                 # them to the i-th submatrix within the Robin weight value array.
-                coefficient_matrix = self.total_coefficient_matrix(face=face, grid=sd)
+                coefficient_matrix = self.total_coefficient_matrix(
+                    face=face,
+                    grid=sd,
+                    boundary_grid_cell=self.boundary_cells_of_grid[i],
+                )
 
                 value[:, :, face] *= (
                     coefficient_matrix
                 ) * self.robin_weight_coefficient
+            i += 1
 
         # Finally setting the actual Robin weight.
         bc.robin_weight = value
@@ -80,7 +89,9 @@ class SolutionStrategyABC:
 
 
 class HelperMethodsABC:
-    def total_coefficient_matrix(self, grid: pp.Grid, face: int) -> np.ndarray:
+    def total_coefficient_matrix(
+        self, grid: pp.Grid, face: int, boundary_grid_cell: int
+    ) -> np.ndarray:
         """Coefficient matrix for the absorbing boundary conditions.
 
         Used together with Robin boundary condition assignment.
@@ -112,25 +123,11 @@ class HelperMethodsABC:
         normal_matrix = np.outer(n, n)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
 
-        # Here a vector of length subdomain.num_cells is returned. Need to only apply
-        # the tensile/shear robin weight to the correct face. Note that I must find the
-        # cell that particular face corresponds to. Cs and Cp are in now cell center
-        # values.
-        if isinstance(grid, pp.Grid):
-            boundary_cell = grid.signs_and_cells_of_boundary_faces(
-                faces=np.array([face])
-            )[1]
-        elif isinstance(grid, pp.BoundaryGrid):
-            sd = grid.parent
-            boundary_cell = sd.signs_and_cells_of_boundary_faces(
-                faces=np.array([face])
-            )[1]
-
         normal_matrix *= self.robin_weight_value(direction="tensile", subdomain=grid)[
-            boundary_cell
+            boundary_grid_cell
         ]
         tangential_matrix *= self.robin_weight_value(direction="shear", subdomain=grid)[
-            boundary_cell
+            boundary_grid_cell
         ]
         return normal_matrix + tangential_matrix
 
@@ -629,13 +626,13 @@ class BoundaryAndInitialConditionValues1:
         # arrays should "match", in the sense that boundary_cells[index] corresponds to
         # the same face/cell as global_face_indices[index].
         boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        global_face_indices = sd.get_all_boundary_faces()
+        global_face_indices = sd.get_boundary_faces()
 
         # Fetching boundary condition object
         data = self.mdg.subdomain_data(sd)
         parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
         bc = parameter_dictionary["bc"]
-
+        i = 0
         # Actual boundary condition value assignment
         for boundary_cell in boundary_cells:
             # Find the global face index of the boundary_cell via the boundary faces of
@@ -646,7 +643,9 @@ class BoundaryAndInitialConditionValues1:
             if np.all(bc.is_rob[:, global_face_index]):
                 # Fetching the coefficient matrix and assigning right-hand side values
                 coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid, face=global_face_index
+                    grid=boundary_grid,
+                    face=global_face_index,
+                    boundary_grid_cell=self.boundary_cells_of_grid[i],
                 )
                 rhs_displacement_values = displacement_values[:, boundary_cell]
 
@@ -654,6 +653,7 @@ class BoundaryAndInitialConditionValues1:
                     np.matmul(coefficient_matrix, rhs_displacement_values)
                     * sd.face_areas[global_face_index]
                 )
+            i += 1
         return values.ravel("F")
 
     def _previous_displacement_values(
@@ -748,13 +748,13 @@ class BoundaryAndInitialConditionValues2:
         # arrays should "match", in the sense that boundary_cells[index] corresponds to
         # the same face/cell as global_face_indices[index].
         boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        global_face_indices = sd.get_all_boundary_faces()
+        global_face_indices = sd.get_boundary_faces()
 
         # Fetching boundary condition object
         data = self.mdg.subdomain_data(sd)
         parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
         bc = parameter_dictionary["bc"]
-
+        i = 0
         # Actual boundary condition value assignment
         for boundary_cell in boundary_cells:
             # Find the global face index of the boundary_cell via the boundary faces of
@@ -765,7 +765,9 @@ class BoundaryAndInitialConditionValues2:
             if np.all(bc.is_rob[:, global_face_index]):
                 # Fetching the coefficient matrix and assigning right-hand side values
                 coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid, face=global_face_index
+                    grid=boundary_grid,
+                    face=global_face_index,
+                    boundary_grid_cell=self.boundary_cells_of_grid[i],
                 )
                 rhs_displacement_values = (
                     displacement_values_0[:, boundary_cell]
@@ -776,6 +778,7 @@ class BoundaryAndInitialConditionValues2:
                     np.matmul(coefficient_matrix, rhs_displacement_values)
                     * sd.face_areas[global_face_index]
                 )
+            i += 1
         return values.ravel("F")
 
     def _previous_displacement_values(

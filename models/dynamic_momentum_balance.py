@@ -214,6 +214,12 @@ class MySolutionStrategy:
         """Assigning initial displacement, velocity and acceleration values."""
         super().initial_condition()
 
+        # This should be moved elsewhere. Maybe to prepare_simulation or something.
+        sd = self.mdg.subdomains(dim=self.nd)[0]
+        boundary_faces = sd.get_boundary_faces()
+        self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
+            faces=boundary_faces
+        )[1]
         self.vector_valued_mu_lambda
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
