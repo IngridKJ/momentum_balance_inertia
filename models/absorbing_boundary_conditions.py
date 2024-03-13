@@ -123,10 +123,10 @@ class HelperMethodsABC:
         normal_matrix = np.outer(n, n)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
 
-        normal_matrix *= self.robin_weight_value(direction="tensile", subdomain=grid)[
+        normal_matrix *= self.robin_weight_value(direction="tensile")[
             boundary_grid_cell
         ]
-        tangential_matrix *= self.robin_weight_value(direction="shear", subdomain=grid)[
+        tangential_matrix *= self.robin_weight_value(direction="shear")[
             boundary_grid_cell
         ]
         return normal_matrix + tangential_matrix
@@ -159,7 +159,7 @@ class HelperMethodsABC:
 
         return n
 
-    def robin_weight_value(self, direction: str, subdomain) -> float:
+    def robin_weight_value(self, direction: str) -> float:
         """Weight for Robin boundary conditions.
 
         Either shear or tensile Robin weight will be returned by this method. This
@@ -174,17 +174,14 @@ class HelperMethodsABC:
 
         """
         dt = self.time_manager.dt
-
-        if isinstance(subdomain, pp.BoundaryGrid):
-            subdomain = subdomain.parent
-
-        cs = self.secondary_wave_speed
-        cp = self.primary_wave_speed
+        rho = self.solid.density()
+        mu = self.mu_vector
 
         if direction == "shear":
-            value = self.mu_vector / (cs * dt)
+            value = np.sqrt(rho * mu) * 1 / dt
         elif direction == "tensile":
-            value = (self.lambda_vector + 2 * self.mu_vector) / (cp * dt)
+            lmbda = self.lambda_vector
+            value = np.sqrt(rho * (lmbda + 2 * mu)) * 1 / dt
         return value
 
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
