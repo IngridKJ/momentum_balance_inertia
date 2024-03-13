@@ -112,8 +112,26 @@ class HelperMethodsABC:
         normal_matrix = np.outer(n, n)
         tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
 
-        normal_matrix *= self.robin_weight_value(direction="tensile")
-        tangential_matrix *= self.robin_weight_value(direction="shear")
+        # Here a vector of length subdomain.num_cells is returned. Need to only apply
+        # the tensile/shear robin weight to the correct face. Note that I must find the
+        # cell that particular face corresponds to. Cs and Cp are in now cell center
+        # values.
+        if isinstance(grid, pp.Grid):
+            boundary_cell = grid.signs_and_cells_of_boundary_faces(
+                faces=np.array([face])
+            )[1]
+        elif isinstance(grid, pp.BoundaryGrid):
+            sd = grid.parent
+            boundary_cell = sd.signs_and_cells_of_boundary_faces(
+                faces=np.array([face])
+            )[1]
+
+        normal_matrix *= self.robin_weight_value(direction="tensile", subdomain=grid)[
+            boundary_cell
+        ]
+        tangential_matrix *= self.robin_weight_value(direction="shear", subdomain=grid)[
+            boundary_cell
+        ]
         return normal_matrix + tangential_matrix
 
     def boundary_normal_vector(
@@ -144,7 +162,7 @@ class HelperMethodsABC:
 
         return n
 
-    def robin_weight_value(self, direction: str) -> float:
+    def robin_weight_value(self, direction: str, subdomain) -> float:
         """Weight for Robin boundary conditions.
 
         Either shear or tensile Robin weight will be returned by this method. This
@@ -160,16 +178,16 @@ class HelperMethodsABC:
         """
         dt = self.time_manager.dt
 
+        if isinstance(subdomain, pp.BoundaryGrid):
+            subdomain = subdomain.parent
+
         cs = self.secondary_wave_speed
         cp = self.primary_wave_speed
 
-        lam = self.solid.lame_lambda()
-        mu = self.solid.shear_modulus()
-
         if direction == "shear":
-            value = mu / (cs * dt)
+            value = self.mu_vector / (cs * dt)
         elif direction == "tensile":
-            value = (lam + 2 * mu) / (cp * dt)
+            value = (self.lambda_vector + 2 * self.mu_vector) / (cp * dt)
         return value
 
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
