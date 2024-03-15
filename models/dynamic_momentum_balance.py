@@ -41,6 +41,13 @@ class NamesAndConstants:
         return "bc_values_mechanics"
 
     @property
+    def vector_valued_mu_lambda(self):
+        subdomain = self.mdg.subdomains(dim=self.nd)[0]
+
+        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
+        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+
+    @property
     def primary_wave_speed(self):
         """Primary wave speed (c_p).
 
@@ -50,10 +57,8 @@ class NamesAndConstants:
             The value of the compressive elastic waves.
 
         """
-        lam = self.solid.lame_lambda()
-        mu = self.solid.shear_modulus()
         rho = self.solid.density()
-        return np.sqrt((lam + 2 * mu) / rho)
+        return np.sqrt((self.lambda_vector + 2 * self.mu_vector) / rho)
 
     @property
     def secondary_wave_speed(self):
@@ -65,9 +70,8 @@ class NamesAndConstants:
             The value of the shear elastic waves.
 
         """
-        mu = self.solid.shear_modulus()
         rho = self.solid.density()
-        return np.sqrt(mu / rho)
+        return np.sqrt(self.mu_vector / rho)
 
 
 class MyGeometry:
@@ -209,6 +213,14 @@ class MySolutionStrategy:
     def initial_condition(self):
         """Assigning initial displacement, velocity and acceleration values."""
         super().initial_condition()
+
+        # This should be moved elsewhere. Maybe to prepare_simulation or something.
+        sd = self.mdg.subdomains(dim=self.nd)[0]
+        boundary_faces = sd.get_boundary_faces()
+        self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
+            faces=boundary_faces
+        )[1]
+        self.vector_valued_mu_lambda
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
@@ -412,6 +424,20 @@ class MySolutionStrategy:
         )
         self.convergence_status = True
         self.save_data_time_step()
+
+
+class ConstitutiveLawsDynamicMomentumBalance:
+    def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
+        """Stiffness tensor [Pa].
+
+        Parameters:
+            subdomain: Subdomain where the stiffness tensor is defined.
+
+        Returns:
+            Cell-wise stiffness tensor in SI units.
+
+        """
+        return pp.FourthOrderTensor(self.mu_vector, self.lambda_vector)
 
 
 class TimeDependentSourceTerm:
