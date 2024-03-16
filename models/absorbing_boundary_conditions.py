@@ -738,45 +738,44 @@ class BoundaryAndInitialConditionValues2:
         elif self.time_manager.time_index == 0:
             return self.initial_condition_bc(boundary_grid)
 
-        values = np.zeros((self.nd, boundary_grid.num_cells))
+        total_disp_vals = displacement_values_0 + displacement_values_1
+
         sd = boundary_grid.parent
 
-        # Creating local bg indexing and fetching the global face indices. These two
-        # arrays should "match", in the sense that boundary_cells[index] corresponds to
-        # the same face/cell as global_face_indices[index].
-        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        global_face_indices = sd.get_boundary_faces()
+        boundary_cells = self.boundary_cells_of_grid
+        boundary_faces = sd.get_boundary_faces()
+        face_normals = sd.face_normals[:, boundary_faces][: self.nd]
+        unitary_face_normals = face_normals / np.linalg.norm(
+            face_normals, axis=0, keepdims=True
+        )
 
-        # Fetching boundary condition object
-        data = self.mdg.subdomain_data(sd)
-        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
-        bc = parameter_dictionary["bc"]
-        i = 0
-        # Actual boundary condition value assignment
-        for boundary_cell in boundary_cells:
-            # Find the global face index of the boundary_cell via the boundary faces of
-            # the parent grid.
-            global_face_index = global_face_indices[boundary_cell]
+        # This cursed line does what is commented out below. Thank you Yura for helping
+        # with this!!
+        tensile_matrices = np.einsum(
+            "ik,jk->kij", unitary_face_normals, unitary_face_normals
+        )
 
-            # Checking if it is a Robin boundary
-            if np.all(bc.is_rob[:, global_face_index]):
-                # Fetching the coefficient matrix and assigning right-hand side values
-                coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid,
-                    face=global_face_index,
-                    boundary_grid_cell=self.boundary_cells_of_grid[i],
-                )
-                rhs_displacement_values = (
-                    displacement_values_0[:, boundary_cell]
-                    + displacement_values_1[:, boundary_cell]
-                )
+        # tensile_matrices = np.array(
+        #     [np.outer(column, column) for column in sd.face_normals.T]
+        # )
 
-                values[:, boundary_cell] += (
-                    np.matmul(coefficient_matrix, rhs_displacement_values)
-                    * sd.face_areas[global_face_index]
-                )
-            i += 1
-        return values.ravel("F")
+        eye_block_array = np.tile(np.eye(self.nd), (len(tensile_matrices), 1, 1))
+        shear_mat = eye_block_array - tensile_matrices
+
+        tensile_coeff = self.robin_weight_value(direction="tensile")[boundary_cells]
+        shear_coeff = self.robin_weight_value(direction="shear")[boundary_cells]
+
+        tensile_matrix_with_coeff = tensile_matrices * tensile_coeff[:, None, None]
+        shear_matrix_with_coeff = shear_mat * shear_coeff[:, None, None]
+        total_coefficient_matrix = tensile_matrix_with_coeff + shear_matrix_with_coeff
+
+        result = np.matmul(
+            total_coefficient_matrix, total_disp_vals.T[..., None]
+        ).squeeze(-1)
+        result = result * sd.face_areas[boundary_faces][:, None]
+
+        result = result.T
+        return result.ravel("F")
 
     def _previous_displacement_values(
         self, boundary_grid: pp.BoundaryGrid
