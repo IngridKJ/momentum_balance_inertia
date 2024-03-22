@@ -176,7 +176,7 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         )
 
     x, y, t = sym.symbols("x y t")
-    cp = model.primary_wave_speed
+    cp = model.primary_wave_speed(is_scalar=True)
 
     manufactured_sol = model.params.get("manufactured_solution", "bubble")
     if manufactured_sol == "unit_test":
@@ -335,7 +335,7 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
         )
 
     x, y, z, t = sym.symbols("x y z t")
-    cp = model.primary_wave_speed
+    cp = model.primary_wave_speed(is_scalar=True)
     manufactured_sol = model.params.get("manufactured_solution", "bubble")
     if manufactured_sol == "bubble":
         u1 = u2 = u3 = t**2 * x * (1 - x) * y * (1 - y) * z * (1 - z)
