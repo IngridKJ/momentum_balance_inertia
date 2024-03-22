@@ -41,13 +41,6 @@ class NamesAndConstants:
         return "bc_values_mechanics"
 
     @property
-    def vector_valued_mu_lambda(self):
-        subdomain = self.mdg.subdomains(dim=self.nd)[0]
-
-        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
-        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
-
-    @property
     def primary_wave_speed(self):
         """Primary wave speed (c_p).
 
@@ -220,7 +213,8 @@ class MySolutionStrategy:
         self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
             faces=boundary_faces
         )[1]
-        self.vector_valued_mu_lambda
+
+        self.vector_valued_mu_lambda()
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
@@ -427,6 +421,17 @@ class MySolutionStrategy:
 
 
 class ConstitutiveLawsDynamicMomentumBalance:
+    def vector_valued_mu_lambda(self) -> None:
+        """Vector representation of mu and lambda.
+
+        Cell-wise representation of the mu and lambda quantities in the rock matrix.
+
+        """
+        subdomain = self.mdg.subdomains(dim=self.nd)[0]
+
+        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
+        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
 
