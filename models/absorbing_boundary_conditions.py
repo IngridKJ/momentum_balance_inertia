@@ -54,27 +54,53 @@ class BoundaryConditionTypeParent:
             bc: The vectorial boundary condition object.
 
         """
-        # Initiating the shape of the Robin-weight array:
+        # Initiating the arrays for the Robin weight
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
-        boundary_faces = sd.get_boundary_faces()
+        # Problems with fractures is solved by this
+        if sd.dim != self.nd:
+            bc.robin_weight = value
+        else:
+            total_coefficient_matrix = self.total_coefficient_matrix(
+                sd=sd,
+            )
+            total_coefficient_matrix *= self.discrete_robin_weight_coefficient
 
-        total_coefficient_matrix = self.total_coefficient_matrix_refactor(
-            sd=sd,
-        )
-        total_coefficient_matrix *= self.robin_weight_coefficient
+            # Fethcing all boundary faces for the domain
+            boundary_faces = sd.get_boundary_faces()
 
-        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
-        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
+            value[:, :, boundary_faces] *= total_coefficient_matrix.T
 
-        value[:, :, boundary_faces] *= total_coefficient_matrix.T
+            # Finally setting the actual Robin weight.
+            bc.robin_weight = value
 
-        # Finally setting the actual Robin weight.
-        bc.robin_weight = value
+    def total_coefficient_matrix(self, sd: pp.Grid) -> np.ndarray:
+        """Coefficient matrix for the absorbing boundary conditions.
 
-    def total_coefficient_matrix_refactor(self, sd: pp.Grid):
+        Used together with Robin boundary condition assignment.
 
+        The absorbing boundary conditions look like the following:
+            \sigma * n + D * u_t = 0,
+
+            where D is a matrix containing material parameters and wave velocities.
+
+        Approximate the time derivative by a first or second order backward difference:
+            1: \sigma * n + D_h * u_n = D_h * u_(n-1),
+            2: \sigma * n + D_h * 3/2 * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)).
+
+            D_h = 1/dt * D.
+
+        Parameters:
+            grid: The grid where the boundary conditions are assigned.
+
+
+        Returns:
+            A block array which is the sum of the normal and tangential component of the
+            coefficient matrices.
+
+        """
+        # Fetching necessary grid related quantities
         boundary_cells = self.boundary_cells_of_grid
         boundary_faces = sd.get_boundary_faces()
         face_normals = sd.face_normals[:, boundary_faces][: self.nd]
@@ -82,8 +108,8 @@ class BoundaryConditionTypeParent:
             face_normals, axis=0, keepdims=True
         )
 
-        # This cursed line does what is commented out below. Thank you Yura for helping
-        # with this!!
+        # This cursed line does the same as the line that is commented out below. Thank
+        # you Yura for helping with this!!
         tensile_matrices = np.einsum(
             "ik,jk->kij", unitary_face_normals, unitary_face_normals
         )
@@ -91,9 +117,12 @@ class BoundaryConditionTypeParent:
         #     [np.outer(column, column) for column in sd.face_normals.T]
         # )
 
+        # Creating a block array of identity matrices. Subtracting the tensile matrix
+        # block array from this provides us with the shear matrix block array.
         eye_block_array = np.tile(np.eye(self.nd), (len(tensile_matrices), 1, 1))
         shear_mat = eye_block_array - tensile_matrices
 
+        # Scaling with Robin weight
         tensile_coeff = self.robin_weight_value(direction="tensile")[boundary_cells]
         shear_coeff = self.robin_weight_value(direction="shear")[boundary_cells]
 
@@ -528,7 +557,7 @@ class BoundaryAndInitialConditionValues1:
     """Class with methods that are unique to ABC_1"""
 
     @property
-    def robin_weight_coefficient(self) -> float:
+    def discrete_robin_weight_coefficient(self) -> float:
         """Additional coefficient for discrete Robin boundary conditions.
 
         After discretizing the time derivative in the absorbing boundary condition
@@ -571,7 +600,7 @@ class BoundaryAndInitialConditionValues1:
         sd = boundary_grid.parent
         boundary_faces = sd.get_boundary_faces()
 
-        total_coefficient_matrix = self.total_coefficient_matrix_refactor(sd=sd)
+        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
 
         result = np.matmul(
             total_coefficient_matrix, total_disp_vals.T[..., None]
@@ -631,7 +660,7 @@ class BoundaryAndInitialConditionValues2:
     """Class with methods that are unique to ABC_2"""
 
     @property
-    def robin_weight_coefficient(self) -> float:
+    def discrete_robin_weight_coefficient(self) -> float:
         """Additional coefficient for discrete Robin boundary conditions.
 
         After discretizing the time derivative in the absorbing boundary condition
@@ -670,7 +699,7 @@ class BoundaryAndInitialConditionValues2:
         sd = boundary_grid.parent
         boundary_faces = sd.get_boundary_faces()
 
-        total_coefficient_matrix = self.total_coefficient_matrix_refactor(sd=sd)
+        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
 
         result = np.matmul(
             total_coefficient_matrix, total_disp_vals.T[..., None]
