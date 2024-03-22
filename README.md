@@ -77,3 +77,8 @@ This might be deleted, but for now it's just hid within [verification](./verific
 ## Other
 [ParaView](./ParaView/) directory is mainly for .py scripts or .pvsm files for
 visualization in ParaView.
+
+### Known "bugs" or potential problems
+* Heterogeneous wave speed representation in cases where manufactured solutions are used.
+* Boundary condition methods might start acting weird in the case of intersecting fractures. Will fix when/if it becomes a problem.
+* Robin boundary conditions with the PorePy models are a bit ... yeah. Seek a permanent solution for that.
