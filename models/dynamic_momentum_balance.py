@@ -3,6 +3,8 @@ from porepy.models.momentum_balance import MomentumBalance
 import porepy as pp
 import time_derivatives
 
+from typing import Union
+
 from utils import acceleration_velocity_displacement
 
 import numpy as np
@@ -40,38 +42,49 @@ class NamesAndConstants:
         """
         return "bc_values_mechanics"
 
-    @property
-    def vector_valued_mu_lambda(self):
-        subdomain = self.mdg.subdomains(dim=self.nd)[0]
-
-        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
-        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
-
-    @property
-    def primary_wave_speed(self):
+    def primary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
         """Primary wave speed (c_p).
 
         Speed of the compressive elastic waves.
 
+        Parameters:
+            is_scalar: Whether the primary wavespeed should be scalar or not. Relevant
+                for use with manufactured solutions, where the vector valued lambda and
+                mu are not available yet when a call to this function is made.
+
         Returns:
-            The value of the compressive elastic waves.
+            The value of the compressive elastic waves. Either scalar valued or the
+            cell-center values, depending on the input parameter.
 
         """
         rho = self.solid.density()
-        return np.sqrt((self.lambda_vector + 2 * self.mu_vector) / rho)
+        if not is_scalar:
+            return np.sqrt((self.lambda_vector + 2 * self.mu_vector) / rho)
+        else:
+            return np.sqrt(
+                (self.solid.lame_lambda() + 2 * self.solid.shear_modulus() / rho)
+            )
 
-    @property
-    def secondary_wave_speed(self):
+    def secondary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
         """Secondary wave speed (c_s).
 
         Speed of the shear elastic waves.
 
+        Parameters:
+            is_scalar: Whether the secondary wavespeed should be scalar or not. Relevant
+                for use with manufactured solutions, where the vector valued mu is not
+                available yet when a call to this function is made.
+
         Returns:
-            The value of the shear elastic waves.
+            The value of the shear elastic waves. Either scalar valued or the
+            cell-center values, depending on the input parameter.
 
         """
         rho = self.solid.density()
-        return np.sqrt(self.mu_vector / rho)
+        if not is_scalar:
+            return np.sqrt(self.mu_vector / rho)
+        else:
+            return np.sqrt(self.solid.shear_modulus() / rho)
 
 
 class MyGeometry:
@@ -220,7 +233,8 @@ class MySolutionStrategy:
         self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
             faces=boundary_faces
         )[1]
-        self.vector_valued_mu_lambda
+
+        self.vector_valued_mu_lambda()
 
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
@@ -427,6 +441,17 @@ class MySolutionStrategy:
 
 
 class ConstitutiveLawsDynamicMomentumBalance:
+    def vector_valued_mu_lambda(self) -> None:
+        """Vector representation of mu and lambda.
+
+        Cell-wise representation of the mu and lambda quantities in the rock matrix.
+
+        """
+        subdomain = self.mdg.subdomains(dim=self.nd)[0]
+
+        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
+        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
 
@@ -461,6 +486,7 @@ class DynamicMomentumBalance(
     NamesAndConstants,
     MyGeometry,
     MyEquations,
+    ConstitutiveLawsDynamicMomentumBalance,
     TimeDependentSourceTerm,
     MySolutionStrategy,
     BoundaryGridRelated,

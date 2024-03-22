@@ -54,44 +54,28 @@ class BoundaryConditionTypeParent:
             bc: The vectorial boundary condition object.
 
         """
-        # Initiating the shape of the Robin-weight array:
+        # Initiating the arrays for the Robin weight
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
-        # Looping through all boundary faces to assign weight values
-        boundary_faces = sd.get_boundary_faces()
-        # self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
-        #     faces=boundary_faces
-        # )[1]
-        i = 0
-        for face in boundary_faces:
-            if np.all(bc.is_rob[:, face]):
-                # Fetching the coefficient matrices for the ABC boundaries and assigning
-                # them to the i-th submatrix within the Robin weight value array.
-                coefficient_matrix = self.total_coefficient_matrix(
-                    face=face,
-                    grid=sd,
-                    boundary_grid_cell=self.boundary_cells_of_grid[i],
-                )
+        # Problems with fractures is solved by this
+        if sd.dim != self.nd:
+            bc.robin_weight = value
+        else:
+            total_coefficient_matrix = self.total_coefficient_matrix(
+                sd=sd,
+            )
+            total_coefficient_matrix *= self.discrete_robin_weight_coefficient
 
-                value[:, :, face] *= (
-                    coefficient_matrix
-                ) * self.robin_weight_coefficient
-            i += 1
+            # Fethcing all boundary faces for the domain
+            boundary_faces = sd.get_boundary_faces()
 
-        # Finally setting the actual Robin weight.
-        bc.robin_weight = value
+            value[:, :, boundary_faces] *= total_coefficient_matrix.T
 
+            # Finally setting the actual Robin weight.
+            bc.robin_weight = value
 
-class SolutionStrategyABC:
-    def _is_nonlinear_problem(self) -> bool:
-        return False
-
-
-class HelperMethodsABC:
-    def total_coefficient_matrix(
-        self, grid: pp.Grid, face: int, boundary_grid_cell: int
-    ) -> np.ndarray:
+    def total_coefficient_matrix(self, sd: pp.Grid) -> np.ndarray:
         """Coefficient matrix for the absorbing boundary conditions.
 
         Used together with Robin boundary condition assignment.
@@ -109,56 +93,51 @@ class HelperMethodsABC:
 
         Parameters:
             grid: The grid where the boundary conditions are assigned.
-            face: The global face index of the face whose coefficient matrix we are
-                seeking.
+
 
         Returns:
-            An array which is the sum of the normal and tangential component of the
+            A block array which is the sum of the normal and tangential component of the
             coefficient matrices.
 
         """
-        # Fetching the normal vector of a face and creating the normal and tangential
-        # matrices from outer products of the normal vector with itself (nn^T)
-        n = self.boundary_normal_vector(face=face, grid=grid)
-        normal_matrix = np.outer(n, n)
-        tangential_matrix = np.eye(self.mdg.dim_max()) - normal_matrix
+        # Fetching necessary grid related quantities
+        boundary_cells = self.boundary_cells_of_grid
+        boundary_faces = sd.get_boundary_faces()
+        face_normals = sd.face_normals[:, boundary_faces][: self.nd]
+        unitary_face_normals = face_normals / np.linalg.norm(
+            face_normals, axis=0, keepdims=True
+        )
 
-        normal_matrix *= self.robin_weight_value(direction="tensile")[
-            boundary_grid_cell
-        ]
-        tangential_matrix *= self.robin_weight_value(direction="shear")[
-            boundary_grid_cell
-        ]
-        return normal_matrix + tangential_matrix
+        # This cursed line does the same as the line that is commented out below. Thank
+        # you Yura for helping with this!!
+        tensile_matrices = np.einsum(
+            "ik,jk->kij", unitary_face_normals, unitary_face_normals
+        )
+        # tensile_matrices = np.array(
+        #     [np.outer(column, column) for column in sd.face_normals.T]
+        # )
 
-    def boundary_normal_vector(
-        self, face: int, grid: Union[pp.Grid, pp.BoundaryGrid]
-    ) -> np.ndarray:
-        """Compute normal vector for a boundary face/cell for grids/boundary grids.
+        # Creating a block array of identity matrices. Subtracting the tensile matrix
+        # block array from this provides us with the shear matrix block array.
+        eye_block_array = np.tile(np.eye(self.nd), (len(tensile_matrices), 1, 1))
+        shear_mat = eye_block_array - tensile_matrices
 
-        Specifically, the function computes the unit normal vector.
+        # Scaling with Robin weight
+        tensile_coeff = self.robin_weight_value(direction="tensile")[boundary_cells]
+        shear_coeff = self.robin_weight_value(direction="shear")[boundary_cells]
 
-        Parameters:
-            face: Global face index of the face.
-            grid: The grid where the face lives. Either a subdomain or a boundary grid.
+        tensile_matrix_with_coeff = tensile_matrices * tensile_coeff[:, None, None]
+        shear_matrix_with_coeff = shear_mat * shear_coeff[:, None, None]
+        total_coefficient_matrix = tensile_matrix_with_coeff + shear_matrix_with_coeff
+        return total_coefficient_matrix
 
-        Returns:
-            An array representing the unit normal vector.
 
-        """
-        if isinstance(grid, pp.BoundaryGrid):
-            grid = grid.parent
+class SolutionStrategyABC:
+    def _is_nonlinear_problem(self) -> bool:
+        return False
 
-        face_normal = grid.face_normals[:, face]
-        face_areas = grid.face_areas[face]
 
-        n = face_normal / face_areas
-
-        if self.nd == 2:
-            n = n[:-1]
-
-        return n
-
+class HelperMethodsABC:
     def robin_weight_value(self, direction: str) -> float:
         """Weight for Robin boundary conditions.
 
@@ -220,8 +199,8 @@ class HelperMethodsABC:
         displacement = self.displacement(subdomains)
 
         boundary_displacement = (
-            discr.bound_displacement_cell @ displacement
-            + discr.bound_displacement_face @ bc
+            discr.bound_displacement_cell() @ displacement
+            + discr.bound_displacement_face() @ bc
         )
 
         boundary_displacement.set_name("boundary_displacement")
@@ -478,9 +457,9 @@ class BoundaryGridStuff:
         # subdomains, and let these act as Dirichlet boundary conditions on the
         # subdomains.
         stress = (
-            discr.stress @ self.displacement(domains)
-            + discr.bound_stress @ boundary_operator
-            + discr.bound_stress
+            discr.stress() @ self.displacement(domains)
+            + discr.bound_stress() @ boundary_operator
+            + discr.bound_stress()
             @ proj.mortar_to_primary_avg
             @ self.interface_displacement(interfaces)
         )
@@ -532,9 +511,9 @@ class BoundaryGridStuff:
         )
 
         # Compose operator.
-        div_u_integrated = discr.div_u @ self.displacement(
+        div_u_integrated = discr.div_u() @ self.displacement(
             subdomains
-        ) + discr.bound_div_u @ (
+        ) + discr.bound_div_u() @ (
             boundary_operator
             + sd_projection.face_restriction(subdomains)
             @ mortar_projection.mortar_to_primary_avg
@@ -578,7 +557,7 @@ class BoundaryAndInitialConditionValues1:
     """Class with methods that are unique to ABC_1"""
 
     @property
-    def robin_weight_coefficient(self) -> float:
+    def discrete_robin_weight_coefficient(self) -> float:
         """Additional coefficient for discrete Robin boundary conditions.
 
         After discretizing the time derivative in the absorbing boundary condition
@@ -616,42 +595,19 @@ class BoundaryAndInitialConditionValues1:
             # values.
             return self.initial_condition_bc(boundary_grid)
 
-        values = np.zeros((self.nd, boundary_grid.num_cells))
+        total_disp_vals = displacement_values
+
         sd = boundary_grid.parent
+        boundary_faces = sd.get_boundary_faces()
 
-        # Creating local bg indexing and fetching the global face indices. These two
-        # arrays should "match", in the sense that boundary_cells[index] corresponds to
-        # the same face/cell as global_face_indices[index].
-        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        global_face_indices = sd.get_boundary_faces()
+        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
 
-        # Fetching boundary condition object
-        data = self.mdg.subdomain_data(sd)
-        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
-        bc = parameter_dictionary["bc"]
-        i = 0
-        # Actual boundary condition value assignment
-        for boundary_cell in boundary_cells:
-            # Find the global face index of the boundary_cell via the boundary faces of
-            # the parent grid.
-            global_face_index = global_face_indices[boundary_cell]
-
-            # Checking if it is a Robin boundary
-            if np.all(bc.is_rob[:, global_face_index]):
-                # Fetching the coefficient matrix and assigning right-hand side values
-                coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid,
-                    face=global_face_index,
-                    boundary_grid_cell=self.boundary_cells_of_grid[i],
-                )
-                rhs_displacement_values = displacement_values[:, boundary_cell]
-
-                values[:, boundary_cell] += (
-                    np.matmul(coefficient_matrix, rhs_displacement_values)
-                    * sd.face_areas[global_face_index]
-                )
-            i += 1
-        return values.ravel("F")
+        result = np.matmul(
+            total_coefficient_matrix, total_disp_vals.T[..., None]
+        ).squeeze(-1)
+        result = result * sd.face_areas[boundary_faces][:, None]
+        result = result.T
+        return result.ravel("F")
 
     def _previous_displacement_values(
         self, boundary_grid: pp.BoundaryGrid
@@ -704,7 +660,7 @@ class BoundaryAndInitialConditionValues2:
     """Class with methods that are unique to ABC_2"""
 
     @property
-    def robin_weight_coefficient(self) -> float:
+    def discrete_robin_weight_coefficient(self) -> float:
         """Additional coefficient for discrete Robin boundary conditions.
 
         After discretizing the time derivative in the absorbing boundary condition
@@ -738,45 +694,20 @@ class BoundaryAndInitialConditionValues2:
         elif self.time_manager.time_index == 0:
             return self.initial_condition_bc(boundary_grid)
 
-        values = np.zeros((self.nd, boundary_grid.num_cells))
+        total_disp_vals = displacement_values_0 + displacement_values_1
+
         sd = boundary_grid.parent
+        boundary_faces = sd.get_boundary_faces()
 
-        # Creating local bg indexing and fetching the global face indices. These two
-        # arrays should "match", in the sense that boundary_cells[index] corresponds to
-        # the same face/cell as global_face_indices[index].
-        boundary_cells = np.arange(0, boundary_grid.num_cells, 1)
-        global_face_indices = sd.get_boundary_faces()
+        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
 
-        # Fetching boundary condition object
-        data = self.mdg.subdomain_data(sd)
-        parameter_dictionary = data[pp.PARAMETERS]["mechanics"]
-        bc = parameter_dictionary["bc"]
-        i = 0
-        # Actual boundary condition value assignment
-        for boundary_cell in boundary_cells:
-            # Find the global face index of the boundary_cell via the boundary faces of
-            # the parent grid.
-            global_face_index = global_face_indices[boundary_cell]
+        result = np.matmul(
+            total_coefficient_matrix, total_disp_vals.T[..., None]
+        ).squeeze(-1)
+        result = result * sd.face_areas[boundary_faces][:, None]
 
-            # Checking if it is a Robin boundary
-            if np.all(bc.is_rob[:, global_face_index]):
-                # Fetching the coefficient matrix and assigning right-hand side values
-                coefficient_matrix = self.total_coefficient_matrix(
-                    grid=boundary_grid,
-                    face=global_face_index,
-                    boundary_grid_cell=self.boundary_cells_of_grid[i],
-                )
-                rhs_displacement_values = (
-                    displacement_values_0[:, boundary_cell]
-                    + displacement_values_1[:, boundary_cell]
-                )
-
-                values[:, boundary_cell] += (
-                    np.matmul(coefficient_matrix, rhs_displacement_values)
-                    * sd.face_areas[global_face_index]
-                )
-            i += 1
-        return values.ravel("F")
+        result = result.T
+        return result.ravel("F")
 
     def _previous_displacement_values(
         self, boundary_grid: pp.BoundaryGrid
