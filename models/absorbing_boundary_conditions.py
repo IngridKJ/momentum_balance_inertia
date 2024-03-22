@@ -199,8 +199,8 @@ class HelperMethodsABC:
         displacement = self.displacement(subdomains)
 
         boundary_displacement = (
-            discr.bound_displacement_cell @ displacement
-            + discr.bound_displacement_face @ bc
+            discr.bound_displacement_cell() @ displacement
+            + discr.bound_displacement_face() @ bc
         )
 
         boundary_displacement.set_name("boundary_displacement")
@@ -457,9 +457,9 @@ class BoundaryGridStuff:
         # subdomains, and let these act as Dirichlet boundary conditions on the
         # subdomains.
         stress = (
-            discr.stress @ self.displacement(domains)
-            + discr.bound_stress @ boundary_operator
-            + discr.bound_stress
+            discr.stress() @ self.displacement(domains)
+            + discr.bound_stress() @ boundary_operator
+            + discr.bound_stress()
             @ proj.mortar_to_primary_avg
             @ self.interface_displacement(interfaces)
         )
@@ -511,9 +511,9 @@ class BoundaryGridStuff:
         )
 
         # Compose operator.
-        div_u_integrated = discr.div_u @ self.displacement(
+        div_u_integrated = discr.div_u() @ self.displacement(
             subdomains
-        ) + discr.bound_div_u @ (
+        ) + discr.bound_div_u() @ (
             boundary_operator
             + sd_projection.face_restriction(subdomains)
             @ mortar_projection.mortar_to_primary_avg
