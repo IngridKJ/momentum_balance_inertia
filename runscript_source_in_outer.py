@@ -2,7 +2,7 @@ import porepy as pp
 
 import numpy as np
 
-from models.absorbing_boundary_conditions import MomentumBalanceABC1
+from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC1
 from utils import TransverselyAnisotropicStiffnessTensor
 
 
@@ -28,7 +28,7 @@ class MyGeometry:
 class MomentumBalanceABCModifiedGeometry(
     MyGeometry,
     TransverselyAnisotropicStiffnessTensor,
-    MomentumBalanceABC1,
+    DynamicMomentumBalanceABC1,
 ):
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
