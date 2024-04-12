@@ -29,7 +29,4 @@ def test_energy_decay():
         )
         vel_op_int = model.volume_integral(integrand=vel_op, grids=[sd], dim=2)
         vel_op_int_val = vel_op_int.value(model.equation_system)
-
-        # The comparison value here is obtained by running the non-refactored ABC2. To
-        # be compared with the refactored ABC2 when I get to it.
         assert np.isclose(np.linalg.norm(vel_op_int_val), 3.859854428354451e-08)
