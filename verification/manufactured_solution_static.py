@@ -5,18 +5,14 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
-import sympy as sym
-
 import porepy as pp
-
-from porepy.models.momentum_balance import MomentumBalance
-from model_static_mom_bal import MomBalSourceAnalytical
 import porepy.models.momentum_balance as mb
-
+import sympy as sym
+from model_static_mom_bal import MomBalSourceAnalytical
 from porepy.applications.md_grids.domains import nd_cube_domain
+from porepy.models.momentum_balance import MomentumBalance
 from porepy.utils.examples_utils import VerificationUtils
 from porepy.viz.data_saving_model_mixin import VerificationDataSaving
-
 
 # PorePy typings
 number = pp.number

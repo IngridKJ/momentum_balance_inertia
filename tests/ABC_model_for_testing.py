@@ -1,8 +1,7 @@
-import porepy as pp
+import sys
 
 import numpy as np
-
-import sys
+import porepy as pp
 
 sys.path.append("../")
 

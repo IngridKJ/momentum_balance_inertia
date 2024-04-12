@@ -1,8 +1,8 @@
-import porepy as pp
-from porepy.applications.convergence_analysis import ConvergenceAnalysis
-from manufactured_solution_dynamic_3D import ManuMechSetup3d
-
 from copy import deepcopy
+
+import porepy as pp
+from manufactured_solution_dynamic_3D import ManuMechSetup3d
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 
 class ConvTest(ManuMechSetup3d):

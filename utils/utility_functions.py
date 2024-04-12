@@ -28,12 +28,11 @@ ParaView 3D polynomial bubble analytical solution: (time)^2 * (coords[0] * coord
 
 """
 
+from typing import Optional, Union
+
 import numpy as np
 import porepy as pp
 import sympy as sym
-
-from typing import Optional, Union
-
 
 # -------- Fetching/Computing values
 

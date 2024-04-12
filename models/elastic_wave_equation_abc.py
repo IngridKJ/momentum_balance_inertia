@@ -3,10 +3,10 @@ from typing import Callable, Sequence, Union, cast
 
 import numpy as np
 import porepy as pp
-from porepy.models.momentum_balance import MomentumBalance
-
 import time_derivatives
-from utils import acceleration_velocity_displacement, body_force_function, u_v_a_wrap
+from porepy.models.momentum_balance import MomentumBalance
+from utils import (acceleration_velocity_displacement, body_force_function,
+                   u_v_a_wrap)
 
 
 class NamesAndConstants:

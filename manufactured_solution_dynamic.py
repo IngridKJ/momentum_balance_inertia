@@ -4,19 +4,14 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
-import sympy as sym
-
 import porepy as pp
-
+import sympy as sym
 from models import DynamicMomentumBalanceABC2
-
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
 from porepy.viz.data_saving_model_mixin import VerificationDataSaving
-from porepy.applications.convergence_analysis import ConvergenceAnalysis
-
-from utils import symbolic_representation
-from utils import symbolic_equation_terms
+from utils import symbolic_equation_terms, symbolic_representation
 
 # PorePy typings
 number = pp.number

@@ -1,7 +1,5 @@
-import porepy as pp
-
 import numpy as np
-
+import porepy as pp
 from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC2
 from utils import TransverselyAnisotropicStiffnessTensor
 

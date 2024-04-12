@@ -12,7 +12,6 @@ sys.path.append("../")
 
 import numpy as np
 import porepy as pp
-
 from anisotropic_model_for_testing import AnisotropyModelForTesting
 from utils import inner_domain_cells
 

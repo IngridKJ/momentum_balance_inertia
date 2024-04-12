@@ -1,9 +1,8 @@
-import numpy as np
-import matplotlib.pyplot as plt
-
-from matplotlib.animation import FuncAnimation
-
 import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FuncAnimation
 
 sys.path.append("../")
 
