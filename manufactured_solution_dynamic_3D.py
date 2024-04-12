@@ -8,7 +8,7 @@ import sympy as sym
 
 import porepy as pp
 
-from models import MomentumBalanceTimeDepSource
+from models import DynamicMomentumBalanceABC2
 
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
@@ -413,13 +413,36 @@ class ManuMechSolutionStrategy3d:
             self.plot_results()
 
 
+class ManuMechBoundaryConditions:
+    def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
+        """Boundary condition
+
+        !!!
+
+        """
+        bounds = self.domain_boundary_sides(sd)
+        bc = pp.BoundaryConditionVectorial(
+            sd,
+            bounds.north
+            + bounds.south
+            + bounds.east
+            + bounds.west
+            + bounds.top
+            + bounds.bottom,
+            "dir",
+        )
+
+        return bc
+
+
 # -----> Mixer class
 class ManuMechSetup3d(  # type: ignore[misc]
     UnitSquareGrid,
     ManuMechSolutionStrategy3d,
     ManuMechUtils,
     ManuMechDataSaving,
-    MomentumBalanceTimeDepSource,
+    ManuMechBoundaryConditions,
+    DynamicMomentumBalanceABC2,
 ):
     """
     Mixer class for the two-dimensional mechanics verification setup.
