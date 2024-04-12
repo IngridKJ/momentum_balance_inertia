@@ -2,7 +2,7 @@ import porepy as pp
 
 import numpy as np
 
-from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC1
+from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC2
 from utils import TransverselyAnisotropicStiffnessTensor
 
 
@@ -21,14 +21,14 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.02 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
         return mesh_args
 
 
 class MomentumBalanceABCModifiedGeometry(
     MyGeometry,
     TransverselyAnisotropicStiffnessTensor,
-    DynamicMomentumBalanceABC1,
+    DynamicMomentumBalanceABC2,
 ):
     def initial_velocity(self, dofs: int) -> np.ndarray:
         """Initial velocity values."""
