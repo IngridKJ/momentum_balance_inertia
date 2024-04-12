@@ -1133,7 +1133,7 @@ class BoundaryGridStuff:
         self.update_boundary_condition(self.bc_robin_key, self.bc_values_robin)
 
 
-class AbsorbingBoundaryConditionsParent(
+class DynamicMomentumBalanceCommonParts(
     NamesAndConstants,
     BoundaryAndInitialConditions,
     MyEquations,
@@ -1422,7 +1422,7 @@ class BoundaryAndInitialConditionValues2:
 # Full model classes for the momentum balance with absorbing boundary conditions
 class DynamicMomentumBalanceABC1(
     BoundaryAndInitialConditionValues1,
-    AbsorbingBoundaryConditionsParent,
+    DynamicMomentumBalanceCommonParts,
 ):
     """Full model class for momentum balance with absorbing boundary conditions, ABC_1.
 
@@ -1436,7 +1436,7 @@ class DynamicMomentumBalanceABC1(
 
 class DynamicMomentumBalanceABC2(
     BoundaryAndInitialConditionValues2,
-    AbsorbingBoundaryConditionsParent,
+    DynamicMomentumBalanceCommonParts,
 ):
     """Full model class for momentum balance with absorbing boundary conditions, ABC_2.
 
