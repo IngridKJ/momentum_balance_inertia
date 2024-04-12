@@ -6,7 +6,7 @@ import sys
 
 sys.path.append("../")
 
-from models.absorbing_boundary_conditions import MomentumBalanceABC2
+from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC2
 
 
 class GeometryAndInitialCondition:
@@ -52,5 +52,5 @@ class GeometryAndInitialCondition:
 
 class MomentumBalanceABCForTesting(
     GeometryAndInitialCondition,
-    MomentumBalanceABC2,
+    DynamicMomentumBalanceABC2,
 ): ...

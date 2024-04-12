@@ -5,11 +5,11 @@ import sys
 
 sys.path.append("../")
 
-from models import MomentumBalanceABC1
+from models import DynamicMomentumBalanceABC1
 from utils import InnerDomainVTIStiffnessTensorMixin
 
 
 class AnisotropyModelForTesting(
     InnerDomainVTIStiffnessTensorMixin,
-    MomentumBalanceABC1,
+    DynamicMomentumBalanceABC1,
 ): ...

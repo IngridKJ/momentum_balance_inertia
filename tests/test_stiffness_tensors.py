@@ -150,10 +150,8 @@ def test_iso_vti_tensor():
 
     model = Model(params)
 
-    # Set geometry and discretization parameters
-    model.set_materials()
-    model.set_geometry()
-    model.set_discretization_parameters()
+    # Run prepare simulation
+    model.prepare_simulation()
 
     sd = model.mdg.subdomains(dim=3)[0]
     data = model.mdg.subdomain_data(sd)
