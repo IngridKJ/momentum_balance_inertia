@@ -4,25 +4,6 @@ import porepy as pp
 from manufactured_solution_dynamic_3D import ManuMechSetup3d
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
-
-class ConvTest(ManuMechSetup3d):
-    def nd_rect_domain(self, x, y, z) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y, "zmin": 0, "zmax": z})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        z = 1.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y, z)
-
-    def grid_type(self) -> str:
-        return self.params.get("grid_type", "cartesian")
-
-
 t_shift = 0.0
 time_steps = 100
 tf = 1.0
@@ -47,8 +28,6 @@ params = {
     "plot_results": False,
     "progress_bars": True,
 }
-
-model = ConvTest(params)
 
 conv_analysis = ConvergenceAnalysis(
     model_class=ManuMechSetup3d,
