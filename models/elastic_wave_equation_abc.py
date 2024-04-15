@@ -947,11 +947,6 @@ class SourceTermRelated:
         return vals.ravel("F")
 
 
-class BoundaryGridRelated:
-    def bc_values_robin(self, bg):
-        return np.zeros(bg.num_cells)
-
-
 class BoundaryGridStuff:
     """Mixin for adaptations related to Robin boundary conditions with boundary grids.
 
@@ -1292,7 +1287,6 @@ class DynamicMomentumBalanceCommonParts(
     ConstitutiveLawsDynamicMomentumBalance,
     SourceTermRelated,
     MySolutionStrategy,
-    BoundaryGridRelated,
     BoundaryGridStuff,
     MomentumBalance,
 ):
