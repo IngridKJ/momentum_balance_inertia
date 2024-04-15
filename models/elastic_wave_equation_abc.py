@@ -975,8 +975,7 @@ class BoundaryGridStuff:
     In addition to this one needs to define the robin boundary condition key (for
     identifying the operator/values/etc.) and a method for setting Robin-related
     boundary values.
-    * self.bc_robin_key: "bc_robin". Is a property defined in the base dynamic momentum
-        balance model found within dynamic_momentum_balance.py.
+    * self.bc_robin_key: "bc_robin".
     * self.bc_values_robin: Method for setting values to the Robin boundary conditions.
         That is, setting the right-hand side of sigma * n + alpha * u = G. Assigning the
         Robin weight has _not_ changed. This still happens in the bc_type_mechanics
@@ -1290,7 +1289,13 @@ class DynamicMomentumBalanceCommonParts(
     BoundaryGridStuff,
     MomentumBalance,
 ):
-    """Class of subclasses/methods that are common for ABC_1 and ABC_2."""
+    """Class of subclasses/methods that are common for ABC_1 and ABC_2.
+
+    ABC_1 is the absorbing boundary conditions approximated with a first order time
+    discretization for the u_t term. ABC_2 has a second order approximation to the u_t
+    term.
+
+    """
 
     ...
 
@@ -1317,9 +1322,13 @@ class BoundaryAndInitialConditionValues1:
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
+        Specifically, this method assigns the values corresponding to ABC_1, namely
+        first order approximation to u_t in:
+
+            sigma * n + alpha * u_t = G
+
         Parameters:
-            boundary_grid: List of boundary grids on which to define boundary
-                conditions.
+            boundary_grid: Boundary grids on which to define boundary conditions.
 
         Returns:
             Array of boundary values.
@@ -1357,6 +1366,15 @@ class BoundaryAndInitialConditionValues1:
         self, boundary_grid: pp.BoundaryGrid
     ) -> np.ndarray:
         """Method for constructing/fetching previous boundary displacement values.
+
+        The right hand side of the absorbing boundary conditions consist of previous
+        boundary displacement values. These are not accessible by default, so therefore
+        they are reconstructed by using the method boundary_displacement.
+
+        The present method is for ABC_1. The RHS in ABC_1 consists of boundary
+        displacement values for one time step back in time, so the values are just
+        constructed each time this method is called. The case is slightly different for
+        ABC_2.
 
         Parameters:
             boundary_grid: The boundary grid whose displacement values we are
@@ -1396,7 +1414,16 @@ class BoundaryAndInitialConditionValues1:
         return displacement_values
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        """Initial values for the boundary displacement."""
+        """Initial values for the boundary displacement.
+
+        Parameters:
+            bg: The boundary grid where the initial boundary displacement values are
+                assigned.
+
+        Returns:
+            An array with the initial boundary displacements.
+
+        """
         return np.zeros((self.nd, bg.num_cells))
 
 
@@ -1418,16 +1445,21 @@ class BoundaryAndInitialConditionValues2:
         return 3 / 2
 
     def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
-        """Method for assigning ABCs with second order backward difference in time.
+        """Method for assigning Robin boundary condition values.
+
+        Specifically, this method assigns the values corresponding to ABC_2, namely
+        a second order approximation to u_t in:
+
+            \sigma * n + alpha * u_t = G¨
 
         Parameters:
-            boundary_grid: List of boundary grids on which to define boundary
-                conditions.
+            boundary_grid: The boundary grids on which to define boundary conditions.
 
         Returns:
             Array of boundary values.
 
         """
+        # !!! Check what is the deal with this guy
         if boundary_grid.dim != (self.nd - 1):
             return np.array([])
 
@@ -1458,9 +1490,12 @@ class BoundaryAndInitialConditionValues2:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Method for constructing/fetching previous boundary displacement values.
 
-        It also makes sure to scale the displcement values with the appropriate
-        coefficient. This coefficient is related to the choice of time derivative
-        approximation. For ABC_2 the coefficients are 2 and -0.5.
+        The method also makes sure to scale the displcement values with the appropriate
+        coefficients. Recall that the discretized expressions for the ABC_2 are:
+
+            \sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
+
+        This method scales the previous displacements with the coefficients 2 and -0.5.
 
         Parameters:
             boundary_grid: The boundary grid whose displacement values we are
@@ -1526,8 +1561,12 @@ class BoundaryAndInitialConditionValues2:
         return displacement_values_0, displacement_values_1
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        """Method for setting initial values for 0th and -1st time step in
-        dictionary.
+        """Sets the initial bc values for 0th and -1st time step in the data dictionary.
+
+        Using ABC_2, we need initial bc values two time steps back in time. This method
+        sets the values for 0th and -1st time step into the data dictionary. It also
+        returns the 0th time step values, which is needed when the bc_robin_values is
+        called the first time (at initialization).
 
         Parameters:
             bg: Boundary grid whose boundary displacement value is to be set.
@@ -1570,7 +1609,7 @@ class DynamicMomentumBalanceABC1(
     BoundaryAndInitialConditionValues1,
     DynamicMomentumBalanceCommonParts,
 ):
-    """Full model class for momentum balance with absorbing boundary conditions, ABC_1.
+    """Full model class for the dynamic momentum balance with ABC_1.
 
     ABC_1 are absorbing boundary conditions where the time derivative of u (in the
     expression) is approximated by a first order backward difference.
@@ -1584,7 +1623,7 @@ class DynamicMomentumBalanceABC2(
     BoundaryAndInitialConditionValues2,
     DynamicMomentumBalanceCommonParts,
 ):
-    """Full model class for momentum balance with absorbing boundary conditions, ABC_2.
+    """Full model class for the dynamic momentum balance with ABC_2.
 
     ABC_2 are absorbing boundary conditions where the time derivative of u (in the
     expression) is approximated by a second order backward difference.
