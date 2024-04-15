@@ -5,43 +5,70 @@ import numpy as np
 import porepy as pp
 import time_derivatives
 from porepy.models.momentum_balance import MomentumBalance
-from utils import (acceleration_velocity_displacement, body_force_function,
-                   u_v_a_wrap)
+from utils import acceleration_velocity_displacement, body_force_function, u_v_a_wrap
 
 
 class NamesAndConstants:
     def _is_nonlinear_problem(self) -> bool:
+        """Determining if the problem is nonlinear or not.
+
+        The default behavior from momentum_balance.py is to assign True if there are
+        fractures present. Here it is hardcoded to be False. Take note of this.
+
+        """
         return False
 
     @property
-    def bc_robin_key(self):
-        # Key for robin boundary conditions
+    def bc_robin_key(self) -> str:
+        """The key for Robin boundary conditions."""
         return "bc_robin"
 
     @property
     def beta(self) -> float:
+        """Newmark time discretization parameter, beta.
+
+        Discretization parameter which somehow represents how the acceleration is
+        averaged over the coarse of one time step. The value of \beta = 0.25 corresponds
+        to the "Average acceleration method".
+
+        """
         return 0.25
 
     @property
     def gamma(self) -> float:
+        """Newmark time discretization parameter, gamma.
+
+        Discretization parameter which somehow represents the amount of numerical
+        damping (positive, ngeative or zero). The value of \gamma = 0.5 corresponds to
+        no numerical damping.
+
+        """
         return 0.5
 
     @property
     def velocity_key(self) -> str:
-        """Key for velocity in the time step and iterate dictionaries."""
+        """Key/Name for the velocity variable/operator.
+
+        Velocity is represented by a time dependent dense array with the name provided
+        by this property, namely "velocity".
+
+        """
         return "velocity"
 
     @property
     def acceleration_key(self) -> str:
-        """Key for acceleration in the time step and iterate dictionaries."""
+        """Key/Name for acceleration variable/operator.
+
+        Acceleration is represented by a time dependent dense array with the name
+        provided by this property, namely "acceleration".
+
+        """
+
         return "acceleration"
 
     @property
     def bc_values_mechanics_key(self) -> str:
-        """Key for mechanical boundary conditions in the time step and iterate
-        dictionaries.
-
-        """
+        """Key for mechanical boundary conditions in the data dictionary."""
         return "bc_values_mechanics"
 
     def primary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
@@ -51,8 +78,10 @@ class NamesAndConstants:
 
         Parameters:
             is_scalar: Whether the primary wavespeed should be scalar or not. Relevant
-                for use with manufactured solutions, where the vector valued lambda and
-                mu are not available yet when a call to this function is made.
+                for use with manufactured solutions for constructing the source term. In
+                that case, the present method is called before the vector valued lambda
+                and vector valued mu are available. Thus, scalar valued wave speed is
+                accomodated.
 
         Returns:
             The value of the compressive elastic waves. Either scalar valued or the
@@ -73,9 +102,10 @@ class NamesAndConstants:
         Speed of the shear elastic waves.
 
         Parameters:
-            is_scalar: Whether the secondary wavespeed should be scalar or not. Relevant
-                for use with manufactured solutions, where the vector valued mu is not
-                available yet when a call to this function is made.
+            is_scalar: Whether the primary wavespeed should be scalar or not. Relevant
+                for use with manufactured solutions for constructing the source term. In
+                that case, the present method is called before the vector valued mu is
+                available. Thus, scalar valued wave speed is accomodated.
 
         Returns:
             The value of the shear elastic waves. Either scalar valued or the
@@ -93,8 +123,14 @@ class BoundaryAndInitialConditions:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         """Boundary condition type for the absorbing boundary condition model class.
 
-        Assigns Robin boundaries to all subdomain boundaries. This includes setting the
-        Robin weight.
+        Assigns Robin boundaries to all subdomain boundaries by default. This includes
+        setting the Robin weight.
+
+        Parameters:
+            sd: The subdomain whose boundaries are to be set.
+
+        Returns:
+            The vectorial boundary condition operator for subdomain sd.
 
         """
         # Fetch boundary sides and assign type of boundary condition for the different
@@ -118,15 +154,19 @@ class BoundaryAndInitialConditions:
     def assign_robin_weight(
         self, sd: pp.Grid, bc: pp.BoundaryConditionVectorial
     ) -> None:
-        """Method for assigning the Robin weight.
+        """Assigns the Robin weight for Robin boundary conditions.
 
-        Using Robin boundary conditions we need to assign the robin weight. That is,
-        alpha in the following, general, Robin boundary condition expression:
+        This model class takes use of first order absorbing boundary conditions, and
+        those conditions can be seen as Robin boundary conditions. That is, they are on
+        the form:
 
             sigma * n + alpha * u = G
 
-        This method assigns the weigt values corresponding to a first order absorbing
-        boundary condition.
+        The present method assigns the Robin weight (alpha). In the case of first order
+        absorbing boundary conditions, alpha depends on material properties such as lame
+        lambda and the shear modulus. In its discrete form it also depends on the
+        time-step size (see the method total_coefficient_matrix for the actual
+        construction of the weight).
 
         Parameters:
             sd: The subdomain whose boundary conditions are to be defined.
@@ -137,18 +177,25 @@ class BoundaryAndInitialConditions:
         r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
         value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
 
-        # Problems with fractures is solved by this
+        # The Robin weight should only be assigned to subdomains of max dimension.
         if sd.dim != self.nd:
             bc.robin_weight = value
         else:
+            # The coefficient matrix is constructed elsewhere, so we fetch it by making
+            # this call.
             total_coefficient_matrix = self.total_coefficient_matrix(
                 sd=sd,
             )
+
+            # Depending on which spatial discretization we use for the time derivative
+            # term in the absorbing boundary conditions, there are different extra
+            # coefficients arising in the expression (see the method
+            # total_coefficient_matrix).
             total_coefficient_matrix *= self.discrete_robin_weight_coefficient
 
-            # Fethcing all boundary faces for the domain
+            # Fethcing all boundary faces for the domain and assigning the
+            # total_coefficient_matrix to the boundary faces.
             boundary_faces = sd.get_boundary_faces()
-
             value[:, :, boundary_faces] *= total_coefficient_matrix.T
 
             # Finally setting the actual Robin weight.
@@ -157,21 +204,27 @@ class BoundaryAndInitialConditions:
     def total_coefficient_matrix(self, sd: pp.Grid) -> np.ndarray:
         """Coefficient matrix for the absorbing boundary conditions.
 
-        Used together with Robin boundary condition assignment.
+        This method is used together with Robin boundary condition (absorbing boundary
+        condition) assignment.
 
-        The absorbing boundary conditions look like the following:
+        The absorbing boundary conditions, in the continuous form, look like the
+        following:
             \sigma * n + D * u_t = 0,
 
-            where D is a matrix containing material parameters and wave velocities.
+            where u_t is the velocity and  D is a matrix containing material parameters
+            and wave velocities.
 
         Approximate the time derivative by a first or second order backward difference:
             1: \sigma * n + D_h * u_n = D_h * u_(n-1),
-            2: \sigma * n + D_h * 3/2 * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)).
+            2: \sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
 
-            D_h = 1/dt * D.
+            where D_h = 1/dt * D. Note the coefficient 3 / 2 (termed
+            discrete_robin_weight_coefficient in the method assign_robin_weight)
+
+        This method thus creates the D_h matrix.
 
         Parameters:
-            grid: The grid where the boundary conditions are assigned.
+            sd: The subdomain where the boundary conditions are assigned.
 
 
         Returns:
@@ -201,17 +254,18 @@ class BoundaryAndInitialConditions:
         eye_block_array = np.tile(np.eye(self.nd), (len(tensile_matrices), 1, 1))
         shear_mat = eye_block_array - tensile_matrices
 
-        # Scaling with Robin weight
+        # Scaling with the Robin weight value
         tensile_coeff = self.robin_weight_value(direction="tensile")[boundary_cells]
         shear_coeff = self.robin_weight_value(direction="shear")[boundary_cells]
 
+        # Constructing the total coefficient matrix.
         tensile_matrix_with_coeff = tensile_matrices * tensile_coeff[:, None, None]
         shear_matrix_with_coeff = shear_mat * shear_coeff[:, None, None]
         total_coefficient_matrix = tensile_matrix_with_coeff + shear_matrix_with_coeff
         return total_coefficient_matrix
 
     def robin_weight_value(self, direction: str) -> float:
-        """Weight for Robin boundary conditions.
+        """Robin weight value for Robin boundary conditions.
 
         Either shear or tensile Robin weight will be returned by this method. This
         depends on whether shear or tensile "direction" is chosen.
@@ -265,7 +319,7 @@ class BoundaryAndInitialConditions:
                 name=self.bc_robin_key, domains=bgs
             ),
             dim=self.nd,
-            name="bc_values_mechanics",
+            name=self.bc_values_mechanics_key,
         )
         # Displacement
         displacement = self.displacement(subdomains)
@@ -362,6 +416,15 @@ class BoundaryAndInitialConditions:
 
 class MyEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
+        """Momentum balance equation in the rock matrix.
+
+        Parameters:
+            subdomains: List of subdomains where the force balance is defined.
+
+        Returns:
+            Operator for the force balance equation in the matrix.
+
+        """
         inertia_mass = self.inertia(subdomains)
         stress = pp.ad.Scalar(-1) * self.stress(subdomains)
         body_force = self.body_force(subdomains)
@@ -373,6 +436,18 @@ class MyEquations:
         return equation
 
     def inertia(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
+        """Inertia mass in the elastic wave equation.
+
+        The elastic wave equation contains a term on the form M * u_tt (M *
+        acceleration/inertia term). This method represents an operator for M.
+
+        Parameters:
+            subdomains: List of subdomains where the inertia mass is defined.
+
+        Returns:
+            Operator for the inertia mass.
+
+        """
         mass_density = self.solid_density(subdomains)
         mass = self.volume_integral(mass_density, subdomains, dim=self.nd)
         mass.set_name("inertia_mass")
@@ -386,12 +461,33 @@ class MyEquations:
         source: pp.ad.Operator,
         dim: int,
     ) -> pp.ad.Operator:
+        """Balance equation that combines an acceleration and surface term.
+
+        The balance equation, namely the elastic wave equation, is given by
+            d_tt(accumulation) + div(surface_term) - source = 0.
+
+        Parameters:
+            subdomains: List of subdomains where the balance equation is defined.
+            inertia_mass: Operator for the cell-wise mass of the acceleration term,
+                integrated over the cells of the subdomains.
+            surface_term: Operator for the surface term (e.g. flux, stress), integrated
+                over the faces of the subdomains.
+            source: Operator for the source term, integrated over the cells of the
+                subdomains.
+            dim: Spatial dimension of the balance equation.
+
+        Returns:
+            Operator for the balance equation.
+
+        """
         div = pp.ad.Divergence(subdomains, dim=dim)
 
+        # Fetch the necessary operators for creating the acceleration operator
         op = self.displacement(subdomains)
         dt_op = self.velocity_time_dep_array(subdomains)
         ddt_op = self.acceleration_time_dep_array(subdomains)
 
+        # Create the acceleration operator:
         inertia_term = time_derivatives.inertia_term(
             model=self,
             op=op,
@@ -405,19 +501,25 @@ class MyEquations:
 
 class MySolutionStrategy:
     def prepare_simulation(self) -> None:
-        """Run at the start of simulation. Used for initialization etc."""
+        """Run at the start of simulation. Used for initialization etc.
+
+        This method overrides the original prepare_simulation. The reason for this is
+        that we need to create the attributes boundary_cells_of_grid, lambda_vector and
+        mu_vector. All of which are needed in the call to initial_condition as well as
+        set_equations.
+
+        """
         # Set the material and geometry of the problem. The geometry method must be
         # implemented in a ModelGeometry class.
         self.set_materials()
         self.set_geometry()
 
-        # This should be moved elsewhere. Maybe to prepare_simulation or something.
         sd = self.mdg.subdomains(dim=self.nd)[0]
         boundary_faces = sd.get_boundary_faces()
         self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
             faces=boundary_faces
         )[1]
-
+        self.vector_valued_mu_lambda()
         # Exporter initialization must be done after grid creation,
         # but prior to data initialization.
         self.initialize_data_saving()
@@ -442,8 +544,8 @@ class MySolutionStrategy:
         """Set discretization parameters for the simulation.
 
         Sets eta = 1/3 on all faces if it is a simplex grid. Default is to have 0 on the
-        boundaries, but this causes divergence of the solution. 1/3 all over fixes this
-        issue.
+        boundaries, but this causes divergence of the solution. 1/3 for all subfaces in
+        the grid fixes this issue.
 
         """
 
@@ -467,64 +569,79 @@ class MySolutionStrategy:
     def velocity_time_dep_array(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.TimeDependentDenseArray:
-        """Velocity.
+        """Time dependent dense array for the velocity.
 
-        !!!
+        Creates a time dependent dense array to represent the velocity, which is
+        needed for the Newmark time discretization.
 
         Parameters:
             subdomains: List of subdomains on which to define the velocity.
 
         Returns:
-            Array of the velocity values.
+            Operator representation of the acceleration.
 
         """
-        if not all([sd.dim == self.nd for sd in subdomains]):
-            raise ValueError("Subdomains must be of dimension nd.")
         return pp.ad.TimeDependentDenseArray(self.velocity_key, subdomains)
 
     def acceleration_time_dep_array(
         self, subdomains: list[pp.Grid]
     ) -> pp.ad.TimeDependentDenseArray:
-        """Acceleration.
+        """Time dependent dense array for the acceleration.
 
-        !!!
+        Creates a time dependent dense array to represent the acceleration, which is
+        needed for the Newmark time discretization.
 
         Parameters:
             subdomains: List of subdomains on which to define the acceleration.
 
         Returns:
-            Array of the acceleration values.
+            Operator representation of the acceleration.
 
         """
-        if not all([sd.dim == self.nd for sd in subdomains]):
-            raise ValueError("Subdomains must be of dimension nd.")
         return pp.ad.TimeDependentDenseArray(self.acceleration_key, subdomains)
 
     def initial_displacement(self, dofs: int) -> np.ndarray:
-        """Initial displacement values."""
+        """Initial displacement values.
+
+        Parameters:
+            dofs: Number of degrees of freedom (typically cell number in the grid where
+                the initial values are defined).
+
+        Returns:
+            An array with the initial displacement values.
+
+        """
         return np.zeros(dofs * self.nd)
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
-        """Initial velocity values."""
+        """Initial velocity values.
+
+        Parameters:
+            dofs: Number of degrees of freedom (typically cell number in the grid where
+                the initial values are defined).
+
+        Returns:
+            An array with the initial velocity values.
+
+        """
         return np.zeros(dofs * self.nd)
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
-        """Initial acceleration values."""
+        """Initial acceleration values.
+
+        Parameters:
+            dofs: Number of degrees of freedom (typically cell number in the grid where
+                the initial values are defined).
+
+        Returns:
+            An array with the initial acceleration values.
+
+        """
         return np.zeros(dofs * self.nd)
 
-    def initial_condition(self):
+    def initial_condition(self) -> None:
         """Assigning initial displacement, velocity and acceleration values."""
         super().initial_condition()
-
-        # # This should be moved elsewhere. Maybe to prepare_simulation or something.
-        # sd = self.mdg.subdomains(dim=self.nd)[0]
-        # boundary_faces = sd.get_boundary_faces()
-        # self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
-        #     faces=boundary_faces
-        # )[1]
-
-        self.vector_valued_mu_lambda()
-
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             dofs = sd.num_cells
 
@@ -556,17 +673,22 @@ class MySolutionStrategy:
                 iterate_index=0,
             )
 
-    def velocity_values(self, subdomain: list[pp.Grid]) -> np.ndarray:
-        """Update of velocity values to be done after linear system solve.
+    def velocity_values(self, subdomain: pp.Grid) -> np.ndarray:
+        """Update the velocity values at the end of each time step.
 
-        Newmark time discretization formula for the current velocity, depending on the
-        current displacement value and the previous acceleration value.
+        The velocity values are updated once the system is solved for the cell-centered
+        displacements (at the end of a time step). The values are updated by using the
+        Newmark formula for velocity (see e.g. Dynamics of Structures by A. K. Chopra
+        (pp. 175-176, 2014)).
 
         Parameters:
             subdomain: The subdomain the velocity is defined on.
 
+        Returns:
+            An array with the new velocity values.
+
         """
-        data = self.mdg.subdomain_data(subdomain[0])
+        data = self.mdg.subdomain_data(subdomain)
         dt = self.time_manager.dt
 
         beta = self.beta
@@ -587,16 +709,18 @@ class MySolutionStrategy:
         return v
 
     def acceleration_values(self, subdomain: pp.Grid) -> np.ndarray:
-        """Update of acceleration values to be done after linear system solve.
+        """Update the acceleration values at the end of each time step.
 
-        Newmark time discretization formula for the current acceleration, depending on
-        the current displacement value and the previous velocity value.
+        See the method velocity_values for more extensive documentation.
 
         Parameters:
             subdomain: The subdomain the acceleration is defined on.
 
+        Returns:
+            An array with the new acceleration values.
+
         """
-        data = self.mdg.subdomain_data(subdomain[0])
+        data = self.mdg.subdomain_data(subdomain)
         dt = self.time_manager.dt
 
         beta = self.beta
@@ -615,8 +739,13 @@ class MySolutionStrategy:
         )
         return a
 
-    def update_time_dependent_ad_arrays_loc(self, initial: bool) -> None:
-        """Update the time dependent arrays for the velocity and acceleration.
+    def update_velocity_acceleration_time_dependent_ad_arrays(
+        self, initial: bool
+    ) -> None:
+        """Update the time dependent ad arrays for the velocity and acceleration.
+
+        The new velocity and acceleration values (the value at the end of each time
+        step) are set into the data dictionary.
 
         Parameters:
             initial: If True, the array generating method is called for both the stored
@@ -626,8 +755,8 @@ class MySolutionStrategy:
 
         """
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
-            vals_acceleration = self.acceleration_values([sd])
-            vals_velocity = self.velocity_values([sd])
+            vals_acceleration = self.acceleration_values(sd)
+            vals_velocity = self.velocity_values(sd)
             if initial:
                 pp.set_solution_values(
                     name=self.velocity_key,
@@ -680,7 +809,9 @@ class MySolutionStrategy:
     ) -> None:
         """Method to be called after every non-linear iteration.
 
-        Possible usage is to distribute information on the solution, visualization, etc.
+        The method update_velocity_acceleration_time_dependent_ad_arrays needs to be
+        called at the end of each time step. This is not in PorePy itself, and therefore
+        this method is overriding the default after_nonlinear_convergence method.
 
         Parameters:
             solution: The new solution, as computed by the non-linear solver.
@@ -691,7 +822,7 @@ class MySolutionStrategy:
         """
         solution = self.equation_system.get_variable_values(iterate_index=0)
 
-        self.update_time_dependent_ad_arrays_loc(initial=True)
+        self.update_velocity_acceleration_time_dependent_ad_arrays(initial=True)
 
         self.equation_system.shift_time_step_values()
         self.equation_system.set_variable_values(
@@ -716,6 +847,10 @@ class ConstitutiveLawsDynamicMomentumBalance:
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
 
+        Overriding the stiffness_tensor method to accomodate vector valued mu and
+        lambda, which is treated as default in the model class for MPSA-Newmark with
+        ABCs.
+
         Parameters:
             subdomain: Subdomain where the stiffness tensor is defined.
 
@@ -728,13 +863,23 @@ class ConstitutiveLawsDynamicMomentumBalance:
 
 class SourceTermRelated:
     def before_nonlinear_loop(self) -> None:
+        """Update the time dependent mechanics source."""
         super().before_nonlinear_loop()
 
         self.update_mechanics_source()
 
     def body_force(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
-        """Ad array represenation of the body force term."""
+        """Time dependent dense array for the body force term.
 
+        Creates a time dependent dense array to represent the body force/source.
+
+        Parameters:
+            subdomains: List of subdomains on which to define the body force.
+
+        Returns:
+            Operator representation of the body force.
+
+        """
         external_sources = pp.ad.TimeDependentDenseArray(
             name="source_mechanics",
             domains=subdomains,
@@ -743,7 +888,7 @@ class SourceTermRelated:
         return external_sources
 
     def update_mechanics_source(self) -> None:
-        """Update values of external sources."""
+        """Update the values of external sources."""
         sd = self.mdg.subdomains()[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
@@ -754,16 +899,23 @@ class SourceTermRelated:
         elif self.nd == 3:
             source_func = body_force_function(self, is_2D=False)
 
-        mech_source = self.source_values(source_func, sd, t)
+        mech_source = self.source_values(f=source_func, sd=sd, t=t)
         pp.set_solution_values(
             name="source_mechanics", values=mech_source, data=data, iterate_index=0
         )
 
-    def source_values(self, f, sd, t) -> np.ndarray:
-        """Computes the integrated source values by the source function.
+    def source_values(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
+        """Computes the values for the body force.
+
+        The method computes the source values returned by the source value function (f)
+        integrated over the cell. The function is evaluated at the cell centers.
 
         Parameters:
-            f: Function depending on time and space for the source term.
+            f: Function expression for the source term. It depends on time and space for
+                the source term. It is represented as a list, where the first list
+                component corresponds to the first vector component of the source,
+                second list component corresponds to the second vector component, and so
+                on.
             sd: Subdomain where the source term is defined.
             t: Current time in the time-stepping.
 
@@ -1037,7 +1189,7 @@ class BoundaryGridStuff:
             neumann_operator=self.mechanical_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
-            name="bc_values_mechanics",
+            name=self.bc_values_mechanics_key,
             robin_operator=lambda bgs: self.create_boundary_operator(
                 name=self.bc_robin_key, domains=bgs
             ),
@@ -1097,7 +1249,7 @@ class BoundaryGridStuff:
             neumann_operator=self.mechanical_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
-            name="bc_values_mechanics",
+            name=self.bc_values_mechanics_key,
             robin_operator=lambda bgs: self.create_boundary_operator(
                 name=self.bc_robin_key, domains=bgs
             ),
