@@ -295,9 +295,8 @@ class BoundaryAndInitialConditions:
         Usage within the "realm" of absorbing boundary conditions: we need the
         displacement values on the boundary at the previous time step.
 
-        Note: This is for the pure mechanical problem - even without faults.
-            Modifications are needed when a coupling to fluid flow is introduced at some
-            later point.
+        Note: This is for the pure mechanical problem. Modifications are needed when a
+            coupling to fluid flow is introduced at some later point.
 
         Parameters:
             subdomains: List of subdomains. Should be of co-dimension 0.
@@ -332,8 +331,51 @@ class BoundaryAndInitialConditions:
         boundary_displacement.set_name("boundary_displacement")
         return boundary_displacement
 
+    def initial_condition(self) -> None:
+        """Assigning initial displacement, velocity and acceleration values."""
+        super().initial_condition()
+        for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
+            dofs = sd.num_cells
+
+            initial_displacement = self.initial_displacement(dofs=dofs)
+            initial_velocity = self.initial_velocity(dofs=dofs)
+            initial_acceleration = self.initial_acceleration(dofs=dofs)
+
+            pp.set_solution_values(
+                name=self.displacement_variable,
+                values=initial_displacement,
+                data=data,
+                time_step_index=0,
+                iterate_index=0,
+            )
+
+            pp.set_solution_values(
+                name=self.velocity_key,
+                values=initial_velocity,
+                data=data,
+                time_step_index=0,
+                iterate_index=0,
+            )
+
+            pp.set_solution_values(
+                name=self.acceleration_key,
+                values=initial_acceleration,
+                data=data,
+                time_step_index=0,
+                iterate_index=0,
+            )
+
     def initial_displacement(self, dofs: int) -> np.ndarray:
-        """Initial displacement values."""
+        """Cell-centered initial displacement values.
+
+        Parameters:
+            dofs: Number of degrees of freedom (typically cell number in the grid where
+                the initial values are defined).
+
+        Returns:
+            An array with the initial displacement values.
+
+        """
         sd = self.mdg.subdomains()[0]
         t = self.time_manager.time
 
@@ -360,7 +402,16 @@ class BoundaryAndInitialConditions:
         return vals.ravel("F")
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
-        """Initial velocity values."""
+        """Cell-centered initial velocity values.
+
+        Parameters:
+            dofs: Number of degrees of freedom (typically cell number in the grid where
+                the initial values are defined).
+
+        Returns:
+            An array with the initial velocity values.
+
+        """
         sd = self.mdg.subdomains()[0]
         t = self.time_manager.time
 
@@ -387,7 +438,16 @@ class BoundaryAndInitialConditions:
         return vals.ravel("F")
 
     def initial_acceleration(self, dofs: int) -> np.ndarray:
-        """Initial acceleration values."""
+        """Cell-centered initial acceleration values.
+
+        Parameters:
+            dofs: Number of degrees of freedom (typically cell number in the grid where
+                the initial values are defined).
+
+        Returns:
+            An array with the initial acceleration values.
+
+        """
         sd = self.mdg.subdomains()[0]
         t = self.time_manager.time
 
@@ -414,7 +474,7 @@ class BoundaryAndInitialConditions:
         return vals.ravel("F")
 
 
-class MyEquations:
+class DynamicMomentumBalanceEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
         """Momentum balance equation in the rock matrix.
 
@@ -499,7 +559,7 @@ class MyEquations:
         return inertia_mass * inertia_term + div @ surface_term - source
 
 
-class MySolutionStrategy:
+class SolutionStrategyDynamicMomentumBalance:
     def prepare_simulation(self) -> None:
         """Run at the start of simulation. Used for initialization etc.
 
@@ -599,79 +659,6 @@ class MySolutionStrategy:
 
         """
         return pp.ad.TimeDependentDenseArray(self.acceleration_key, subdomains)
-
-    def initial_displacement(self, dofs: int) -> np.ndarray:
-        """Initial displacement values.
-
-        Parameters:
-            dofs: Number of degrees of freedom (typically cell number in the grid where
-                the initial values are defined).
-
-        Returns:
-            An array with the initial displacement values.
-
-        """
-        return np.zeros(dofs * self.nd)
-
-    def initial_velocity(self, dofs: int) -> np.ndarray:
-        """Initial velocity values.
-
-        Parameters:
-            dofs: Number of degrees of freedom (typically cell number in the grid where
-                the initial values are defined).
-
-        Returns:
-            An array with the initial velocity values.
-
-        """
-        return np.zeros(dofs * self.nd)
-
-    def initial_acceleration(self, dofs: int) -> np.ndarray:
-        """Initial acceleration values.
-
-        Parameters:
-            dofs: Number of degrees of freedom (typically cell number in the grid where
-                the initial values are defined).
-
-        Returns:
-            An array with the initial acceleration values.
-
-        """
-        return np.zeros(dofs * self.nd)
-
-    def initial_condition(self) -> None:
-        """Assigning initial displacement, velocity and acceleration values."""
-        super().initial_condition()
-        for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
-            dofs = sd.num_cells
-
-            initial_displacement = self.initial_displacement(dofs=dofs)
-            initial_velocity = self.initial_velocity(dofs=dofs)
-            initial_acceleration = self.initial_acceleration(dofs=dofs)
-
-            pp.set_solution_values(
-                name=self.displacement_variable,
-                values=initial_displacement,
-                data=data,
-                time_step_index=0,
-                iterate_index=0,
-            )
-
-            pp.set_solution_values(
-                name=self.velocity_key,
-                values=initial_velocity,
-                data=data,
-                time_step_index=0,
-                iterate_index=0,
-            )
-
-            pp.set_solution_values(
-                name=self.acceleration_key,
-                values=initial_acceleration,
-                data=data,
-                time_step_index=0,
-                iterate_index=0,
-            )
 
     def velocity_values(self, subdomain: pp.Grid) -> np.ndarray:
         """Update the velocity values at the end of each time step.
@@ -861,7 +848,7 @@ class ConstitutiveLawsDynamicMomentumBalance:
         return pp.FourthOrderTensor(self.mu_vector, self.lambda_vector)
 
 
-class SourceTermRelated:
+class TimeDependentSourceTerm:
     def before_nonlinear_loop(self) -> None:
         """Update the time dependent mechanics source."""
         super().before_nonlinear_loop()
@@ -947,7 +934,7 @@ class SourceTermRelated:
         return vals.ravel("F")
 
 
-class BoundaryGridStuff:
+class RobinBoundaryConditionsWithBoundaryGrids:
     """Mixin for adaptations related to Robin boundary conditions with boundary grids.
 
     This mixin contains everything I needed to adapt in the source code for making the
@@ -1282,11 +1269,11 @@ class BoundaryGridStuff:
 class DynamicMomentumBalanceCommonParts(
     NamesAndConstants,
     BoundaryAndInitialConditions,
-    MyEquations,
+    DynamicMomentumBalanceEquations,
     ConstitutiveLawsDynamicMomentumBalance,
-    SourceTermRelated,
-    MySolutionStrategy,
-    BoundaryGridStuff,
+    TimeDependentSourceTerm,
+    SolutionStrategyDynamicMomentumBalance,
+    RobinBoundaryConditionsWithBoundaryGrids,
     MomentumBalance,
 ):
     """Class of subclasses/methods that are common for ABC_1 and ABC_2.
