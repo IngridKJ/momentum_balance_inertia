@@ -11,17 +11,13 @@ solution
 In addition to this I have implemented some absorbing boundary conditions.
 
 ## Models
-Models are found within the [models](./models/) directory:
-* [momentum balance](./models/no_inertia_momentum_balance.py) (i.e. just a call to and
-  slight modification of the built-in PorePy model).
-* [dynamic momentum balance](./models/dynamic_momentum_balance.py) is the basic dynamic
-  momentum balance model.
-* [time_dependent_source_term](./models/time_dependent_source_term.py) is a model also
-  assigning a time dependent source term. It inherits from [the basic
-  model](./models/dynamic_momentum_balance.py).
-* [absorbing_boundary_conditions](./models/absorbing_boundary_conditions.py) is a model
-  that has absorbing boundary conditions included. It inherits from the [time dependent
-  source term](./models/time_dependent_source_term.py) model.
+The model class for solving the elastic wave equation is found within
+[elastic_wave_equation_abc](./models/elastic_wave_equation_abc.py). Absorbing boundary
+conditions are by default applied to all domain boundaries. 
+
+A model class for the static problem is found within [momentum
+  balance](./models/no_inertia_momentum_balance.py). This is just a call to (and slight
+  modification of) the built-in PorePy model.
 
 ## Runscripts
 Runscripts in the repository include:
@@ -45,8 +41,6 @@ follows:
 * [manufactured_solution_dynamic_3D](./manufactured_solution_dynamic_3D.py) is the same
   as above but for 3D.
 
-The verification setups takes use of [this](./models/time_dependent_source_term.py)
-model.
 
 ### "Old" runscripts
 * [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
@@ -54,11 +48,17 @@ model.
 
 ## Utility material
 A collection of utility material is found within the [utils](./utils/) directory:
-* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic stiffness tensors.
-* [boundary_condition_setups](./utils/boundary_condition_setups.py) contains a mixin that is to be deleted. Might be filled with other generalised setups at a later point.
-* [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for three types/configurations of perturbed geometry.
-* [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness tensor object for a transversely isotropic material.
-* [utility functions](./utils/utility_functions.py) contains mostly functions related to analytical solution expressions and fetching subdomain-related quantities (that I think are not already covered by PorePy functions, I might be mistaken)
+* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic
+  stiffness tensors.
+* [boundary_condition_setups](./utils/boundary_condition_setups.py) contains a mixin
+  that is to be deleted. Might be filled with other generalised setups at a later point.
+* [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for
+  three types/configurations of perturbed geometry.
+* [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness
+  tensor object for a transversely isotropic material.
+* [utility functions](./utils/utility_functions.py) contains mostly functions related to
+  analytical solution expressions and fetching subdomain-related quantities (that I
+  think are not already covered by PorePy functions, I might be mistaken)
 
 Refer to the files within the directory for more details about the specific contents.
 

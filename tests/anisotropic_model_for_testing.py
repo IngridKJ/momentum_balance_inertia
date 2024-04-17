@@ -1,15 +1,15 @@
-import porepy as pp
-import numpy as np
-
 import sys
+
+import numpy as np
+import porepy as pp
 
 sys.path.append("../")
 
-from models import MomentumBalanceABC1
+from models import DynamicMomentumBalanceABC2
 from utils import InnerDomainVTIStiffnessTensorMixin
 
 
 class AnisotropyModelForTesting(
     InnerDomainVTIStiffnessTensorMixin,
-    MomentumBalanceABC1,
+    DynamicMomentumBalanceABC2,
 ): ...

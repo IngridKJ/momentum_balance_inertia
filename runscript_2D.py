@@ -1,8 +1,6 @@
-import porepy as pp
-
 import numpy as np
-
-from models import MomentumBalanceABC2
+import porepy as pp
+from models import DynamicMomentumBalanceABC2
 
 
 class MyGeometry:
@@ -25,7 +23,7 @@ class MyGeometry:
 
 class MomentumBalanceModifiedGeometry(
     MyGeometry,
-    MomentumBalanceABC2,
+    DynamicMomentumBalanceABC2,
 ):
     def initial_velocity(self, dofs: int) -> np.ndarray:
         """Initial velocity values."""

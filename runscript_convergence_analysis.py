@@ -1,26 +1,8 @@
-import porepy as pp
-from porepy.applications.convergence_analysis import ConvergenceAnalysis
-from manufactured_solution_dynamic import ManuMechSetup2d
-
 from copy import deepcopy
 
-
-class ConvTest(ManuMechSetup2d):
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y)
-
-    def grid_type(self) -> str:
-        return self.params.get("grid_type", "cartesian")
-
+import porepy as pp
+from manufactured_solution_dynamic import ManuMechSetup2d
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 t_shift = 0.0
 dt = 1.0 / 100.0
@@ -44,8 +26,6 @@ params = {
     "meshing_arguments": {"cell_size": 0.25 / 1.0},
     "plot_results": False,
 }
-
-model = ConvTest(params)
 
 conv_analysis = ConvergenceAnalysis(
     model_class=ManuMechSetup2d,

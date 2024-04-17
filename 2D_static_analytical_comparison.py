@@ -1,8 +1,6 @@
-import porepy as pp
 import numpy as np
-
+import porepy as pp
 from porepy.models.momentum_balance import MomentumBalance
-
 from utils import body_force_func
 
 

@@ -4,19 +4,14 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
-import sympy as sym
-
 import porepy as pp
-
-from models import MomentumBalanceTimeDepSource
-
+import sympy as sym
+from models import DynamicMomentumBalanceABC2
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
 from porepy.viz.data_saving_model_mixin import VerificationDataSaving
-from porepy.applications.convergence_analysis import ConvergenceAnalysis
-
-from utils import symbolic_representation
-from utils import symbolic_equation_terms
+from utils import symbolic_equation_terms, symbolic_representation
 
 # PorePy typings
 number = pp.number
@@ -413,13 +408,36 @@ class ManuMechSolutionStrategy3d:
             self.plot_results()
 
 
+class ManuMechBoundaryConditions:
+    def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
+        """Boundary condition
+
+        !!!
+
+        """
+        bounds = self.domain_boundary_sides(sd)
+        bc = pp.BoundaryConditionVectorial(
+            sd,
+            bounds.north
+            + bounds.south
+            + bounds.east
+            + bounds.west
+            + bounds.top
+            + bounds.bottom,
+            "dir",
+        )
+
+        return bc
+
+
 # -----> Mixer class
 class ManuMechSetup3d(  # type: ignore[misc]
     UnitSquareGrid,
     ManuMechSolutionStrategy3d,
     ManuMechUtils,
     ManuMechDataSaving,
-    MomentumBalanceTimeDepSource,
+    ManuMechBoundaryConditions,
+    DynamicMomentumBalanceABC2,
 ):
     """
     Mixer class for the two-dimensional mechanics verification setup.

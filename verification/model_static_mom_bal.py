@@ -1,9 +1,7 @@
-import porepy as pp
-from porepy.models.momentum_balance import MomentumBalance
-
 import numpy as np
-
+import porepy as pp
 import sympy as sym
+from porepy.models.momentum_balance import MomentumBalance
 
 
 class Source:

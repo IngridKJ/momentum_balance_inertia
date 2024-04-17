@@ -28,12 +28,11 @@ ParaView 3D polynomial bubble analytical solution: (time)^2 * (coords[0] * coord
 
 """
 
+from typing import Optional, Union
+
 import numpy as np
 import porepy as pp
 import sympy as sym
-
-from typing import Optional, Union
-
 
 # -------- Fetching/Computing values
 
@@ -150,11 +149,10 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     """Symbolic representation of displacement, velocity or acceleration.
 
     Use of this method is rather simple, as the default analytical solution is that with
-    the name "bubble" which is just a 2D polynomial bubble function. For another
-    analytical solution one must simply just assign a different value to the key
-    "manufactured_solution" in the model's parameter dictionary. Look into the code for
-    what solutions are accessible, or make new ones if the ones already existing do not
-    suffice.
+    the name "simply_zero" which is just zero solution. For another analytical solution
+    one must simply just assign a different value to the key "manufactured_solution" in
+    the model's parameter dictionary. Look into the code for what solutions are
+    accessible, or make new ones if the ones already existing do not suffice.
 
     Parameters:
         model: The model class.
@@ -178,11 +176,13 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     x, y, t = sym.symbols("x y t")
     cp = model.primary_wave_speed(is_scalar=True)
 
-    manufactured_sol = model.params.get("manufactured_solution", "bubble")
+    manufactured_sol = model.params.get("manufactured_solution", "simply_zero")
     if manufactured_sol == "unit_test":
         u1 = sym.sin(t - x / cp)
         u2 = 0
         u = [u1, u2]
+    elif manufactured_sol == "simply_zero":
+        u = [0, 0]
     elif manufactured_sol == "bubble":
         u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
@@ -218,8 +218,6 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     elif manufactured_sol == "quad_space":
         u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
         u = [u1, u2]
-    elif manufactured_sol == "simply_zero":
-        u = [0, 0]
 
     if return_dt:
         dt_u = [sym.diff(u[0], t), sym.diff(u[1], t)]
@@ -308,12 +306,7 @@ def _symbolic_equation_terms_2D(model, u, x, y, t):
 def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
     """3D symbolic representation of displacement, velocity or acceleration.
 
-    Use of this method is rather simple, as the default analytical solution is that with
-    the name "bubble" which is just a 2D polynomial bubble function. For an other
-    analytical solution one must simply just assign a different value to the key
-    "manufactured_solution" in the model's parameter dictionary. Look into the code for
-    what solutions are accessible, or make new ones if the ones already existing do not
-    suffice.
+    See documentation of _symbolic_representation_2D.
 
     Parameters:
         model: The model class.
@@ -336,15 +329,15 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
 
     x, y, z, t = sym.symbols("x y z t")
     cp = model.primary_wave_speed(is_scalar=True)
-    manufactured_sol = model.params.get("manufactured_solution", "bubble")
+    manufactured_sol = model.params.get("manufactured_solution", "simply_zero")
     if manufactured_sol == "bubble":
         u1 = u2 = u3 = t**2 * x * (1 - x) * y * (1 - y) * z * (1 - z)
         u = [u1, u2, u3]
+    elif manufactured_sol == "simply_zero":
+        u = [0, 0, 0]
     elif manufactured_sol == "drum_solution":
         u1 = u2 = u3 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y) * z * (1 - z)
         u = [u1, u2, u3]
-    elif manufactured_sol == "simply_zero":
-        u = [0, 0, 0]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = u3 = (
             sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y) * z * (1 - z)
@@ -486,7 +479,14 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
 def u_v_a_wrap(
     model, is_2D: bool = True, return_dt: bool = False, return_ddt=False
 ) -> list:
-    """Wrapper function for displacement, velocity and acceleration function fetching.
+    """Wrapper function for fetching displacement, velocity and acceleration functions.
+
+    When setting up the simulation, it is possible to set a value to the key
+    "manufactured_solution" in the parameter dictionary. This value helps choosing from
+    a pool of manufactured solutions, and this method fetches those solutions. Depending
+    on the parameters return_dt and return_ddt it can return the first and second time
+    derivative of the manufactured solution. This is mostly used in convergence analysis
+    runs or to initialize the model.
 
     Parameters:
         is_2D: Whether the problem is in 2D or 3D. Defaults to True (is 2D).

@@ -8,10 +8,9 @@ Currently, the following tensors are found here:
       Constructed generally enough to allow for some flexibility in further
       developments/enhancement of it."""
 
-import porepy as pp
 import numpy as np
+import porepy as pp
 from utils import inner_domain_cells
-
 from utils.stiffness_tensors import StiffnessTensorInnerVTI
 
 

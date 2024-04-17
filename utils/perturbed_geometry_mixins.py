@@ -8,8 +8,8 @@ Currently, the following geometries are found here:
     
 """
 
-import porepy as pp
 import numpy as np
+import porepy as pp
 
 from . import get_boundary_cells
 

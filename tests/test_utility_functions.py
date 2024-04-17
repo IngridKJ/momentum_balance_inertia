@@ -9,9 +9,8 @@ sys.path.append("../")
 
 import numpy as np
 import porepy as pp
-
-from utils import inner_domain_cells
 from anisotropic_model_for_testing import AnisotropyModelForTesting
+from utils import inner_domain_cells
 
 
 class Model(AnisotropyModelForTesting):
