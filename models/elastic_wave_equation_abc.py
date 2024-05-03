@@ -849,12 +849,6 @@ class ConstitutiveLawsDynamicMomentumBalance:
 
 
 class TimeDependentSourceTerm:
-    def before_nonlinear_loop(self) -> None:
-        """Update the time dependent mechanics source."""
-        super().before_nonlinear_loop()
-
-        self.update_mechanics_source()
-
     def body_force(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Time dependent dense array for the body force term.
 
@@ -874,24 +868,31 @@ class TimeDependentSourceTerm:
         )
         return external_sources
 
-    def update_mechanics_source(self) -> None:
-        """Update the values of external sources."""
-        sd = self.mdg.subdomains()[0]
+    def before_nonlinear_loop(self) -> None:
+        """Update the time dependent mechanics source."""
+        super().before_nonlinear_loop()
+
+        sd = self.mdg.subdomains(dim=self.nd)[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
 
         # Mechanics source
         if self.nd == 2:
-            source_func = body_force_function(self)
+            mechanics_source_function = body_force_function(self)
         elif self.nd == 3:
-            source_func = body_force_function(self, is_2D=False)
+            mechanics_source_function = body_force_function(self, is_2D=False)
 
-        mech_source = self.source_values(f=source_func, sd=sd, t=t)
+        mechanics_source_values = self.evaluate_mechanics_source(
+            f=mechanics_source_function, sd=sd, t=t
+        )
         pp.set_solution_values(
-            name="source_mechanics", values=mech_source, data=data, iterate_index=0
+            name="source_mechanics",
+            values=mechanics_source_values,
+            data=data,
+            iterate_index=0,
         )
 
-    def source_values(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
+    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
         """Computes the values for the body force.
 
         The method computes the source values returned by the source value function (f)
