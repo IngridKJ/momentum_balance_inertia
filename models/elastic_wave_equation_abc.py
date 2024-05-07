@@ -791,9 +791,7 @@ class SolutionStrategyDynamicMomentumBalance:
                 iterate_index=0,
             )
 
-    def after_nonlinear_convergence(
-        self, solution: np.ndarray, errors: float, iteration_counter: int
-    ) -> None:
+    def after_nonlinear_convergence(self) -> None:
         """Method to be called after every non-linear iteration.
 
         The method update_velocity_acceleration_time_dependent_ad_arrays needs to be
