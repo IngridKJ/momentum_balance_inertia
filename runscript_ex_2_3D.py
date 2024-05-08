@@ -3,6 +3,12 @@ import porepy as pp
 from models import DynamicMomentumBalanceABC2
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
 
+import os
+N_THREADS = '1'
+os.environ["MKL_NUM_THREADS"] = N_THREADS
+os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
+os.environ["OMP_NUM_THREADS"] = N_THREADS
+os.environ['OPENBLAS_NUM_THREADS'] = N_THREADS
 
 class InitialConditionsAndMaterialProperties:
     def vector_valued_mu_lambda(self):
@@ -130,7 +136,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.05 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.025 / self.units.m}
         return mesh_args
 
 
@@ -143,7 +149,7 @@ class MomentumBalanceModifiedGeometry(
 ): ...
 
 
-time_steps = 1
+time_steps = 100
 tf = 0.5
 dt = tf / time_steps
 
@@ -157,10 +163,19 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "test_3d",
+    "folder_name": "simplex_290k",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
+    "prepare_simulation": False,
 }
 
 model = MomentumBalanceModifiedGeometry(params)
+import time
+
+start = time.time()
+model.prepare_simulation()
+end = time.time() - start
+print("Num dofs system, simplex", model.equation_system.num_dofs())
+print("Time for prep sim:", end)
+
 pp.run_time_dependent_model(model, params)
