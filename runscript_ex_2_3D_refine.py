@@ -4,6 +4,7 @@ os.environ["MKL_NUM_THREADS"] = N_THREADS
 os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ['OPENBLAS_NUM_THREADS'] = N_THREADS
+
 import numpy as np
 import porepy as pp
 from models import DynamicMomentumBalanceABC2
@@ -148,7 +149,7 @@ class MomentumBalanceModifiedGeometry(
 ): ...
 
 
-time_steps = 100
+time_steps = 1000
 tf = 0.5
 dt = tf / time_steps
 
@@ -162,7 +163,7 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "simplex_290k",
+    "folder_name": "simplex_290k_refine",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
     "prepare_simulation": False,
