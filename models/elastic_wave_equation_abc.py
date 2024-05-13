@@ -28,7 +28,7 @@ class NamesAndConstants:
         """Newmark time discretization parameter, beta.
 
         Discretization parameter which somehow represents how the acceleration is
-        averaged over the coarse of one time step. The value of \beta = 0.25 corresponds
+        averaged over the coarse of one time step. The value of beta = 0.25 corresponds
         to the "Average acceleration method".
 
         """
@@ -39,7 +39,7 @@ class NamesAndConstants:
         """Newmark time discretization parameter, gamma.
 
         Discretization parameter which somehow represents the amount of numerical
-        damping (positive, ngeative or zero). The value of \gamma = 0.5 corresponds to
+        damping (positive, ngeative or zero). The value of gamma = 0.5 corresponds to
         no numerical damping.
 
         """
@@ -209,14 +209,14 @@ class BoundaryAndInitialConditions:
 
         The absorbing boundary conditions, in the continuous form, look like the
         following:
-            \sigma * n + D * u_t = 0,
+            sigma * n + D * u_t = 0,
 
             where u_t is the velocity and  D is a matrix containing material parameters
             and wave velocities.
 
         Approximate the time derivative by a first or second order backward difference:
-            1: \sigma * n + D_h * u_n = D_h * u_(n-1),
-            2: \sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
+            1: sigma * n + D_h * u_n = D_h * u_(n-1),
+            2: sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
 
             where D_h = 1/dt * D. Note the coefficient 3 / 2 (termed
             discrete_robin_weight_coefficient in the method assign_robin_weight)
@@ -1436,7 +1436,7 @@ class BoundaryAndInitialConditionValues2:
         Specifically, this method assigns the values corresponding to ABC_2, namely
         a second order approximation to u_t in:
 
-            \sigma * n + alpha * u_t = G¨
+            sigma * n + alpha * u_t = G¨
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -1479,7 +1479,7 @@ class BoundaryAndInitialConditionValues2:
         The method also makes sure to scale the displcement values with the appropriate
         coefficients. Recall that the discretized expressions for the ABC_2 are:
 
-            \sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
+            sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
 
         This method scales the previous displacements with the coefficients 2 and -0.5.
 
