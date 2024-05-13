@@ -1,3 +1,10 @@
+import os
+N_THREADS = '1'
+os.environ["MKL_NUM_THREADS"] = N_THREADS
+os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
+os.environ["OMP_NUM_THREADS"] = N_THREADS
+os.environ['OPENBLAS_NUM_THREADS'] = N_THREADS
+
 import numpy as np
 import porepy as pp
 from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC2
@@ -19,7 +26,7 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.02 / self.units.m}
+        mesh_args: dict[str, float] = {"cell_size": 0.0125 / self.units.m}
         return mesh_args
 
 
@@ -99,13 +106,22 @@ anisotropy_constants = {
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "source_in_outer",
+    "folder_name": "example_1_heterogeneous",
     "manufactured_solution": "simply_zero",
     "anisotropy_constants": anisotropy_constants,
     "progressbars": True,
     "inner_domain_width": 0.5,
     "inner_domain_center": (0.5, 0.5, 0.3),
+    "prepare_simulation": False,
 }
 
 model = MomentumBalanceABCModifiedGeometry(params)
+import time
+
+start = time.time()
+model.prepare_simulation()
+end = time.time() - start
+print("Num dofs system, cartesian", model.equation_system.num_dofs())
+print("Time for prep sim:", end)
+
 pp.run_time_dependent_model(model, params)
