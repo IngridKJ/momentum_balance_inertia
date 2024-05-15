@@ -56,10 +56,10 @@ def acceleration_velocity_displacement(
 
     """
     a_previous = pp.get_solution_values(
-        name=model.acceleration_key, data=data, time_step_index=0
+        name=model.acceleration_key, data=data, time_step_index=1
     )
     v_previous = pp.get_solution_values(
-        name=model.velocity_key, data=data, time_step_index=0
+        name=model.velocity_key, data=data, time_step_index=1
     )
 
     u_current = pp.get_solution_values(
@@ -67,7 +67,7 @@ def acceleration_velocity_displacement(
     )
 
     u_previous = pp.get_solution_values(
-        name=model.displacement_variable, data=data, time_step_index=0
+        name=model.displacement_variable, data=data, time_step_index=1
     )
 
     return a_previous, v_previous, u_previous, u_current

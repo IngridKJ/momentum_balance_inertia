@@ -351,7 +351,7 @@ class BoundaryAndInitialConditions:
                 name=self.displacement_variable,
                 values=initial_displacement,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
                 iterate_index=0,
             )
 
@@ -359,7 +359,7 @@ class BoundaryAndInitialConditions:
                 name=self.velocity_key,
                 values=initial_velocity,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
                 iterate_index=0,
             )
 
@@ -367,7 +367,7 @@ class BoundaryAndInitialConditions:
                 name=self.acceleration_key,
                 values=initial_acceleration,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
                 iterate_index=0,
             )
 
@@ -750,39 +750,19 @@ class SolutionStrategyDynamicMomentumBalance:
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             vals_acceleration = self.acceleration_values(sd)
             vals_velocity = self.velocity_values(sd)
-            if initial:
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity,
-                    data=data,
-                    time_step_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration,
-                    data=data,
-                    time_step_index=0,
-                )
-            else:
-                # Copy old values from iterate to the solution.
-                vals_velocity_it = pp.get_solution_values(
-                    name=self.velocity_key, data=data, iterate_index=0
-                )
-                vals_acceleration_it = pp.get_solution_values(
-                    name=self.acceleration_key, data=data, iterate_index=0
-                )
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity_it,
-                    data=data,
-                    time_step_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration_it,
-                    data=data,
-                    time_step_index=0,
-                )
+
+            pp.set_solution_values(
+                name=self.velocity_key,
+                values=vals_velocity,
+                data=data,
+                time_step_index=1,
+            )
+            pp.set_solution_values(
+                name=self.acceleration_key,
+                values=vals_acceleration,
+                data=data,
+                time_step_index=1,
+            )
 
             pp.set_solution_values(
                 name=self.velocity_key,
@@ -817,7 +797,7 @@ class SolutionStrategyDynamicMomentumBalance:
 
         self.equation_system.shift_time_step_values()
         self.equation_system.set_variable_values(
-            values=solution, time_step_index=0, additive=False
+            values=solution, time_step_index=1, additive=False
         )
         self.convergence_status = True
         self.save_data_time_step()
@@ -868,7 +848,7 @@ class TimeDependentSourceTerm:
         external_sources = pp.ad.TimeDependentDenseArray(
             name="source_mechanics",
             domains=subdomains,
-            previous_timestep=False,
+            # previous_timestep=False,
         )
         return external_sources
 
@@ -1397,7 +1377,7 @@ class BoundaryAndInitialConditionValues1:
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
             displacement_values = pp.get_solution_values(
-                name="bc_robin", data=data, time_step_index=0
+                name="bc_robin", data=data, time_step_index=1
             )
 
         displacement_values = np.reshape(
@@ -1504,11 +1484,11 @@ class BoundaryAndInitialConditionValues2:
             # one two time steps back in time is fetched from the dictionary.
             location = pp.TIME_STEP_SOLUTIONS
             name = "boundary_displacement_values"
-            for i in range(1, 0, -1):
+            for i in range(2, 1, -1):
                 data[location][name][i] = data[location][name][i - 1].copy()
 
             displacement_values_1 = pp.get_solution_values(
-                name=name, data=data, time_step_index=1
+                name=name, data=data, time_step_index=2
             )
 
             sd = boundary_grid.parent
@@ -1524,16 +1504,16 @@ class BoundaryAndInitialConditionValues2:
                 name="boundary_displacement_values",
                 values=displacement_values_0,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
             )
         elif self.time_manager.time_index == 1:
             # On first time step we need to fetch both initial values from the storage
             # location.
             displacement_values_0 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=0
+                name="boundary_displacement_values", data=data, time_step_index=1
             )
             displacement_values_1 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=1
+                name="boundary_displacement_values", data=data, time_step_index=2
             )
 
         # Reshaping the displacement value arrays to have a shape that is easier to work
@@ -1577,13 +1557,13 @@ class BoundaryAndInitialConditionValues2:
             name="boundary_displacement_values",
             values=vals_1,
             data=data,
-            time_step_index=1,
+            time_step_index=2,
         )
         pp.set_solution_values(
             name="boundary_displacement_values",
             values=vals_0,
             data=data,
-            time_step_index=0,
+            time_step_index=1,
         )
         return vals_0
 
