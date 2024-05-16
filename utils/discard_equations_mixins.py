@@ -117,7 +117,7 @@ class RemoveFractureRelatedEquationsMomentumBalance:
         variables = self.equation_system.variables
         for var in variables:
             scaled_values = self.equation_system.get_variable_values(
-                variables=[var], time_step_index=0
+                variables=[var], time_step_index=1
             )
             units = var.tags["si_units"]
             values = self.fluid.convert_units(scaled_values, units, to_si=True)
@@ -157,7 +157,7 @@ class RemoveFractureRelatedEquationsMomentumBalance:
                 name=self.displacement_variable,
                 values=initial_displacement,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
                 iterate_index=0,
             )
 
@@ -165,7 +165,7 @@ class RemoveFractureRelatedEquationsMomentumBalance:
                 name=self.velocity_key,
                 values=initial_velocity,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
                 iterate_index=0,
             )
 
@@ -173,6 +173,6 @@ class RemoveFractureRelatedEquationsMomentumBalance:
                 name=self.acceleration_key,
                 values=initial_acceleration,
                 data=data,
-                time_step_index=0,
+                time_step_index=1,
                 iterate_index=0,
             )
