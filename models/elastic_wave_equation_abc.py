@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from functools import cached_property
 from typing import Callable, Sequence, Union, cast
@@ -8,6 +9,8 @@ import porepy as pp
 import scipy.sparse as sps
 from porepy.models.momentum_balance import MomentumBalance
 
+sys.path.append("../")
+from solvers.solver_mixins import CustomSolverMixin
 import time_derivatives
 from utils import acceleration_velocity_displacement, body_force_function, u_v_a_wrap
 
@@ -1253,6 +1256,7 @@ class RobinBoundaryConditionsWithBoundaryGrids:
 
 class DynamicMomentumBalanceCommonParts(
     NamesAndConstants,
+    CustomSolverMixin,
     BoundaryAndInitialConditions,
     DynamicMomentumBalanceEquations,
     ConstitutiveLawsDynamicMomentumBalance,
@@ -1602,73 +1606,4 @@ class DynamicMomentumBalanceABC2(
 
     """
 
-    def assemble_linear_system(self) -> None:
-        """Assemble the linearized system and store it in :attr:`linear_system`.
-
-        The linear system is defined by the current state of the model.
-
-        """
-        t_0 = time.time()
-        self.linear_system = self.equation_system.assemble()
-        logger.debug(f"Assembled linear system in {time.time() - t_0:.2e} seconds.")
-        print("Time to assemble:", time.time() - t_0)
-
-
-# Alternative model for only assembling linear system once:
-
-
-class SolutionStrategyAssembleLinearSystemOnce:
-    def assemble_linear_system(self) -> None:
-        """Assemble the linearized system and store it in :attr:`linear_system`.
-
-        The linear system is defined by the current state of the model.
-
-        """
-        t_0 = time.time()
-        if self.time_manager.time_index <= 1:
-            ba = time.time()
-            self.linear_system = self.equation_system.assemble()
-            self.linear_system_jacobian = self.linear_system[0]
-            self.linear_system_residual = self.linear_system[1]
-            aa = time.time()
-            print("Time assemble linear system:", aa - ba)
-        else:
-            ba = time.time()
-            self.linear_system_residual = self.equation_system.assemble(
-                evaluate_jacobian=False
-            )
-            aa = time.time()
-            print("\nTime assemble residual:", aa - ba)
-        logger.debug(f"Assembled linear system in {time.time() - t_0:.2e} seconds.")
-
-    def solve_linear_system(self) -> np.ndarray:
-        """"""
-        A = self.linear_system_jacobian
-        b = self.linear_system_residual
-        t_0 = time.time()
-        logger.debug(f"Max element in A {np.max(np.abs(A)):.2e}")
-        logger.debug(
-            f"""Max {np.max(np.sum(np.abs(A), axis=1)):.2e} and min
-            {np.min(np.sum(np.abs(A), axis=1)):.2e} A sum."""
-        )
-
-        solver = self.linear_solver
-        if solver == "pypardiso":
-            # This is the default option which is invoked unless explicitly overridden
-            # by the user. We need to check if the pypardiso package is available.
-            try:
-                from pypardiso import spsolve as sparse_solver  # type: ignore
-            except ImportError:
-                # Fall back on the standard scipy sparse solver.
-                sparse_solver = sps.linalg.spsolve
-
-            x = sparse_solver(A, b)
-
-        logger.info(f"Solved linear system in {time.time() - t_0:.2e} seconds.")
-
-        return np.atleast_1d(x)
-
-
-class DynamicMomentumBalanceABC2Linear(
-    SolutionStrategyAssembleLinearSystemOnce, DynamicMomentumBalanceABC2
-): ...
+    ...

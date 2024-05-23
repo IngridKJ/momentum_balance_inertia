@@ -13,7 +13,6 @@ time_index > 1, the residual is constructed and the Jacobian is kept the same.
 """
 
 from __future__ import annotations
-
 import logging
 import time
 
@@ -49,32 +48,8 @@ class SolutionStrategyAssembleLinearSystemOnce:
             print("\nTime assemble residual:", aa - ba)
         logger.debug(f"Assembled linear system in {time.time() - t_0:.2e} seconds.")
 
-    def solve_linear_system(self) -> np.ndarray:
-        """"""
-        A = self.linear_system_jacobian
-        b = self.linear_system_residual
-        t_0 = time.time()
-        logger.debug(f"Max element in A {np.max(np.abs(A)):.2e}")
-        logger.debug(
-            f"""Max {np.max(np.sum(np.abs(A), axis=1)):.2e} and min
-            {np.min(np.sum(np.abs(A), axis=1)):.2e} A sum."""
-        )
-
-        solver = self.linear_solver
-        if solver == "pypardiso":
-            try:
-                from pypardiso import spsolve as sparse_solver  # type: ignore
-            except ImportError:
-                # Fall back on the standard scipy sparse solver.
-                sparse_solver = sps.linalg.spsolve
-
-            x = sparse_solver(A, b)
-
-        logger.info(f"Solved linear system in {time.time() - t_0:.2e} seconds.")
-
-        return np.atleast_1d(x)
-
 
 class DynamicMomentumBalanceABC2Linear(
-    SolutionStrategyAssembleLinearSystemOnce, DynamicMomentumBalanceABC2
+    SolutionStrategyAssembleLinearSystemOnce,
+    DynamicMomentumBalanceABC2,
 ): ...
