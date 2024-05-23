@@ -1,6 +1,11 @@
+import sys
+
 import numpy as np
 import porepy as pp
 from ABC_model_for_testing import MomentumBalanceABCForTesting
+
+sys.path.append("../")
+import run_models.run_linear_model as rlm
 
 
 def test_energy_decay():
@@ -20,7 +25,7 @@ def test_energy_decay():
     }
 
     model = MomentumBalanceABCForTesting(params)
-    pp.run_time_dependent_model(model, params)
+    rlm.run_linear_model(model, params)
 
     for sd in model.mdg.subdomains(dim=model.nd):
         vel_op = model.velocity_time_dep_array([sd]) * model.velocity_time_dep_array(
