@@ -14,18 +14,26 @@ In addition to this I have implemented some absorbing boundary conditions.
 The model class for solving the elastic wave equation is found within
 [elastic_wave_equation_abc](./models/elastic_wave_equation_abc.py). Absorbing boundary
 conditions are by default applied to all domain boundaries. 
+* A special case of this equation is found
+  [here](./models/elastic_wave_equation_abc_linear.py). In the case of a linear problem,
+  the Jacobian doesn't change. This model setup makes sure that the Jacobian is
+  assembled only once.
 
 A model class for the static problem is found within [momentum
   balance](./models/no_inertia_momentum_balance.py). This is just a call to (and slight
   modification of) the built-in PorePy model.
 
-## Runscripts
-Runscripts in the repository include:
-* Generic 3D runscript for time dependent source term
-* Heterogeneous and anisotropic 3D runscripts with Ricker wavelet as source 
+## Custom solvers and run-functions
+[solvers](./solvers) contains mixins for custom solvers. Specifically, the mixin that is
+there now will allow for PETSc usage whenever that is available. It also takes into
+consideration whether the Jacobian should be assembled or fetched.
 
-All runscripts use the model classes listed above.
+[run_models](./run_models) contains custom run-models functions. In the case of a the
+Jacobian being assembled only once, adaptations were needed to the run-model-function
+such that the residual was not assembled twice per time step.
 
+TODO: Adapt all runscripts to match this. Currently some of them rely on a specific
+modification to porepy source code files.
 
 ## Verification setup for the dynamic momentum balance
 Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
@@ -50,8 +58,6 @@ follows:
 A collection of utility material is found within the [utils](./utils/) directory:
 * [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic
   stiffness tensors.
-* [boundary_condition_setups](./utils/boundary_condition_setups.py) contains a mixin
-  that is to be deleted. Might be filled with other generalised setups at a later point.
 * [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for
   three types/configurations of perturbed geometry.
 * [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness
