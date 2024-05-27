@@ -354,7 +354,7 @@ class BoundaryAndInitialConditions:
                 name=self.displacement_variable,
                 values=initial_displacement,
                 data=data,
-                time_step_index=1,
+                time_step_index=0,
                 iterate_index=0,
             )
 
@@ -362,7 +362,7 @@ class BoundaryAndInitialConditions:
                 name=self.velocity_key,
                 values=initial_velocity,
                 data=data,
-                time_step_index=1,
+                time_step_index=0,
                 iterate_index=0,
             )
 
@@ -370,7 +370,7 @@ class BoundaryAndInitialConditions:
                 name=self.acceleration_key,
                 values=initial_acceleration,
                 data=data,
-                time_step_index=1,
+                time_step_index=0,
                 iterate_index=0,
             )
 
@@ -758,13 +758,13 @@ class SolutionStrategyDynamicMomentumBalance:
                 name=self.velocity_key,
                 values=vals_velocity,
                 data=data,
-                time_step_index=1,
+                time_step_index=0,
             )
             pp.set_solution_values(
                 name=self.acceleration_key,
                 values=vals_acceleration,
                 data=data,
-                time_step_index=1,
+                time_step_index=0,
             )
 
             pp.set_solution_values(
@@ -800,7 +800,7 @@ class SolutionStrategyDynamicMomentumBalance:
 
         self.equation_system.shift_time_step_values()
         self.equation_system.set_variable_values(
-            values=solution, time_step_index=1, additive=False
+            values=solution, time_step_index=0, additive=False
         )
         self.convergence_status = True
         self.save_data_time_step()
@@ -1381,7 +1381,7 @@ class BoundaryAndInitialConditionValues1:
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
             displacement_values = pp.get_solution_values(
-                name="bc_robin", data=data, time_step_index=1
+                name="bc_robin", data=data, time_step_index=0
             )
 
         displacement_values = np.reshape(
@@ -1488,11 +1488,14 @@ class BoundaryAndInitialConditionValues2:
             # one two time steps back in time is fetched from the dictionary.
             location = pp.TIME_STEP_SOLUTIONS
             name = "boundary_displacement_values"
-            for i in range(2, 1, -1):
-                data[location][name][i] = data[location][name][i - 1].copy()
-
+            pp.shift_solution_values(
+                name=name,
+                data=data,
+                location=location,
+                max_index=1,
+            )
             displacement_values_1 = pp.get_solution_values(
-                name=name, data=data, time_step_index=2
+                name=name, data=data, time_step_index=1
             )
 
             sd = boundary_grid.parent
@@ -1508,16 +1511,16 @@ class BoundaryAndInitialConditionValues2:
                 name="boundary_displacement_values",
                 values=displacement_values_0,
                 data=data,
-                time_step_index=1,
+                time_step_index=0,
             )
         elif self.time_manager.time_index == 1:
             # On first time step we need to fetch both initial values from the storage
             # location.
             displacement_values_0 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=1
+                name="boundary_displacement_values", data=data, time_step_index=0
             )
             displacement_values_1 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=2
+                name="boundary_displacement_values", data=data, time_step_index=1
             )
 
         # Reshaping the displacement value arrays to have a shape that is easier to work
@@ -1561,13 +1564,13 @@ class BoundaryAndInitialConditionValues2:
             name="boundary_displacement_values",
             values=vals_1,
             data=data,
-            time_step_index=2,
+            time_step_index=1,
         )
         pp.set_solution_values(
             name="boundary_displacement_values",
             values=vals_0,
             data=data,
-            time_step_index=1,
+            time_step_index=0,
         )
         return vals_0
 
