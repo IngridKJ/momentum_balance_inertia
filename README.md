@@ -80,9 +80,8 @@ Before the convergence rates for the dynamic momentum balance were as expected, 
 
 This might be deleted, but for now it's just hid within [verification](./verification/).
 
-## Other
-[ParaView](./ParaView/) directory is mainly for .py scripts or .pvsm files for
-visualization in ParaView.
+Note that this part of the repo is not maintained, so it might not run. 
+Small changes to PorePy may have influenced it.
 
 ### Known "bugs" or potential problems
 * Heterogeneous wave speed representation in cases where manufactured solutions are used.
