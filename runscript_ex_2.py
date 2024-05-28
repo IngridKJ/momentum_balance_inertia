@@ -105,12 +105,13 @@ class MyGeometry:
         ]
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
+        x = self.solid.convert_units(1.0, "m")
+        y = self.solid.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.005 / self.units.m}
+        cell_size = self.solid.convert_units(0.005, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
@@ -123,7 +124,7 @@ class MomentumBalanceModifiedGeometry(
 ): ...
 
 
-time_steps = 1
+time_steps = 100
 tf = 0.5
 dt = tf / time_steps
 
@@ -144,18 +145,3 @@ params = {
 
 model = MomentumBalanceModifiedGeometry(params)
 pp.run_time_dependent_model(model, params)
-
-import matplotlib.pyplot as plt
-
-# Using Yura's really nice diagnostics tool to see if I in fact managed to remove all
-# the non-matrix equations:
-diagnostics_data = model.run_diagnostics(
-    default_handlers=("cond",),
-)
-model.plot_diagnostics(
-    diagnostics_data,
-    key="cond",
-)
-plt.show()
-
-# And it seems like it worked:)
