@@ -11,15 +11,16 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1 / self.units.m
-        y = 1 / self.units.m
+        x = self.solid.convert_units(1.0, "m")
+        y = self.solid.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y)
 
     def grid_type(self) -> str:
         return self.params.get("grid_type", "cartesian")
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.1 / self.units.m}
+        cell_size = self.solid.convert_units(0.1, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
@@ -63,8 +64,7 @@ class MyMomentumBalance(
     MyGeometry,
     MomentumBalanceBCAndSource,
     MomentumBalance,
-):
-    ...
+): ...
 
 
 solid_constants = pp.SolidConstants(
