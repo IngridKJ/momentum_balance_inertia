@@ -1,13 +1,15 @@
 import os
-N_THREADS = '1'
+
+N_THREADS = "1"
 os.environ["MKL_NUM_THREADS"] = N_THREADS
 os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
-os.environ['OPENBLAS_NUM_THREADS'] = N_THREADS
+os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
 import numpy as np
 import porepy as pp
 from models import DynamicMomentumBalanceABC2
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
+
 
 class InitialConditionsAndMaterialProperties:
     def vector_valued_mu_lambda(self):
@@ -129,13 +131,14 @@ class MyGeometry:
         ]
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        z = 1.0 / self.units.m
+        x = self.solid.convert_units(1.0, "m")
+        y = self.solid.convert_units(1.0, "m")
+        z = self.solid.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.025 / self.units.m}
+        cell_size = self.solid.convert_units(0.0175, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 

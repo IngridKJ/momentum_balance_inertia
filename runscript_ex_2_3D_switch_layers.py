@@ -15,6 +15,8 @@ import scipy.sparse as sps
 
 logger = logging.getLogger(__name__)
 
+"""Note that the attribute linear_system_residual is needed for this script."""
+
 
 class InitialConditionsAndMaterialProperties:
     def vector_valued_mu_lambda(self):
@@ -38,14 +40,14 @@ class InitialConditionsAndMaterialProperties:
         middle_layer = (z < 0.7) & (z >= 0.3)
         bottom_layer = z < 0.3
 
-        lmbda_vec[upper_layer] *= lmbda3
-        mu_vec[upper_layer] *= mu3
+        lmbda_vec[upper_layer] *= lmbda1
+        mu_vec[upper_layer] *= mu1
 
         lmbda_vec[middle_layer] *= lmbda2
         mu_vec[middle_layer] *= mu2
 
-        lmbda_vec[bottom_layer] *= lmbda1
-        mu_vec[bottom_layer] *= mu1
+        lmbda_vec[bottom_layer] *= lmbda3
+        mu_vec[bottom_layer] *= mu3
 
         self.mu_vector = mu_vec
         self.lambda_vector = lmbda_vec
@@ -61,10 +63,10 @@ class InitialConditionsAndMaterialProperties:
         vals = np.zeros((self.nd, sd.num_cells))
 
         theta = 1
-        lam = 0.125
+        lam = 0.3
         x0 = 0.75
         y0 = 0.5
-        z0 = 0.5
+        z0 = 0.65
 
         common_part = theta * np.exp(
             -np.pi**2 * ((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / lam**2
@@ -136,13 +138,14 @@ class MyGeometry:
         ]
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        z = 1.0 / self.units.m
+        x = self.solid.convert_units(1.0, "m")
+        y = self.solid.convert_units(1.0, "m")
+        z = self.solid.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.02 / self.units.m}
+        cell_size = self.solid.convert_units(0.0175, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
@@ -205,8 +208,8 @@ class MomentumBalanceModifiedGeometry(
         return sol
 
 
-time_steps = 1000
-tf = 0.5
+time_steps = 500
+tf = 0.25
 dt = tf / time_steps
 
 time_manager = pp.TimeManager(
@@ -219,7 +222,7 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "571k_1000ts_cs_0_02",
+    "folder_name": "877k_500ts_025s_cs_0_0175_bigger_lambda",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
     "prepare_simulation": False,
