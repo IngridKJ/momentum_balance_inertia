@@ -12,13 +12,14 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        z = 1.0 / self.units.m
+        x = self.solid.convert_units(1.0, "m")
+        y = self.solid.convert_units(1.0, "m")
+        z = self.solid.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.025 / self.units.m}
+        cell_size = self.solid.convert_units(0.025, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 

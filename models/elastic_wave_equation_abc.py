@@ -1,11 +1,20 @@
+import logging
+import sys
+import time
 from functools import cached_property
 from typing import Callable, Sequence, Union, cast
 
 import numpy as np
 import porepy as pp
-import time_derivatives
+import scipy.sparse as sps
 from porepy.models.momentum_balance import MomentumBalance
+
+sys.path.append("../")
+from solvers.solver_mixins import CustomSolverMixin
+import time_derivatives
 from utils import acceleration_velocity_displacement, body_force_function, u_v_a_wrap
+
+logger = logging.getLogger(__name__)
 
 
 class NamesAndConstants:
@@ -28,7 +37,7 @@ class NamesAndConstants:
         """Newmark time discretization parameter, beta.
 
         Discretization parameter which somehow represents how the acceleration is
-        averaged over the coarse of one time step. The value of \beta = 0.25 corresponds
+        averaged over the coarse of one time step. The value of beta = 0.25 corresponds
         to the "Average acceleration method".
 
         """
@@ -39,7 +48,7 @@ class NamesAndConstants:
         """Newmark time discretization parameter, gamma.
 
         Discretization parameter which somehow represents the amount of numerical
-        damping (positive, ngeative or zero). The value of \gamma = 0.5 corresponds to
+        damping (positive, ngeative or zero). The value of gamma = 0.5 corresponds to
         no numerical damping.
 
         """
@@ -209,14 +218,14 @@ class BoundaryAndInitialConditions:
 
         The absorbing boundary conditions, in the continuous form, look like the
         following:
-            \sigma * n + D * u_t = 0,
+            sigma * n + D * u_t = 0,
 
             where u_t is the velocity and  D is a matrix containing material parameters
             and wave velocities.
 
         Approximate the time derivative by a first or second order backward difference:
-            1: \sigma * n + D_h * u_n = D_h * u_(n-1),
-            2: \sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
+            1: sigma * n + D_h * u_n = D_h * u_(n-1),
+            2: sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
 
             where D_h = 1/dt * D. Note the coefficient 3 / 2 (termed
             discrete_robin_weight_coefficient in the method assign_robin_weight)
@@ -744,39 +753,19 @@ class SolutionStrategyDynamicMomentumBalance:
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
             vals_acceleration = self.acceleration_values(sd)
             vals_velocity = self.velocity_values(sd)
-            if initial:
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity,
-                    data=data,
-                    time_step_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration,
-                    data=data,
-                    time_step_index=0,
-                )
-            else:
-                # Copy old values from iterate to the solution.
-                vals_velocity_it = pp.get_solution_values(
-                    name=self.velocity_key, data=data, iterate_index=0
-                )
-                vals_acceleration_it = pp.get_solution_values(
-                    name=self.acceleration_key, data=data, iterate_index=0
-                )
-                pp.set_solution_values(
-                    name=self.velocity_key,
-                    values=vals_velocity_it,
-                    data=data,
-                    time_step_index=0,
-                )
-                pp.set_solution_values(
-                    name=self.acceleration_key,
-                    values=vals_acceleration_it,
-                    data=data,
-                    time_step_index=0,
-                )
+
+            pp.set_solution_values(
+                name=self.velocity_key,
+                values=vals_velocity,
+                data=data,
+                time_step_index=0,
+            )
+            pp.set_solution_values(
+                name=self.acceleration_key,
+                values=vals_acceleration,
+                data=data,
+                time_step_index=0,
+            )
 
             pp.set_solution_values(
                 name=self.velocity_key,
@@ -791,9 +780,7 @@ class SolutionStrategyDynamicMomentumBalance:
                 iterate_index=0,
             )
 
-    def after_nonlinear_convergence(
-        self, solution: np.ndarray, errors: float, iteration_counter: int
-    ) -> None:
+    def after_nonlinear_convergence(self) -> None:
         """Method to be called after every non-linear iteration.
 
         The method update_velocity_acceleration_time_dependent_ad_arrays needs to be
@@ -849,12 +836,6 @@ class ConstitutiveLawsDynamicMomentumBalance:
 
 
 class TimeDependentSourceTerm:
-    def before_nonlinear_loop(self) -> None:
-        """Update the time dependent mechanics source."""
-        super().before_nonlinear_loop()
-
-        self.update_mechanics_source()
-
     def body_force(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Time dependent dense array for the body force term.
 
@@ -870,28 +851,35 @@ class TimeDependentSourceTerm:
         external_sources = pp.ad.TimeDependentDenseArray(
             name="source_mechanics",
             domains=subdomains,
-            previous_timestep=False,
+            # previous_timestep=False,
         )
         return external_sources
 
-    def update_mechanics_source(self) -> None:
-        """Update the values of external sources."""
-        sd = self.mdg.subdomains()[0]
+    def before_nonlinear_loop(self) -> None:
+        """Update the time dependent mechanics source."""
+        super().before_nonlinear_loop()
+
+        sd = self.mdg.subdomains(dim=self.nd)[0]
         data = self.mdg.subdomain_data(sd)
         t = self.time_manager.time
 
         # Mechanics source
         if self.nd == 2:
-            source_func = body_force_function(self)
+            mechanics_source_function = body_force_function(self)
         elif self.nd == 3:
-            source_func = body_force_function(self, is_2D=False)
+            mechanics_source_function = body_force_function(self, is_2D=False)
 
-        mech_source = self.source_values(f=source_func, sd=sd, t=t)
+        mechanics_source_values = self.evaluate_mechanics_source(
+            f=mechanics_source_function, sd=sd, t=t
+        )
         pp.set_solution_values(
-            name="source_mechanics", values=mech_source, data=data, iterate_index=0
+            name="source_mechanics",
+            values=mechanics_source_values,
+            data=data,
+            iterate_index=0,
         )
 
-    def source_values(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
+    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
         """Computes the values for the body force.
 
         The method computes the source values returned by the source value function (f)
@@ -1268,6 +1256,7 @@ class RobinBoundaryConditionsWithBoundaryGrids:
 
 class DynamicMomentumBalanceCommonParts(
     NamesAndConstants,
+    CustomSolverMixin,
     BoundaryAndInitialConditions,
     DynamicMomentumBalanceEquations,
     ConstitutiveLawsDynamicMomentumBalance,
@@ -1437,7 +1426,7 @@ class BoundaryAndInitialConditionValues2:
         Specifically, this method assigns the values corresponding to ABC_2, namely
         a second order approximation to u_t in:
 
-            \sigma * n + alpha * u_t = G¨
+            sigma * n + alpha * u_t = G¨
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -1480,7 +1469,7 @@ class BoundaryAndInitialConditionValues2:
         The method also makes sure to scale the displcement values with the appropriate
         coefficients. Recall that the discretized expressions for the ABC_2 are:
 
-            \sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
+            sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
 
         This method scales the previous displacements with the coefficients 2 and -0.5.
 
@@ -1499,9 +1488,12 @@ class BoundaryAndInitialConditionValues2:
             # one two time steps back in time is fetched from the dictionary.
             location = pp.TIME_STEP_SOLUTIONS
             name = "boundary_displacement_values"
-            for i in range(1, 0, -1):
-                data[location][name][i] = data[location][name][i - 1].copy()
-
+            pp.shift_solution_values(
+                name=name,
+                data=data,
+                location=location,
+                max_index=1,
+            )
             displacement_values_1 = pp.get_solution_values(
                 name=name, data=data, time_step_index=1
             )

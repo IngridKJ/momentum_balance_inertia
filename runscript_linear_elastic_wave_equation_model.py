@@ -1,6 +1,10 @@
 import numpy as np
 import porepy as pp
-from models import DynamicMomentumBalanceABC2
+
+from run_models import run_linear_model as rlm
+
+# from models import DynamicMomentumBalanceABC2
+from models import DynamicMomentumBalanceABC2Linear
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
 
 
@@ -48,9 +52,9 @@ class InitialConditionsAndMaterialProperties:
         vals = np.zeros((self.nd, sd.num_cells))
 
         theta = 1
-        lam = 0.125
+        lam = 0.3
         x0 = 0.25
-        y0 = 0.5
+        y0 = 0.65
 
         common_part = theta * np.exp(
             -np.pi**2 * ((x - x0) ** 2 + (y - y0) ** 2) / lam**2
@@ -110,22 +114,22 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.005, "m")
+        cell_size = self.solid.convert_units(0.1, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
-class MomentumBalanceModifiedGeometry(
+class MomentumBalanceModifiedGeometryLinear(
     InitialConditionsAndMaterialProperties,
     MyGeometry,
     RemoveFractureRelatedEquationsMomentumBalance,
-    pp.DiagnosticsMixin,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC2Linear,
+    # DynamicMomentumBalanceABC2,
 ): ...
 
 
-time_steps = 100
-tf = 0.5
+time_steps = 50
+tf = 0.25
 dt = tf / time_steps
 
 time_manager = pp.TimeManager(
@@ -138,10 +142,13 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "hm",
+    "folder_name": "testegreier_nonlinear",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
 }
 
-model = MomentumBalanceModifiedGeometry(params)
-pp.run_time_dependent_model(model, params)
+model = MomentumBalanceModifiedGeometryLinear(params)
+rlm.run_linear_model(model, params)
+
+# model = MomentumBalanceModifiedGeometryLinear(params)
+# pp.run_time_dependent_model(model, params)

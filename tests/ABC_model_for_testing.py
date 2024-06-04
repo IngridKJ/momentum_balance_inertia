@@ -5,7 +5,7 @@ import porepy as pp
 
 sys.path.append("../")
 
-from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC2
+from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABC2Linear
 
 
 class GeometryAndInitialCondition:
@@ -40,16 +40,17 @@ class GeometryAndInitialCondition:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
+        x = self.solid.convert_units(1.0, "m")
+        y = self.solid.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {"cell_size": 0.05 / self.units.m}
+        cell_size = self.solid.convert_units(0.05, "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
 class MomentumBalanceABCForTesting(
     GeometryAndInitialCondition,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC2Linear,
 ): ...

@@ -1,3 +1,10 @@
+import os
+
+N_THREADS = "1"
+os.environ["MKL_NUM_THREADS"] = N_THREADS
+os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
+os.environ["OMP_NUM_THREADS"] = N_THREADS
+os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
 import numpy as np
 import porepy as pp
 from models import DynamicMomentumBalanceABC2
@@ -8,7 +15,7 @@ class InitialConditionsAndMaterialProperties:
     def vector_valued_mu_lambda(self):
         """Setting a layered medium."""
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
-        y = subdomain.cell_centers[1, :]
+        z = subdomain.cell_centers[2, :]
 
         lmbda1 = self.solid.lame_lambda()
         mu1 = self.solid.shear_modulus()
@@ -22,9 +29,9 @@ class InitialConditionsAndMaterialProperties:
         lmbda_vec = np.ones(subdomain.num_cells)
         mu_vec = np.ones(subdomain.num_cells)
 
-        upper_layer = y >= 0.7
-        middle_layer = (y < 0.7) & (y >= 0.3)
-        bottom_layer = y < 0.3
+        upper_layer = z >= 0.7
+        middle_layer = (z < 0.7) & (z >= 0.3)
+        bottom_layer = z < 0.3
 
         lmbda_vec[upper_layer] *= lmbda3
         mu_vec[upper_layer] *= mu3
@@ -44,20 +51,23 @@ class InitialConditionsAndMaterialProperties:
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
+        z = sd.cell_centers[2, :]
 
         vals = np.zeros((self.nd, sd.num_cells))
 
         theta = 1
         lam = 0.125
-        x0 = 0.25
+        x0 = 0.75
         y0 = 0.5
+        z0 = 0.5
 
         common_part = theta * np.exp(
-            -np.pi**2 * ((x - x0) ** 2 + (y - y0) ** 2) / lam**2
+            -np.pi**2 * ((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / lam**2
         )
 
         vals[0] = common_part * (x - x0)
         vals[1] = common_part * (y - y0)
+        vals[2] = common_part * (z - z0)
 
         return vals.ravel("F")
 
@@ -74,29 +84,45 @@ class MyGeometry:
 
         return meshing_kwargs
 
-    def nd_rect_domain(self, x, y) -> pp.Domain:
+    def nd_rect_domain(self, x, y, z) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
 
-        box.update({"ymin": 0, "ymax": y})
+        box.update(
+            {
+                "ymin": 0,
+                "ymax": y,
+                "zmin": 0,
+                "zmax": z,
+            }
+        )
 
         return pp.Domain(box)
 
     def set_fractures(self) -> None:
         """Setting a diagonal fracture"""
-        frac_1_points = self.solid.convert_units(
-            np.array([[0.2, 0.8], [0.2, 0.8]]), "m"
-        )
-        frac_1 = pp.LineFracture(frac_1_points)
+        # Fracture:
+        coords_a = [0.2, 0.2, 0.8, 0.8]  # x
+        coords_b = [0.2, 0.8, 0.8, 0.2]  # y
+        coords_c = [0.8, 0.8, 0.2, 0.2]  # z
 
-        constraint_1_points = self.solid.convert_units(
-            np.array([[0, 1.0], [0.7, 0.7]]), "m"
-        )
-        constraint_1 = pp.LineFracture(constraint_1_points)
+        frac_1_points = np.array([coords_a, coords_b, coords_c])
+        frac_1 = pp.PlaneFracture(frac_1_points)
 
-        constraint_2_points = self.solid.convert_units(
-            np.array([[0, 1.0], [0.3, 0.3]]), "m"
-        )
-        constraint_2 = pp.LineFracture(constraint_2_points)
+        # Constraint, lower
+        coords_a = [0, 0, 1, 1]  # x
+        coords_b = [0, 1, 1, 0]  # y
+        coords_c = [0.3, 0.3, 0.3, 0.3]  # z
+
+        constraint_1_points = np.array([coords_a, coords_b, coords_c])
+        constraint_1 = pp.PlaneFracture(constraint_1_points)
+
+        # Constraint, upper
+        coords_a = [0, 0, 1, 1]  # x
+        coords_b = [0, 1, 1, 0]  # y
+        coords_c = [0.7, 0.7, 0.7, 0.7]  # z
+
+        constraint_2_points = np.array([coords_a, coords_b, coords_c])
+        constraint_2 = pp.PlaneFracture(constraint_2_points)
 
         self._fractures = [
             frac_1,
@@ -107,10 +133,11 @@ class MyGeometry:
     def set_domain(self) -> None:
         x = self.solid.convert_units(1.0, "m")
         y = self.solid.convert_units(1.0, "m")
-        self._domain = self.nd_rect_domain(x, y)
+        z = self.solid.convert_units(1.0, "m")
+        self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.005, "m")
+        cell_size = self.solid.convert_units(0.0175, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
@@ -138,10 +165,19 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "hm",
+    "folder_name": "simplex_290k",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
+    "prepare_simulation": False,
 }
 
 model = MomentumBalanceModifiedGeometry(params)
+import time
+
+start = time.time()
+model.prepare_simulation()
+end = time.time() - start
+print("Num dofs system, simplex", model.equation_system.num_dofs())
+print("Time for prep sim:", end)
+
 pp.run_time_dependent_model(model, params)
