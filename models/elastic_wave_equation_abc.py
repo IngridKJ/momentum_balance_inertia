@@ -1472,14 +1472,14 @@ class BoundaryAndInitialConditionValues2:
             Array of boundary values.
 
         """
-        # !!! Check what is the deal with this guy
+        # !!! Check what is the deal with this guy. I think it is a thing for fractured
+        # media.
         if boundary_grid.dim != (self.nd - 1):
             return np.array([])
 
+        data = self.mdg.boundary_grid_data(boundary_grid)
         sd = boundary_grid.parent
         boundary_faces = sd.get_boundary_faces()
-
-        data = self.mdg.boundary_grid_data(boundary_grid)
         name = "boundary_displacement_values"
 
         if self.time_manager.time_index == 0:
@@ -1491,26 +1491,22 @@ class BoundaryAndInitialConditionValues2:
         displacement_values_1 = pp.get_solution_values(
             name=name, data=data, time_step_index=1
         )
-        # Reshaping the displacement value arrays to have a shape that is easier to work
-        # with when assigning bc values for the different domain sides.
-        displacement_values_0 = np.reshape(
-            displacement_values_0, (self.nd, boundary_grid.num_cells), "F"
-        )
-        displacement_values_1 = np.reshape(
-            displacement_values_1, (self.nd, boundary_grid.num_cells), "F"
-        )
 
         # According to the expression for ABC_2 we have a coefficient 2 in front of the
         # values u_(n-1) and -0.5 in front of u_(n-2):
-        total_disp_vals = 2 * displacement_values_0 - 0.5 * displacement_values_1
+        displacement_values = 2 * displacement_values_0 - 0.5 * displacement_values_1
 
+        # Transposing and reshaping displacement values to prepare for broadcasting
+        displacement_values = displacement_values.reshape(
+            boundary_grid.num_cells, self.nd, 1
+        )
+
+        # Assembling the vector representing the RHS of the Robin conditions
         total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
+        robin_rhs = np.matmul(total_coefficient_matrix, displacement_values).squeeze(-1)
+        robin_rhs *= sd.face_areas[boundary_faces][:, None]
 
-        result = np.matmul(
-            total_coefficient_matrix, total_disp_vals.T[..., None]
-        ).squeeze(-1)
-        result = result * sd.face_areas[boundary_faces][:, None]
-        return result.T.ravel("F")
+        return robin_rhs.T.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Sets the initial bc values for 0th and -1st time step in the data dictionary.
@@ -1550,11 +1546,11 @@ class BoundaryAndInitialConditionValues2:
 
     def initial_condition_bc_0(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Initial boundary displacement values corresponding to time step 0."""
-        return np.zeros((self.nd, bg.num_cells))
+        return np.zeros((self.nd, bg.num_cells)).ravel("F")
 
     def initial_condition_bc_1(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Initial boundary displacement values corresponding to time step -1."""
-        return np.zeros((self.nd, bg.num_cells))
+        return np.zeros((self.nd, bg.num_cells)).ravel("F")
 
 
 # Full model classes for the momentum balance with absorbing boundary conditions
