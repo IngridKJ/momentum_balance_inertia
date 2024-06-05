@@ -583,12 +583,8 @@ class SolutionStrategyDynamicMomentumBalance:
         self.set_materials()
         self.set_geometry()
 
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-        boundary_faces = sd.get_boundary_faces()
-        self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
-            faces=boundary_faces
-        )[1]
-        self.vector_valued_mu_lambda()
+        self.set_vector_valued_mu_lambda()
+
         # Exporter initialization must be done after grid creation,
         # but prior to data initialization.
         self.initialize_data_saving()
@@ -608,6 +604,14 @@ class SolutionStrategyDynamicMomentumBalance:
 
         # Export initial condition
         self.save_data_time_step()
+
+    def set_vector_valued_mu_lambda(self):
+        sd = self.mdg.subdomains(dim=self.nd)[0]
+        boundary_faces = sd.get_boundary_faces()
+        self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
+            faces=boundary_faces
+        )[1]
+        self.vector_valued_mu_lambda()
 
     def set_discretization_parameters(self) -> None:
         """Set discretization parameters for the simulation.
@@ -780,6 +784,31 @@ class SolutionStrategyDynamicMomentumBalance:
                 iterate_index=0,
             )
 
+    def construct_and_save_boundary_displacement(self, boundary_grid: pp.BoundaryGrid):
+        data = self.mdg.boundary_grid_data(boundary_grid)
+        name = "boundary_displacement_values"
+        # The displacement value for the previous time step is constructed and the
+        # one two time steps back in time is fetched from the dictionary.
+        location = pp.TIME_STEP_SOLUTIONS
+        pp.shift_solution_values(
+            name=name,
+            data=data,
+            location=location,
+            max_index=1,
+        )
+
+        sd = boundary_grid.parent
+        displacement_boundary_operator = self.boundary_displacement([sd])
+        displacement_values = displacement_boundary_operator.value(self.equation_system)
+
+        displacement_values_0 = boundary_grid.projection(self.nd) @ displacement_values
+        pp.set_solution_values(
+            name=name,
+            values=displacement_values_0,
+            data=data,
+            time_step_index=0,
+        )
+
     def after_nonlinear_convergence(self) -> None:
         """Method to be called after every non-linear iteration.
 
@@ -802,6 +831,10 @@ class SolutionStrategyDynamicMomentumBalance:
         self.equation_system.set_variable_values(
             values=solution, time_step_index=0, additive=False
         )
+        if self.time_manager.time_index > 1:
+            bg = self.mdg.boundaries(dim=self.nd - 1)[0]
+            self.construct_and_save_boundary_displacement(boundary_grid=bg)
+
         self.convergence_status = True
         self.save_data_time_step()
 
@@ -1279,7 +1312,11 @@ class DynamicMomentumBalanceCommonParts(
 # From here and downwards: The classes BoundaryAndInitialConditionValuesX that are
 # unique for ABC_X.
 class BoundaryAndInitialConditionValues1:
-    """Class with methods that are unique to ABC_1"""
+    """Class with methods that are unique to ABC_1
+
+    Note: Not tested anymore, and perhaps not even functional after some refactoring. Considering to deprecate it.
+
+    """
 
     @property
     def discrete_robin_weight_coefficient(self) -> float:
@@ -1439,92 +1476,23 @@ class BoundaryAndInitialConditionValues2:
         if boundary_grid.dim != (self.nd - 1):
             return np.array([])
 
-        if self.time_manager.time_index != 0:
-            displacement_values_0, displacement_values_1 = (
-                self._previous_displacement_values(boundary_grid=boundary_grid)
-            )
-        elif self.time_manager.time_index == 0:
-            return self.initial_condition_bc(boundary_grid)
-
-        total_disp_vals = displacement_values_0 + displacement_values_1
-
         sd = boundary_grid.parent
         boundary_faces = sd.get_boundary_faces()
 
-        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
-
-        result = np.matmul(
-            total_coefficient_matrix, total_disp_vals.T[..., None]
-        ).squeeze(-1)
-        result = result * sd.face_areas[boundary_faces][:, None]
-
-        result = result.T
-        return result.ravel("F")
-
-    def _previous_displacement_values(
-        self, boundary_grid: pp.BoundaryGrid
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Method for constructing/fetching previous boundary displacement values.
-
-        The method also makes sure to scale the displcement values with the appropriate
-        coefficients. Recall that the discretized expressions for the ABC_2 are:
-
-            sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
-
-        This method scales the previous displacements with the coefficients 2 and -0.5.
-
-        Parameters:
-            boundary_grid: The boundary grid whose displacement values we are
-                interested in.
-
-        Returns:
-            A tuple with the scaled displacement values one time step back in time and
-            two time steps back in time.
-
-        """
         data = self.mdg.boundary_grid_data(boundary_grid)
-        if self.time_manager.time_index > 1:
-            # The displacement value for the previous time step is constructed and the
-            # one two time steps back in time is fetched from the dictionary.
-            location = pp.TIME_STEP_SOLUTIONS
-            name = "boundary_displacement_values"
-            pp.shift_solution_values(
-                name=name,
-                data=data,
-                location=location,
-                max_index=1,
-            )
-            displacement_values_1 = pp.get_solution_values(
-                name=name, data=data, time_step_index=1
-            )
+        name = "boundary_displacement_values"
 
-            sd = boundary_grid.parent
-            displacement_boundary_operator = self.boundary_displacement([sd])
-            displacement_values = displacement_boundary_operator.value(
-                self.equation_system
-            )
+        if self.time_manager.time_index == 0:
+            return self.initial_condition_bc(boundary_grid)
 
-            displacement_values_0 = (
-                boundary_grid.projection(self.nd) @ displacement_values
-            )
-            pp.set_solution_values(
-                name="boundary_displacement_values",
-                values=displacement_values_0,
-                data=data,
-                time_step_index=0,
-            )
-        elif self.time_manager.time_index == 1:
-            # On first time step we need to fetch both initial values from the storage
-            # location.
-            displacement_values_0 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=0
-            )
-            displacement_values_1 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=1
-            )
-
+        displacement_values_0 = pp.get_solution_values(
+            name=name, data=data, time_step_index=0
+        )
+        displacement_values_1 = pp.get_solution_values(
+            name=name, data=data, time_step_index=1
+        )
         # Reshaping the displacement value arrays to have a shape that is easier to work
-        # with when assigning the robin bc values for the different domain sides.
+        # with when assigning bc values for the different domain sides.
         displacement_values_0 = np.reshape(
             displacement_values_0, (self.nd, boundary_grid.num_cells), "F"
         )
@@ -1534,10 +1502,15 @@ class BoundaryAndInitialConditionValues2:
 
         # According to the expression for ABC_2 we have a coefficient 2 in front of the
         # values u_(n-1) and -0.5 in front of u_(n-2):
-        displacement_values_0 *= 2
-        displacement_values_1 *= -0.5
+        total_disp_vals = 2 * displacement_values_0 - 0.5 * displacement_values_1
 
-        return displacement_values_0, displacement_values_1
+        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
+
+        result = np.matmul(
+            total_coefficient_matrix, total_disp_vals.T[..., None]
+        ).squeeze(-1)
+        result = result * sd.face_areas[boundary_faces][:, None]
+        return result.T.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Sets the initial bc values for 0th and -1st time step in the data dictionary.
@@ -1559,15 +1532,16 @@ class BoundaryAndInitialConditionValues2:
 
         data = self.mdg.boundary_grid_data(bg)
 
+        name = "boundary_displacement_values"
         # The values for the 0th and -1th time step are to be stored
         pp.set_solution_values(
-            name="boundary_displacement_values",
+            name=name,
             values=vals_1,
             data=data,
             time_step_index=1,
         )
         pp.set_solution_values(
-            name="boundary_displacement_values",
+            name=name,
             values=vals_0,
             data=data,
             time_step_index=0,
