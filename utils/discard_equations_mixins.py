@@ -73,12 +73,10 @@ class RemoveFractureRelatedEquationsMomentumBalance:
             subdomains=domains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
+            robin_operator=self.robin_boundary_operator_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
             name=self.bc_values_mechanics_key,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
         )
 
         stress = (

@@ -30,7 +30,7 @@ class NamesAndConstants:
     @property
     def bc_robin_key(self) -> str:
         """The key for Robin boundary conditions."""
-        return "bc_robin"
+        return "robin_stress"
 
     @property
     def beta(self) -> float:
@@ -129,6 +129,10 @@ class NamesAndConstants:
 
 
 class BoundaryAndInitialConditions:
+    # Method for creating robin boundary operator
+    def robin_boundary_operator_stress(self, bgs: pp.SubdomainsOrBoundaries):
+        return self.create_boundary_operator(name=self.bc_robin_key, domains=bgs)
+
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         """Boundary condition type for the absorbing boundary condition model class.
 
@@ -249,13 +253,16 @@ class BoundaryAndInitialConditions:
             face_normals, axis=0, keepdims=True
         )
 
-        # This cursed line does the same as the line that is commented out below. Thank
-        # you Yura for helping with this!!
+        # This cursed line of code does the same as the lines that are commented out
+        # below. Thank you Yura for helping with this!!
         tensile_matrices = np.einsum(
             "ik,jk->kij", unitary_face_normals, unitary_face_normals
         )
         # tensile_matrices = np.array(
-        #     [np.outer(column, column) for column in sd.face_normals.T]
+        #     [
+        #         np.outer(normal_vector, normal_vector)
+        #         for normal_vector in unitary_face_normals.T
+        #     ]
         # )
 
         # Creating a block array of identity matrices. Subtracting the tensile matrix
@@ -322,10 +329,8 @@ class BoundaryAndInitialConditions:
             subdomains=subdomains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
+            robin_operator=self.robin_boundary_operator_stress,
             bc_type=self.bc_type_mechanics,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
             dim=self.nd,
             name=self.bc_values_mechanics_key,
         )
@@ -1189,12 +1194,10 @@ class RobinBoundaryConditionsWithBoundaryGrids:
             subdomains=domains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
+            robin_operator=self.robin_boundary_operator_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
             name=self.bc_values_mechanics_key,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
         )
 
         proj = pp.ad.MortarProjections(self.mdg, domains, interfaces, dim=self.nd)
@@ -1249,12 +1252,10 @@ class RobinBoundaryConditionsWithBoundaryGrids:
             subdomains=subdomains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
+            robin_operator=self.robin_boundary_operator_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
             name=self.bc_values_mechanics_key,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
         )
 
         # Compose operator.
