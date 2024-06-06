@@ -1285,7 +1285,7 @@ class RobinBoundaryConditionsWithBoundaryGrids:
             self.displacement_variable, self.bc_values_displacement
         )
         self.update_boundary_condition(self.stress_keyword, self.bc_values_stress)
-        self.update_boundary_condition(self.bc_robin_key, self.bc_values_robin)
+        self.update_boundary_condition(self.bc_robin_key, self.bc_values_stress)
 
 
 class DynamicMomentumBalanceCommonParts(
@@ -1458,13 +1458,13 @@ class BoundaryAndInitialConditionValues2:
         """
         return 3 / 2
 
-    def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+    def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
         Specifically, this method assigns the values corresponding to ABC_2, namely
         a second order approximation to u_t in:
 
-            sigma * n + alpha * u_t = G¨
+            sigma * n + alpha * u_t = G
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -1506,8 +1506,8 @@ class BoundaryAndInitialConditionValues2:
         total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
         robin_rhs = np.matmul(total_coefficient_matrix, displacement_values).squeeze(-1)
         robin_rhs *= sd.face_areas[boundary_faces][:, None]
-
-        return robin_rhs.T.ravel("F")
+        robin_rhs = robin_rhs.T
+        return robin_rhs.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Sets the initial bc values for 0th and -1st time step in the data dictionary.
