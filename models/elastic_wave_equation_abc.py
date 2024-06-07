@@ -28,11 +28,6 @@ class NamesAndConstants:
         return False
 
     @property
-    def bc_robin_key(self) -> str:
-        """The key for Robin boundary conditions."""
-        return "robin_stress"
-
-    @property
     def beta(self) -> float:
         """Newmark time discretization parameter, beta.
 
@@ -982,7 +977,7 @@ class DynamicMomentumBalanceCommonParts(
 class BoundaryAndInitialConditionValues1:
     """Class with methods that are unique to ABC_1
 
-    Note: Not tested anymore, and perhaps not even functional after some refactoring. Considering to deprecate it.
+    Note: Not tested anymore.
 
     """
 
@@ -1000,7 +995,7 @@ class BoundaryAndInitialConditionValues1:
         """
         return 1.0
 
-    def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+    def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
         Specifically, this method assigns the values corresponding to ABC_1, namely
@@ -1086,7 +1081,7 @@ class BoundaryAndInitialConditionValues1:
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
             displacement_values = pp.get_solution_values(
-                name="bc_robin", data=data, time_step_index=0
+                name="u", data=data, time_step_index=0
             )
 
         displacement_values = np.reshape(
