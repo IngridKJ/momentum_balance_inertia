@@ -805,7 +805,7 @@ class SolutionStrategyDynamicMomentumBalance:
             time_step_index=0,
         )
 
-    def after_nonlinear_convergence(self) -> None:
+    def after_nonlinear_convergence(self, iteration_counter: int = 1) -> None:
         """Method to be called after every non-linear iteration.
 
         The method update_velocity_acceleration_time_dependent_ad_arrays needs to be
