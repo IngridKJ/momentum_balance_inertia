@@ -1,6 +1,6 @@
 """This file is a model setup and runscript for the unit test. Relevant commits:
-* Porepy:  6072a2f67
-* Momentum balance inertia 99259ca8
+* Porepy:  develop
+* Momentum balance inertia d33a1a9d
 
 Figure out what has happened in between those commits and now (mid June)
 """
