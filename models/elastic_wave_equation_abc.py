@@ -827,7 +827,7 @@ class SolutionStrategyDynamicMomentumBalance:
         self.equation_system.set_variable_values(
             values=solution, time_step_index=0, additive=False
         )
-        if self.time_manager.time_index > 1:
+        if self.time_manager.time_index >= 1:
             bg = self.mdg.boundaries(dim=self.nd - 1)[0]
             self.construct_and_save_boundary_displacement(boundary_grid=bg)
 
