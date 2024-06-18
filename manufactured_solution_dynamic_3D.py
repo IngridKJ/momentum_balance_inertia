@@ -1,3 +1,9 @@
+"""Manufactured solution setup for a 3D elastic wave equation.
+
+The setup is an adaptation/extension of a similar setup for poromechanics found within PorePy.
+
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -410,11 +416,6 @@ class ManuMechSolutionStrategy3d:
 
 class ManuMechBoundaryConditions:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        """Boundary condition
-
-        !!!
-
-        """
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(
             sd,
