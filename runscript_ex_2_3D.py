@@ -5,10 +5,17 @@ os.environ["MKL_NUM_THREADS"] = N_THREADS
 os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
+import logging
 import numpy as np
 import porepy as pp
 from models import DynamicMomentumBalanceABC2
+from models import DynamicMomentumBalanceABC2Linear
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
+import scipy.sparse as sps
+
+logger = logging.getLogger(__name__)
+
+"""Note that the attribute linear_system_residual is needed for this script."""
 
 
 class InitialConditionsAndMaterialProperties:
@@ -33,14 +40,14 @@ class InitialConditionsAndMaterialProperties:
         middle_layer = (z < 0.7) & (z >= 0.3)
         bottom_layer = z < 0.3
 
-        lmbda_vec[upper_layer] *= lmbda3
-        mu_vec[upper_layer] *= mu3
+        lmbda_vec[upper_layer] *= lmbda1
+        mu_vec[upper_layer] *= mu1
 
         lmbda_vec[middle_layer] *= lmbda2
         mu_vec[middle_layer] *= mu2
 
-        lmbda_vec[bottom_layer] *= lmbda1
-        mu_vec[bottom_layer] *= mu1
+        lmbda_vec[bottom_layer] *= lmbda3
+        mu_vec[bottom_layer] *= mu3
 
         self.mu_vector = mu_vec
         self.lambda_vector = lmbda_vec
@@ -56,10 +63,10 @@ class InitialConditionsAndMaterialProperties:
         vals = np.zeros((self.nd, sd.num_cells))
 
         theta = 1
-        lam = 0.125
+        lam = 0.3
         x0 = 0.75
         y0 = 0.5
-        z0 = 0.5
+        z0 = 0.65
 
         common_part = theta * np.exp(
             -np.pi**2 * ((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / lam**2
@@ -146,13 +153,12 @@ class MomentumBalanceModifiedGeometry(
     InitialConditionsAndMaterialProperties,
     MyGeometry,
     RemoveFractureRelatedEquationsMomentumBalance,
-    pp.DiagnosticsMixin,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC2Linear,
 ): ...
 
 
-time_steps = 100
-tf = 0.5
+time_steps = 500
+tf = 0.25
 dt = tf / time_steps
 
 time_manager = pp.TimeManager(
@@ -165,19 +171,25 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "simplex_290k",
+    "folder_name": "877k_500ts_025s_cs_0_0175_bigger_lambda",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
     "prepare_simulation": False,
+    "petsc_solver_q": True,
 }
 
+print("Simulation started.")
 model = MomentumBalanceModifiedGeometry(params)
 import time
 
 start = time.time()
 model.prepare_simulation()
 end = time.time() - start
-print("Num dofs system, simplex", model.equation_system.num_dofs())
-print("Time for prep sim:", end)
+print(f"Num dofs system, {params['grid_type']}: ", model.equation_system.num_dofs())
+print("Time for prepare simulation:", end)
 
 pp.run_time_dependent_model(model, params)
+
+print("After simulation")
+print("Time for prepare simulation:", end)
+print(f"Num dofs system, {params['grid_type']}: ", model.equation_system.num_dofs())
