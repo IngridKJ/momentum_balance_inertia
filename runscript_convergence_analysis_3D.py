@@ -21,7 +21,6 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "folder_name": "analysis_viz",
-    # "manufactured_solution": "bubble",
     "manufactured_solution": "sin_bubble",
     "grid_type": "cartesian",
     "meshing_arguments": {"cell_size": 0.25 / 1.0},
@@ -40,23 +39,6 @@ ooc: list[list[dict[str, float]]] = []
 ooc_setup: list[dict[str, float]] = []
 
 results = conv_analysis.run_analysis()
-# ooc_setup.append(
-#     conv_analysis.order_of_convergence(
-#         results,
-#         x_axis="cell_diameter",
-#     )
-# )
-# ooc_setup.append(
-#     conv_analysis.order_of_convergence(
-#         results, x_axis="time_step", data_range=slice(-2, None, None)
-#     )
-# )
-
-# ooc.append(ooc_setup)
-# print(ooc_setup)
-# conv_analysis.export_errors_to_txt(list_of_results=results)
-
-# Uncomment this for double refinement:
 ooc_setup.append(
     conv_analysis.order_of_convergence(
         results,
