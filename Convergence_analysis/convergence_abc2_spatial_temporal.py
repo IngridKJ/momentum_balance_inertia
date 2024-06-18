@@ -1,9 +1,11 @@
 import sys
 
 sys.path.append("../")
+import matplotlib.pyplot as plt
 import numpy as np
 import porepy as pp
 import utils
+from plotting.plot_utils import draw_multiple_loglog_slopes
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 from Convergence_analysis.model_convergence_ABC2 import ABC2Model
@@ -23,9 +25,8 @@ class MyUnitGeometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        mesh_args: dict[str, float] = {
-            "cell_size": 0.25 / 2 ** (self.refinement) / self.units.m
-        }
+        cell_size = self.solid.convert_units(0.25 / 2 ** (self.refinement), "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
@@ -73,17 +74,12 @@ class SpatialRefinementModel(MyUnitGeometry, ABC2Model):
 
         if self.time_manager.final_time_reached():
             with open("displacement_and_traction_errors.txt", "a") as file:
-                file.write(
-                    f"Displacement error for refinement number {self.refinement}:"
-                    f"{error_displacement} \nTraction error for refinement number "
-                    f"{self.refinement}: {error_traction}.\n\n"
-                )
-
+                file.write(f"{sd.num_cells}, {error_displacement}, {error_traction}\n")
         return data
 
 
 with open(f"displacement_and_traction_errors.txt", "w") as file:
-    pass
+    file.write("num_cells, displacement_error, traction_error\n")
 
 refinements = np.array([0, 1, 2, 3, 4])
 for refinement_coefficient in refinements:
@@ -112,3 +108,52 @@ for refinement_coefficient in refinements:
     model = SpatialRefinementModel(params)
     model.refinement = refinement_coefficient
     pp.run_time_dependent_model(model, params)
+
+
+# Read the file and extract data into numpy arrays
+num_cells, displacement_errors, traction_errors = np.loadtxt(
+    "displacement_and_traction_errors.txt",
+    delimiter=",",
+    skiprows=1,
+    unpack=True,
+    dtype=float,
+)
+
+
+num_cells_exp_1_over_dim = num_cells ** (1 / 2)
+
+# Plot the sample data
+fig, ax = plt.subplots()
+ax.loglog(
+    num_cells_exp_1_over_dim,
+    displacement_errors,
+    "o--",
+    color="firebrick",
+    label="Displacement",
+)
+ax.loglog(
+    num_cells_exp_1_over_dim,
+    traction_errors,
+    "o--",
+    color="royalblue",
+    label="Traction",
+)
+
+ax.set_title("Combined temporal and spatial convergence, orthogonal wave")
+ax.set_ylabel("Relative $L^2$ error")
+ax.set_xlabel("$(Number\ of\ cells)^{1/2}$")
+ax.legend()
+
+# Draw the convergence triangle with multiple slopes
+draw_multiple_loglog_slopes(
+    fig,
+    ax,
+    origin=(1.1 * num_cells_exp_1_over_dim[-2], traction_errors[-2]),
+    triangle_width=1.0,
+    slopes=[-2],
+    inverted=False,
+    labelcolor=(0.33, 0.33, 0.33),
+)
+
+ax.grid(True, which="both", color=(0.87, 0.87, 0.87))
+plt.show()
