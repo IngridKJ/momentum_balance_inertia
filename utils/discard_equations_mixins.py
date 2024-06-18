@@ -73,7 +73,7 @@ class RemoveFractureRelatedEquationsMomentumBalance:
             subdomains=domains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
-            robin_operator=self.robin_boundary_operator_stress,
+            robin_operator=self.mechanical_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
             name=self.bc_values_mechanics_key,
