@@ -5,9 +5,9 @@ import numpy as np
 
 sys.path.append("../")
 
-from plotting.plot_utils import draw_multiple_loglog_slopes
+from plotting.plot_utils import draw_multiple_loglog_slopes, fetch_numbers_from_file
 
-num_cells_exp_1_over_dim = np.array(
+num_cells = np.array(
     [
         387,
         2570,
@@ -16,20 +16,21 @@ num_cells_exp_1_over_dim = np.array(
     ]
 ) ** (1 / 3)
 
-y_disp = np.array([3.32e-01, 5.88e-02, 1.45e-02, 3.6e-03])
-y_trac = np.array([3.42e-01, 7.38e-02, 2.26e-02, 8.00e-03])
+values = fetch_numbers_from_file("displacement_and_traction_errors.txt")
+y_disp = values["error_displacement"]
+y_trac = values["error_force"]
 
 # Plot the sample data
 fig, ax = plt.subplots()
 ax.loglog(
-    num_cells_exp_1_over_dim,
+    num_cells,
     y_disp,
     "o--",
     color="firebrick",
     label="Displacement",
 )
 ax.loglog(
-    num_cells_exp_1_over_dim,
+    num_cells,
     y_trac,
     "o--",
     color="royalblue",
@@ -44,7 +45,7 @@ ax.legend()
 draw_multiple_loglog_slopes(
     fig,
     ax,
-    origin=(0.915 * num_cells_exp_1_over_dim[-1], 1.05 * y_disp[-1]),
+    origin=(0.915 * num_cells[-1], 1.05 * y_disp[-1]),
     triangle_width=1.0,
     slopes=[-2],
     inverted=True,
@@ -54,7 +55,7 @@ draw_multiple_loglog_slopes(
 draw_multiple_loglog_slopes(
     fig,
     ax,
-    origin=(1.1 * num_cells_exp_1_over_dim[-2], y_trac[-2]),
+    origin=(1.1 * num_cells[-2], y_trac[-2]),
     triangle_width=1.0,
     slopes=[-1.5],
     inverted=False,
