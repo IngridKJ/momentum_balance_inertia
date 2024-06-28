@@ -14,8 +14,16 @@ class BoundaryConditionsUnitTest:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         """Boundary condition type for the absorbing boundary condition model class.
 
-        Assigns Robin boundaries to all subdomain boundaries. This includes setting the
-        Robin weight by a helper function.
+        Assigns the following boundary condition types:
+            * North and south: Neumann
+            * West: Dirichlet
+            * East: Robin
+
+        Parameters:
+            sd: The subdomain whose bc type is assigned.
+
+        Return:
+            The boundary condition object.
 
         """
         # Fetch boundary sides and assign type of boundary condition for the different
@@ -34,12 +42,15 @@ class BoundaryConditionsUnitTest:
         return bc
 
     def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
-        """Method for assigning Robin boundary condition values.
+        """Method for assigning Neumann and Robin boundary condition values.
 
-        Specifically, this method assigns the values corresponding to ABC_2, namely
-        a second order approximation to u_t in:
+        Specifically, for the Robin values, this method assigns the values corresponding
+        to ABC_2, namely a second order approximation to u_t in:
 
             sigma * n + alpha * u_t = G
+
+        Robin/ABC_2 is employed for the east and west boundary. Zero Neumann conditions
+        are assigned for the north and south boundary.
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -100,24 +111,24 @@ class BoundaryConditionsUnitTest:
 
         Sets a time dependent sine condition in the x-direction of the western boundary.
 
+        Parameters:
+            bg: Boundary grid whose boundary displacement value is to be set.
+
+        Returns:
+            An array with the displacement boundary values at time t.
+
         """
         values = np.zeros((self.nd, bg.num_cells))
         bounds = self.domain_boundary_sides(bg)
-
         t = self.time_manager.time
 
-        displacement_values = np.zeros((self.nd, bg.num_cells))
-
         # Time dependent sine Dirichlet condition
-        values[0][bounds.west] += np.ones(
-            len(displacement_values[0][bounds.west])
-        ) * np.sin(t)
+        values[0][bounds.west] += np.ones(len(values[0][bounds.west])) * np.sin(t)
 
         return values.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        """Method for setting initial values for 0th and -1st time step in
-        dictionary.
+        """Method for setting initial boundary values for 0th and -1st time step.
 
         Parameters:
             bg: Boundary grid whose boundary displacement value is to be set.
@@ -147,7 +158,15 @@ class BoundaryConditionsUnitTest:
         )
         return vals_0
 
-    def initial_condition_value_function(self, bg, t):
+    def initial_condition_value_function(
+        self, bg: pp.BoundaryGrid, t: float
+    ) -> np.ndarray:
+        """Initial values for the ABC boundaries.
+
+        In the quasi-1d test we have to assign initial values to the east and west
+        boundaries (ABC boundaries).
+
+        """
         sd = bg.parent
 
         x = sd.face_centers[0, :]
@@ -226,9 +245,11 @@ class ConstitutiveLawsAndSource:
         force_total_fc: list[np.ndarray] = [
             # (sigma_xx * n_x + sigma_xy * n_y) * face_area
             sigma_total_fun[0][0](fc[0], fc[1], time) * fn[0]
+            # Eliminate y-direction, as the analytical force is only in x-direction.
             + 0 * sigma_total_fun[0][1](fc[0], fc[1], time) * fn[1],
             # (sigma_yx * n_x + sigma_yy * n_y) * face_area
             sigma_total_fun[1][0](fc[0], fc[1], time) * fn[0]
+            # Eliminate y-direction, as the analytical force is only in x-direction.
             + 0 * sigma_total_fun[1][1](fc[0], fc[1], time) * fn[1],
         ]
 
