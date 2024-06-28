@@ -29,6 +29,46 @@ def read_float_values(filename) -> np.ndarray:
 
 
 # -------------------------------------------------------------------------------------
+def fetch_numbers_from_file(file_path: str) -> dict:
+    """Fetches numbers from files with a header.
+
+    Files supported are on the form:
+        Line 1: header1 header2 header3 header4 ....
+        Line 2: num num num num ...
+        Line 3: num num num num ...
+        ...
+
+    Besides that, if there are any hashtags or commas in the file, these are ignored. The numbers are stored as values in a dictionary with their header as key.
+
+    Parameters:
+        file_path: Path to file/filename.
+
+    """
+    data = {}
+
+    with open(file_path, "r") as file:
+        for line in file:
+            line = line.strip().replace("#", "")  # Remove the # character
+            line = line.replace(",", "")  # Remove all commas
+            if not line:
+                continue  # Skip empty lines
+
+            parts = line.split()
+            if not data:  # First non-empty line is the header
+                header = parts
+                data = {head: [] for head in header}
+            else:
+                for i, part in enumerate(parts):
+                    value = (
+                        int(part)
+                        if i == 0 and header[i].lower() in ["num_cells"]
+                        else float(part)
+                    )
+                    data[header[i]].append(value)
+    return data
+
+
+# -------------------------------------------------------------------------------------
 
 
 def draw_multiple_loglog_slopes(

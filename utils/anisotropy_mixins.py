@@ -52,12 +52,10 @@ class TransverselyAnisotropicStiffnessTensor:
             anisotropic_stiffness_values = (
                 self.transversely_isotropic_stiffness_tensor()
             )
-            for cell_index in indices:
-                stiffness_tensor.values[:, :, cell_index] *= 0
-                stiffness_tensor.values[
-                    :, :, cell_index
-                ] += anisotropic_stiffness_values
 
+            stiffness_tensor.values[:, :, indices] = anisotropic_stiffness_values[
+                :, :, np.newaxis
+            ]
         return stiffness_tensor
 
     def transversely_isotropic_stiffness_tensor(self) -> np.ndarray:
