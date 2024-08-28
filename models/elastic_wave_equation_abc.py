@@ -790,7 +790,7 @@ class SolutionStrategyDynamicMomentumBalance:
             name=name,
             data=data,
             location=location,
-            max_index=1,
+            max_index=2,
         )
 
         sd = boundary_grid.parent
