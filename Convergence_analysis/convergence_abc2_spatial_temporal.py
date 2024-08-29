@@ -73,12 +73,12 @@ class SpatialRefinementModel(MyUnitGeometry, ABC2Model):
         )
 
         if self.time_manager.final_time_reached():
-            with open("displacement_and_traction_errors.txt", "a") as file:
+            with open("displacement_and_traction_errors_abc.txt", "a") as file:
                 file.write(f"{sd.num_cells}, {error_displacement}, {error_traction}\n")
         return data
 
 
-with open(f"displacement_and_traction_errors.txt", "w") as file:
+with open(f"displacement_and_traction_errors_abc.txt", "w") as file:
     file.write("num_cells, displacement_error, traction_error\n")
 
 refinements = np.array([0, 1, 2, 3, 4])
@@ -112,7 +112,7 @@ for refinement_coefficient in refinements:
 
 # Read the file and extract data into numpy arrays
 num_cells, displacement_errors, traction_errors = np.loadtxt(
-    "displacement_and_traction_errors.txt",
+    "displacement_and_traction_errors_abc.txt",
     delimiter=",",
     skiprows=1,
     unpack=True,
