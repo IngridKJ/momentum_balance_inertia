@@ -129,7 +129,7 @@ class ExportEnergy:
         data.append((sd, "energy", vel_op_int_val))
         data.append((sd, "velocity", vel))
 
-        with open(f"energy_values_{self.rotation_angle_index}_t.txt", "a") as file:
+        with open(f"energy_values_{self.rotation_angle_index}.txt", "a") as file:
             file.write(f"{np.sum(vel_op_int_val)},")
 
         return data
@@ -178,7 +178,7 @@ for rotation_angle in rotation_angles:
     model = EnergyTestModel(params)
     model.rotation_angle_from_list = rotation_angle
     model.rotation_angle_index = i
-    with open(f"energy_values_{i}_t.txt", "w") as file:
+    with open(f"energy_values_{i}.txt", "w") as file:
         pass
     pp.run_time_dependent_model(model, params)
     i += 1
