@@ -22,7 +22,7 @@ params = {
     "time_manager": time_manager,
     "folder_name": "analysis_viz",
     "manufactured_solution": "sin_bubble",
-    "grid_type": "cartesian",
+    "grid_type": "simplex",
     "meshing_arguments": {"cell_size": 0.25 / 1.0},
     "plot_results": False,
     "progress_bars": True,
