@@ -12,20 +12,6 @@ Specific note: there is a function for fetching cell indices of boundary cells. 
 be done in a brute force way, and the functionality may already lie within PorePy, but I
 failed to find it.
 
-For comparison of the numerical and analytical solution, here are a couple analytical
-solutions in ParaView-calculator-language.
-
-2D: 
-ParaView polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1] * (1 -
-coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 -
-coords[1]) * jHat)
-
-ParaView sine time, quad space, analytical solution: sin(5.0/2.0 * acos(-1) * 1/20) * (coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * iHat + coords[0] * coords[1] * (1 - coords[0]) * (1 - coords[1]) * jHat)
-
-
-3D:
-ParaView 3D polynomial bubble analytical solution: (time)^2 * (coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * iHat + coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * jHat + coords[0] * coords[1] * coords[2] * (1 - coords[0]) * (1 - coords[1]) * (1 - coords[2]) * kHat)
-
 """
 
 from typing import Optional, Union
@@ -71,35 +57,6 @@ def acceleration_velocity_displacement(
     )
 
     return a_previous, v_previous, u_previous, u_current
-
-
-def cell_center_function_evaluation(model, f, sd, t) -> np.ndarray:
-    """Function for computing cell center values for a given function.
-
-    This is hard-coded for a two-dimensional function. As of now only used for computing
-    error (analytical vs. numerical solution).
-
-    Parameters:
-        f: Function depending on time and space.
-        sd: Subdomain where cell center values are to be computed.
-        t: Current time in the time-stepping.
-
-    Returns:
-        An array of function values.
-
-    """
-    vals = np.zeros((model.nd, sd.num_cells))
-
-    x = sd.cell_centers[0, :]
-    y = sd.cell_centers[1, :]
-
-    x_val = f[0](x, y, t)
-    y_val = f[1](x, y, t)
-
-    vals[0] = x_val
-    vals[1] = y_val
-
-    return vals.ravel("F")
 
 
 # -------- Wrap for symbolic representations of 2D and 3D functions/equation terms.

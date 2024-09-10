@@ -2,7 +2,7 @@
 
 Currently, the following tensors are found here:
     * Vertical transverse anisotropic stiffness tensor (for inner domain). Brute force
-      version, and thus to be deprecated.
+      version.
     * Simple anisotropy: Only increase stiffness in one direction. 
     * Vertical transverse anisotropic stiffness tensor: Non-brute force version.
       Constructed generally enough to allow for some flexibility in further
@@ -15,17 +15,16 @@ from utils.stiffness_tensors import StiffnessTensorInnerVTI
 
 
 class TransverselyAnisotropicStiffnessTensor:
-    """To be deprecated: there is a less brute-force version in the bottom of this
-    file."""
+    """Note: there is a less brute-force version in the bottom of this file."""
 
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
 
-        Modified to represent a transversely isotropic stiffness tensor. It is
-        (for now) done in a rather brute force way. All cells corresponding to the
-        "inner domain" (see the function inner_domain_cells in utils) will have their
-        stiffness tensor values wiped. A newly created 9x9 matrix corresponding to the
-        values of a transversely isotropic medium is assigned to the wiped part.
+        Modified to represent a transversely isotropic stiffness tensor. It is (for now)
+        done in a rather brute force way. All cells corresponding to the "inner domain"
+        (see the function inner_domain_cells in utils) will have their stiffness tensor
+        values wiped. A newly created 9x9 matrix corresponding to the values of a
+        transversely isotropic medium is assigned to the wiped part.
 
         Parameters:
             subdomain: Subdomain where the stiffness tensor is defined.

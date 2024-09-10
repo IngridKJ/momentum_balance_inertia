@@ -5,10 +5,11 @@ os.environ["MKL_NUM_THREADS"] = N_THREADS
 os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
+
 import logging
 import numpy as np
 import porepy as pp
-from models import DynamicMomentumBalanceABC2
+
 from models import DynamicMomentumBalanceABC2Linear
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
 import scipy.sparse as sps
