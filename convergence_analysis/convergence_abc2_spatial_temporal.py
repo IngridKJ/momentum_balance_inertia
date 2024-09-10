@@ -8,7 +8,7 @@ import utils
 from plotting.plot_utils import draw_multiple_loglog_slopes
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
-from Convergence_analysis.model_convergence_ABC2 import ABC2Model
+from model_convergence_ABC2 import ABC2Model
 
 
 class MyUnitGeometry:
