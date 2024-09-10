@@ -28,11 +28,6 @@ class NamesAndConstants:
         return False
 
     @property
-    def bc_robin_key(self) -> str:
-        """The key for Robin boundary conditions."""
-        return "bc_robin"
-
-    @property
     def beta(self) -> float:
         """Newmark time discretization parameter, beta.
 
@@ -249,13 +244,16 @@ class BoundaryAndInitialConditions:
             face_normals, axis=0, keepdims=True
         )
 
-        # This cursed line does the same as the line that is commented out below. Thank
-        # you Yura for helping with this!!
+        # This cursed line of code does the same as the lines that are commented out
+        # below. Thank you Yura for helping with this!!
         tensile_matrices = np.einsum(
             "ik,jk->kij", unitary_face_normals, unitary_face_normals
         )
         # tensile_matrices = np.array(
-        #     [np.outer(column, column) for column in sd.face_normals.T]
+        #     [
+        #         np.outer(normal_vector, normal_vector)
+        #         for normal_vector in unitary_face_normals.T
+        #     ]
         # )
 
         # Creating a block array of identity matrices. Subtracting the tensile matrix
@@ -322,10 +320,8 @@ class BoundaryAndInitialConditions:
             subdomains=subdomains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
+            robin_operator=self.mechanical_stress,
             bc_type=self.bc_type_mechanics,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
             dim=self.nd,
             name=self.bc_values_mechanics_key,
         )
@@ -583,12 +579,8 @@ class SolutionStrategyDynamicMomentumBalance:
         self.set_materials()
         self.set_geometry()
 
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-        boundary_faces = sd.get_boundary_faces()
-        self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
-            faces=boundary_faces
-        )[1]
-        self.vector_valued_mu_lambda()
+        self.set_vector_valued_mu_lambda()
+
         # Exporter initialization must be done after grid creation,
         # but prior to data initialization.
         self.initialize_data_saving()
@@ -608,6 +600,14 @@ class SolutionStrategyDynamicMomentumBalance:
 
         # Export initial condition
         self.save_data_time_step()
+
+    def set_vector_valued_mu_lambda(self):
+        sd = self.mdg.subdomains(dim=self.nd)[0]
+        boundary_faces = sd.get_boundary_faces()
+        self.boundary_cells_of_grid = sd.signs_and_cells_of_boundary_faces(
+            faces=boundary_faces
+        )[1]
+        self.vector_valued_mu_lambda()
 
     def set_discretization_parameters(self) -> None:
         """Set discretization parameters for the simulation.
@@ -780,7 +780,32 @@ class SolutionStrategyDynamicMomentumBalance:
                 iterate_index=0,
             )
 
-    def after_nonlinear_convergence(self) -> None:
+    def construct_and_save_boundary_displacement(self, boundary_grid: pp.BoundaryGrid):
+        data = self.mdg.boundary_grid_data(boundary_grid)
+        name = "boundary_displacement_values"
+        # The displacement value for the previous time step is constructed and the
+        # one two time steps back in time is fetched from the dictionary.
+        location = pp.TIME_STEP_SOLUTIONS
+        pp.shift_solution_values(
+            name=name,
+            data=data,
+            location=location,
+            max_index=2,
+        )
+
+        sd = boundary_grid.parent
+        displacement_boundary_operator = self.boundary_displacement([sd])
+        displacement_values = displacement_boundary_operator.value(self.equation_system)
+
+        displacement_values_0 = boundary_grid.projection(self.nd) @ displacement_values
+        pp.set_solution_values(
+            name=name,
+            values=displacement_values_0,
+            data=data,
+            time_step_index=0,
+        )
+
+    def after_nonlinear_convergence(self, iteration_counter: int = 1) -> None:
         """Method to be called after every non-linear iteration.
 
         The method update_velocity_acceleration_time_dependent_ad_arrays needs to be
@@ -802,6 +827,10 @@ class SolutionStrategyDynamicMomentumBalance:
         self.equation_system.set_variable_values(
             values=solution, time_step_index=0, additive=False
         )
+        if self.time_manager.time_index >= 1:
+            bg = self.mdg.boundaries(dim=self.nd - 1)[0]
+            self.construct_and_save_boundary_displacement(boundary_grid=bg)
+
         self.convergence_status = True
         self.save_data_time_step()
 
@@ -922,338 +951,6 @@ class TimeDependentSourceTerm:
         return vals.ravel("F")
 
 
-class RobinBoundaryConditionsWithBoundaryGrids:
-    """Mixin for adaptations related to Robin boundary conditions with boundary grids.
-
-    This mixin contains everything I needed to adapt in the source code for making the
-    Robin boundary conditions (and thus absorbing boundary conditions (ABCs)) work with
-    the boundary grid setup. Methods from three separate files are adapted. Which chunk
-    of methods belong to which files are mentioned by a comment above the first method
-    in the chunk.
-
-    It also contains some brief "documentation" of other adaptations that were needed.
-    Methods herein include:
-    * _combine_boundary_operators: Signature now contains a robin_operator. The code
-        within is adapted such that all three boundary operators are combined, not only
-        Neumann and Dirichlet.
-    * _update_bc_type_filter: Included a function for Robin analogous to the Neumann and
-        Dirichlet ones. Now the Robin filter values can also be fetched from the parent
-        grid, projected onto the boundary grid, and then updated.
-    * __bc_type_storage: Needed to have this "locally". Not entirely sure why.
-    * mechanical_stress: Adapt signature in call to _combine_boundary_operators to also
-        give the Robin operator.
-    * displacement_divergence: Adapt signature in call to _combine_boundary_operators
-        to also give the Robin operator.
-    * update_all_boundary_conditions: Include a call to update Robin boundary
-        conditions.
-
-    In addition to this one needs to define the robin boundary condition key (for
-    identifying the operator/values/etc.) and a method for setting Robin-related
-    boundary values.
-    * self.bc_robin_key: "bc_robin".
-    * self.bc_values_robin: Method for setting values to the Robin boundary conditions.
-        That is, setting the right-hand side of sigma * n + alpha * u = G. Assigning the
-        Robin weight has _not_ changed. This still happens in the bc_type_mechanics
-        method.
-        As of right now (while writing this docstring), the only occurence of this
-        method is in runscripts utilizing Robin boundary conditions. This will be
-        adapted soon.
-
-    Specific change for the ABCs:
-    * The right hand side of the ABCs is some coefficient multiplied by the previous
-        face centered displacement value at the boundary. To obtain this, the utility
-        method boundary_displacement (found in elastic_wave_equation_abc.py) was
-        created to reconstruct the boundary displacements. Within here, a call to the
-        (now deprecated) method bc_values_mechanics was found. Now we have to use the
-        _combine_boundary_operators method instead.
-
-    Changes related to non-trivial initial boundary values:
-    * Certain simulations with ABCs include some non-trivial boundary values to be set.
-        That is, a value that is dependent on the previous boundary displcement value.
-
-        These values need to be initialized properly, and the way this was done before
-        was to simply assign them before the simulation started. In the new set up,
-        there is a check whether there are values present in the data dictionary the
-        first time boundary conditions are to be updated. If initial values are set
-        before this occurs, the method assumes the initial call has already been made
-        and starts assigning new values and thus overriding the initial ones.
-
-        This is solved within bc_values_robin by distinguishing what to return on the
-        very first call to the method (self.time_manager.time_index == 0). This leads to
-        the existence of an initial condition method specific for boundary values. The
-        method itself is not too different from the previous method for setting initial
-        bc values.
-
-    """
-
-    # From boundary_condition.py
-    def _combine_boundary_operators(
-        self,
-        subdomains: Sequence[pp.Grid],
-        dirichlet_operator: Callable[[Sequence[pp.BoundaryGrid]], pp.ad.Operator],
-        neumann_operator: Callable[[Sequence[pp.BoundaryGrid]], pp.ad.Operator],
-        bc_type: Callable[[pp.Grid], pp.BoundaryCondition],
-        name: str,
-        robin_operator: Callable[[Sequence[pp.BoundaryGrid]], pp.ad.Operator],
-        dim: int = 1,
-    ) -> pp.ad.Operator:
-        """Creates an operator representing Dirichlet and Neumann boundary conditions
-        and projects it to the subdomains from boundary grids.
-
-        Parameters:
-            subdomains: List of subdomains.
-            dirichlet_operator: Function that returns the Dirichlet boundary condition
-                operator.
-            neumann_operator: Function that returns the Neumann boundary condition
-                operator.
-            robin_operator: Function that returns the Robin boundary condition
-                operator.
-            dim: Dimension of the equation. Defaults to 1.
-            name: Name of the resulting operator. Must be unique for an operator.
-
-        Returns:
-            Boundary condition representation operator.
-
-        """
-        boundary_grids = self.subdomains_to_boundary_grids(subdomains)
-
-        # Creating the Dirichlet, Neumann and Robin AD expressions.
-        dirichlet = dirichlet_operator(boundary_grids)
-        neumann = neumann_operator(boundary_grids)
-        robin = robin_operator(boundary_grids)
-
-        # Adding bc_type function to local storage to evaluate it before every time step
-        # in case if the type changes in the runtime.
-        self.__bc_type_storage[name] = bc_type
-        # Creating the filters to ensure that Dirichlet, Neumann and Robin arrays do not
-        # intersect where we do not want it.
-        dir_filter = pp.ad.TimeDependentDenseArray(
-            name=(name + "_filter_dir"), domains=boundary_grids
-        )
-        neu_filter = pp.ad.TimeDependentDenseArray(
-            name=(name + "_filter_neu"), domains=boundary_grids
-        )
-        rob_filter = pp.ad.TimeDependentDenseArray(
-            name=(name + "_filter_rob"), domains=boundary_grids
-        )
-        # Setting the values of the filters for the first time.
-        self._update_bc_type_filter(name=name, bc_type_callable=bc_type)
-
-        boundary_to_subdomain = pp.ad.BoundaryProjection(
-            self.mdg, subdomains=subdomains, dim=dim
-        ).boundary_to_subdomain
-
-        # Ensure that the Dirichlet operator only assigns (non-zero)
-        # values to faces that are marked as having Dirichlet conditions.
-        dirichlet *= dir_filter
-        # Same with Neumann conditions.
-        neumann *= neu_filter
-        # Same with Robin conditions
-        robin *= rob_filter
-        # Projecting from the boundary grid to the subdomain.
-        result = boundary_to_subdomain @ (dirichlet + neumann + robin)
-        result.set_name(name)
-        return result
-
-    def _update_bc_type_filter(
-        self, name: str, bc_type_callable: Callable[[pp.Grid], pp.BoundaryCondition]
-    ):
-        """Update the filters for Dirichlet, Neumann and Robin values.
-
-        This is done to discard the data related to Dirichlet boundary condition in
-        cells where the ``bc_type`` is Neumann or Robin and vice versa.
-
-        """
-
-        # Note: transposition is unavoidable to treat vector values correctly.
-        def dirichlet(bg: pp.BoundaryGrid):
-            # Transpose to get a n_face x nd array with shape compatible with
-            # the projection matrix.
-            is_dir = bc_type_callable(bg.parent).is_dir.T
-            is_dir = bg.projection() @ is_dir
-            # Transpose back, then ravel (in that order).
-            return is_dir.T.ravel("F")
-
-        def neumann(bg: pp.BoundaryGrid):
-            is_neu = bc_type_callable(bg.parent).is_neu.T
-            is_neu = bg.projection() @ is_neu
-            return is_neu.T.ravel("F")
-
-        def robin(bg: pp.BoundaryGrid):
-            is_rob = bc_type_callable(bg.parent).is_rob.T
-            is_rob = bg.projection() @ is_rob
-            return is_rob.T.ravel("F")
-
-        self.update_boundary_condition(name=(name + "_filter_dir"), function=dirichlet)
-        self.update_boundary_condition(name=(name + "_filter_neu"), function=neumann)
-        self.update_boundary_condition(name=(name + "_filter_rob"), function=robin)
-
-    @cached_property
-    def __bc_type_storage(self) -> dict[str, Callable[[pp.Grid], pp.BoundaryCondition]]:
-        """Storage of functions that determine the boundary condition type on the given
-        grid.
-
-        Used in :meth:`update_all_boundary_conditions` for Dirichlet and Neumann
-        filters.
-
-        Stores per operator name (key) a callable (value) returning an operator
-        representing the BC type per subdomain.
-
-        """
-        return {}
-
-    # From constitutive_laws.py
-    def mechanical_stress(self, domains: pp.SubdomainsOrBoundaries) -> pp.ad.Operator:
-        """Linear elastic mechanical stress.
-
-        .. note::
-            The below discretization assumes the stress is discretized with a Mpsa
-            finite volume discretization. Other discretizations may be possible, but are
-            not available in PorePy at the moment, and would likely require changes to
-            this method.
-
-        Parameters:
-            grids: List of subdomains or boundary grids. If subdomains, should be of
-                co-dimension 0.
-
-        Raises:
-            ValueError: If any grid is not of co-dimension 0.
-            ValueError: If any the method is called with a mixture of subdomains and
-                boundary grids.
-
-        Returns:
-            Ad operator representing the mechanical stress on the faces of the grids.
-
-        """
-        if len(domains) == 0 or all(isinstance(d, pp.BoundaryGrid) for d in domains):
-            return self.create_boundary_operator(
-                name=self.stress_keyword, domains=domains  # type: ignore[call-arg]
-            )
-
-        # Check that the subdomains are grids.
-        if not all([isinstance(g, pp.Grid) for g in domains]):
-            raise ValueError(
-                """Argument subdomains a mixture of grids and
-                                boundary grids"""
-            )
-        # By now we know that subdomains is a list of grids, so we can cast it as such
-        # (in the typing sense).
-        domains = cast(list[pp.Grid], domains)
-
-        for sd in domains:
-            # The mechanical stress is only defined on subdomains of co-dimension 0.
-            if sd.dim != self.nd:
-                raise ValueError("Subdomain must be of co-dimension 0.")
-
-        # No need to facilitate changing of stress discretization, only one is
-        # available at the moment.
-        discr = self.stress_discretization(domains)
-        # Fractures in the domain
-        interfaces = self.subdomains_to_interfaces(domains, [1])
-
-        # Boundary conditions on external boundaries
-        boundary_operator = self._combine_boundary_operators(  # type: ignore[call-arg]
-            subdomains=domains,
-            dirichlet_operator=self.displacement,
-            neumann_operator=self.mechanical_stress,
-            bc_type=self.bc_type_mechanics,
-            dim=self.nd,
-            name=self.bc_values_mechanics_key,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
-        )
-
-        proj = pp.ad.MortarProjections(self.mdg, domains, interfaces, dim=self.nd)
-        # The stress in the subdomanis is the sum of the stress in the subdomain,
-        # the stress on the external boundaries, and the stress on the interfaces.
-        # The latter is found by projecting the displacement on the interfaces to the
-        # subdomains, and let these act as Dirichlet boundary conditions on the
-        # subdomains.
-        stress = (
-            discr.stress() @ self.displacement(domains)
-            + discr.bound_stress() @ boundary_operator
-            + discr.bound_stress()
-            @ proj.mortar_to_primary_avg
-            @ self.interface_displacement(interfaces)
-        )
-        stress.set_name("mechanical_stress")
-        return stress
-
-    def displacement_divergence(
-        self,
-        subdomains: list[pp.Grid],
-    ) -> pp.ad.Operator:
-        """Divergence of displacement [-].
-
-        This is div(u). Note that opposed to old implementation, the temporal is not
-        included here. Rather, it is handled by :meth:`pp.ad.dt`.
-
-        Parameters:
-            subdomains: List of subdomains where the divergence is defined.
-
-        Returns:
-            Divergence operator accounting from contributions from interior of the
-            domain and from internal and external boundaries.
-
-        """
-        # Sanity check on dimension
-        if not all(sd.dim == self.nd for sd in subdomains):
-            raise ValueError("Displacement divergence only defined in nd.")
-
-        # Obtain neighbouring interfaces
-        interfaces = self.subdomains_to_interfaces(subdomains, [1])
-        # Mock discretization (empty `discretize` method), used to access discretization
-        # matrices computed by Biot discretization.
-        discr = pp.ad.DivUAd(self.stress_keyword, subdomains, self.darcy_keyword)
-        # Projections
-        sd_projection = pp.ad.SubdomainProjections(subdomains, dim=self.nd)
-        mortar_projection = pp.ad.MortarProjections(
-            self.mdg, subdomains, interfaces, dim=self.nd
-        )
-
-        boundary_operator = self._combine_boundary_operators(  # type: ignore[call-arg]
-            subdomains=subdomains,
-            dirichlet_operator=self.displacement,
-            neumann_operator=self.mechanical_stress,
-            bc_type=self.bc_type_mechanics,
-            dim=self.nd,
-            name=self.bc_values_mechanics_key,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
-        )
-
-        # Compose operator.
-        div_u_integrated = discr.div_u() @ self.displacement(
-            subdomains
-        ) + discr.bound_div_u() @ (
-            boundary_operator
-            + sd_projection.face_restriction(subdomains)
-            @ mortar_projection.mortar_to_primary_avg
-            @ self.interface_displacement(interfaces)
-        )
-        # Divide by cell volumes to counteract integration.
-        # The div_u discretization contains a volume integral. Since div u is used here
-        # together with intensive quantities, we need to divide by cell volumes.
-        cell_volumes_inv = pp.ad.Scalar(1) / self.wrap_grid_attribute(
-            subdomains, "cell_volumes", dim=1  # type: ignore[call-arg]
-        )
-        div_u = cell_volumes_inv * div_u_integrated
-        div_u.set_name("div_u")
-        return div_u
-
-    # From momentum_balance
-    def update_all_boundary_conditions(self) -> None:
-        """Set values for the displacement and the stress on boundaries."""
-        super().update_all_boundary_conditions()
-        self.update_boundary_condition(
-            self.displacement_variable, self.bc_values_displacement
-        )
-        self.update_boundary_condition(self.stress_keyword, self.bc_values_stress)
-        self.update_boundary_condition(self.bc_robin_key, self.bc_values_robin)
-
-
 class DynamicMomentumBalanceCommonParts(
     NamesAndConstants,
     CustomSolverMixin,
@@ -1262,7 +959,6 @@ class DynamicMomentumBalanceCommonParts(
     ConstitutiveLawsDynamicMomentumBalance,
     TimeDependentSourceTerm,
     SolutionStrategyDynamicMomentumBalance,
-    RobinBoundaryConditionsWithBoundaryGrids,
     MomentumBalance,
 ):
     """Class of subclasses/methods that are common for ABC_1 and ABC_2.
@@ -1279,7 +975,11 @@ class DynamicMomentumBalanceCommonParts(
 # From here and downwards: The classes BoundaryAndInitialConditionValuesX that are
 # unique for ABC_X.
 class BoundaryAndInitialConditionValues1:
-    """Class with methods that are unique to ABC_1"""
+    """Class with methods that are unique to ABC_1
+
+    Note: Not tested anymore.
+
+    """
 
     @property
     def discrete_robin_weight_coefficient(self) -> float:
@@ -1295,7 +995,7 @@ class BoundaryAndInitialConditionValues1:
         """
         return 1.0
 
-    def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+    def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
         Specifically, this method assigns the values corresponding to ABC_1, namely
@@ -1381,7 +1081,7 @@ class BoundaryAndInitialConditionValues1:
             # is called at the zeroth time step. The boundary displacement operator is
             # not available at this time.
             displacement_values = pp.get_solution_values(
-                name="bc_robin", data=data, time_step_index=0
+                name="u", data=data, time_step_index=0
             )
 
         displacement_values = np.reshape(
@@ -1420,13 +1120,13 @@ class BoundaryAndInitialConditionValues2:
         """
         return 3 / 2
 
-    def bc_values_robin(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
+    def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
         """Method for assigning Robin boundary condition values.
 
         Specifically, this method assigns the values corresponding to ABC_2, namely
         a second order approximation to u_t in:
 
-            sigma * n + alpha * u_t = G¨
+            sigma * n + alpha * u_t = G
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -1435,109 +1135,41 @@ class BoundaryAndInitialConditionValues2:
             Array of boundary values.
 
         """
-        # !!! Check what is the deal with this guy
+        # !!! Check what is the deal with this guy. I think it is a thing for fractured
+        # media.
         if boundary_grid.dim != (self.nd - 1):
             return np.array([])
 
-        if self.time_manager.time_index != 0:
-            displacement_values_0, displacement_values_1 = (
-                self._previous_displacement_values(boundary_grid=boundary_grid)
-            )
-        elif self.time_manager.time_index == 0:
-            return self.initial_condition_bc(boundary_grid)
-
-        total_disp_vals = displacement_values_0 + displacement_values_1
-
+        data = self.mdg.boundary_grid_data(boundary_grid)
         sd = boundary_grid.parent
         boundary_faces = sd.get_boundary_faces()
+        name = "boundary_displacement_values"
 
-        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
+        if self.time_manager.time_index == 0:
+            return self.initial_condition_bc(boundary_grid)
 
-        result = np.matmul(
-            total_coefficient_matrix, total_disp_vals.T[..., None]
-        ).squeeze(-1)
-        result = result * sd.face_areas[boundary_faces][:, None]
-
-        result = result.T
-        return result.ravel("F")
-
-    def _previous_displacement_values(
-        self, boundary_grid: pp.BoundaryGrid
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Method for constructing/fetching previous boundary displacement values.
-
-        The method also makes sure to scale the displcement values with the appropriate
-        coefficients. Recall that the discretized expressions for the ABC_2 are:
-
-            sigma * n + 3 / 2 * D_h * u_n = D_h * (2 * u_(n-1) - 0.5 * u_(n-2)),
-
-        This method scales the previous displacements with the coefficients 2 and -0.5.
-
-        Parameters:
-            boundary_grid: The boundary grid whose displacement values we are
-                interested in.
-
-        Returns:
-            A tuple with the scaled displacement values one time step back in time and
-            two time steps back in time.
-
-        """
-        data = self.mdg.boundary_grid_data(boundary_grid)
-        if self.time_manager.time_index > 1:
-            # The displacement value for the previous time step is constructed and the
-            # one two time steps back in time is fetched from the dictionary.
-            location = pp.TIME_STEP_SOLUTIONS
-            name = "boundary_displacement_values"
-            pp.shift_solution_values(
-                name=name,
-                data=data,
-                location=location,
-                max_index=1,
-            )
-            displacement_values_1 = pp.get_solution_values(
-                name=name, data=data, time_step_index=1
-            )
-
-            sd = boundary_grid.parent
-            displacement_boundary_operator = self.boundary_displacement([sd])
-            displacement_values = displacement_boundary_operator.value(
-                self.equation_system
-            )
-
-            displacement_values_0 = (
-                boundary_grid.projection(self.nd) @ displacement_values
-            )
-            pp.set_solution_values(
-                name="boundary_displacement_values",
-                values=displacement_values_0,
-                data=data,
-                time_step_index=0,
-            )
-        elif self.time_manager.time_index == 1:
-            # On first time step we need to fetch both initial values from the storage
-            # location.
-            displacement_values_0 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=0
-            )
-            displacement_values_1 = pp.get_solution_values(
-                name="boundary_displacement_values", data=data, time_step_index=1
-            )
-
-        # Reshaping the displacement value arrays to have a shape that is easier to work
-        # with when assigning the robin bc values for the different domain sides.
-        displacement_values_0 = np.reshape(
-            displacement_values_0, (self.nd, boundary_grid.num_cells), "F"
+        displacement_values_0 = pp.get_solution_values(
+            name=name, data=data, time_step_index=0
         )
-        displacement_values_1 = np.reshape(
-            displacement_values_1, (self.nd, boundary_grid.num_cells), "F"
+        displacement_values_1 = pp.get_solution_values(
+            name=name, data=data, time_step_index=1
         )
 
         # According to the expression for ABC_2 we have a coefficient 2 in front of the
         # values u_(n-1) and -0.5 in front of u_(n-2):
-        displacement_values_0 *= 2
-        displacement_values_1 *= -0.5
+        displacement_values = 2 * displacement_values_0 - 0.5 * displacement_values_1
 
-        return displacement_values_0, displacement_values_1
+        # Transposing and reshaping displacement values to prepare for broadcasting
+        displacement_values = displacement_values.reshape(
+            boundary_grid.num_cells, self.nd, 1
+        )
+
+        # Assembling the vector representing the RHS of the Robin conditions
+        total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
+        robin_rhs = np.matmul(total_coefficient_matrix, displacement_values).squeeze(-1)
+        robin_rhs *= sd.face_areas[boundary_faces][:, None]
+        robin_rhs = robin_rhs.T
+        return robin_rhs.ravel("F")
 
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Sets the initial bc values for 0th and -1st time step in the data dictionary.
@@ -1559,15 +1191,16 @@ class BoundaryAndInitialConditionValues2:
 
         data = self.mdg.boundary_grid_data(bg)
 
+        name = "boundary_displacement_values"
         # The values for the 0th and -1th time step are to be stored
         pp.set_solution_values(
-            name="boundary_displacement_values",
+            name=name,
             values=vals_1,
             data=data,
             time_step_index=1,
         )
         pp.set_solution_values(
-            name="boundary_displacement_values",
+            name=name,
             values=vals_0,
             data=data,
             time_step_index=0,
@@ -1576,11 +1209,11 @@ class BoundaryAndInitialConditionValues2:
 
     def initial_condition_bc_0(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Initial boundary displacement values corresponding to time step 0."""
-        return np.zeros((self.nd, bg.num_cells))
+        return np.zeros((self.nd, bg.num_cells)).ravel("F")
 
     def initial_condition_bc_1(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Initial boundary displacement values corresponding to time step -1."""
-        return np.zeros((self.nd, bg.num_cells))
+        return np.zeros((self.nd, bg.num_cells)).ravel("F")
 
 
 # Full model classes for the momentum balance with absorbing boundary conditions

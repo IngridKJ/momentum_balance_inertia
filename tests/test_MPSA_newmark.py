@@ -6,8 +6,8 @@ import pytest
 sys.path.append("../")
 import numpy as np
 import porepy as pp
-from manufactured_solution_dynamic import ManuMechSetup2d
-from manufactured_solution_dynamic_3D import ManuMechSetup3d
+from convergence_analysis.manufactured_solution_dynamic_2D import ManuMechSetup2d
+from convergence_analysis.manufactured_solution_dynamic_3D import ManuMechSetup3d
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 

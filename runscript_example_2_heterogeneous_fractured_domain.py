@@ -5,10 +5,11 @@ os.environ["MKL_NUM_THREADS"] = N_THREADS
 os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
+
 import logging
 import numpy as np
 import porepy as pp
-from models import DynamicMomentumBalanceABC2
+
 from models import DynamicMomentumBalanceABC2Linear
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
 import scipy.sparse as sps
@@ -153,59 +154,8 @@ class MomentumBalanceModifiedGeometry(
     InitialConditionsAndMaterialProperties,
     MyGeometry,
     RemoveFractureRelatedEquationsMomentumBalance,
-    pp.DiagnosticsMixin,
     DynamicMomentumBalanceABC2Linear,
-):
-    def solve_linear_system(self) -> np.ndarray:
-        """After calling the parent method, the global solution is calculated by Schur
-        expansion."""
-        import time
-
-        petsc_solver_q = self.params.get("petsc_solver_q", False)
-        tb = time.time()
-        if petsc_solver_q:
-            from petsc4py import PETSc
-
-            csr_mat = self.linear_system_jacobian
-            res_g = self.linear_system_residual
-
-            NDIM = self.nd
-            jac_g = PETSc.Mat().createAIJ(
-                size=csr_mat.shape,
-                csr=((csr_mat.indptr, csr_mat.indices, csr_mat.data)),
-                bsize=NDIM,
-            )
-
-            # solving ls
-            ksp = PETSc.KSP().create()
-            options = PETSc.Options()
-            options["pc_type"] = "hypre"
-            options["pc_hypre_type"] = "boomeramg"
-            options["pc_hypre_boomeramg_max_iter"] = 1
-            options["pc_hypre_boomeramg_cycle_type"] = "V"
-            options["pc_hypre_boomeramg_truncfactor"] = 0.3
-            options.setValue("ksp_type", "gmres")
-            options.setValue("ksp_rtol", 1e-8)
-            options.setValue("ksp_max_it", 20 * 50)
-            options.setValue("ksp_gmres_restart", 50)
-            options.setValue("ksp_pc_side", "right")
-            options.setValue("ksp_norm_type", "unpreconditioned")
-            ksp.setFromOptions()
-
-            ksp.setOperators(jac_g)
-            b = jac_g.createVecLeft()
-            b.array[:] = res_g
-            x = jac_g.createVecRight()
-
-            ksp.setConvergenceHistory()
-            ksp.solve(b, x)
-
-            sol = x.array
-        else:
-            sol = super().solve_linear_system()
-        te = time.time()
-        print("Elapsed time linear solve: ", te - tb)
-        return sol
+): ...
 
 
 time_steps = 500

@@ -83,7 +83,6 @@ This might be deleted, but for now it's just hid within [verification](./verific
 Note that this part of the repo is not maintained, so it might not run. 
 Small changes to PorePy may have influenced it.
 
-### Known "bugs" or potential problems
+### Known potential/future problems
 * Heterogeneous wave speed representation in cases where manufactured solutions are used.
 * Boundary condition methods might start acting weird in the case of intersecting fractures. Will fix when/if it becomes a problem.
-* Robin boundary conditions with the PorePy models are a bit ... yeah. Seek a permanent solution for that.

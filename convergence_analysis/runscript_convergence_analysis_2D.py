@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 import porepy as pp
-from manufactured_solution_dynamic import ManuMechSetup2d
+from manufactured_solution_dynamic_2D import ManuMechSetup2d
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 t_shift = 0.0

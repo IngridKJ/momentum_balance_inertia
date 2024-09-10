@@ -838,5 +838,7 @@ def test_energy_decay():
                 1.43028997e-10,
             ]
         )
-        assert np.isclose(np.linalg.norm(vel_op_int_val), 3.859854428354451e-08)
-        assert np.allclose(vel_op_int_val_expected, vel_op_int_val)
+        assert np.isclose(
+            np.linalg.norm(vel_op_int_val), 3.859854428354451e-08, rtol=1e-5
+        )
+        assert np.allclose(vel_op_int_val_expected, vel_op_int_val, rtol=1e-5)

@@ -5,12 +5,12 @@ import porepy as pp
 
 
 class RemoveFractureRelatedEquationsMomentumBalance:
-    """Remove equations for to fractures and fracture interfaces in momentum balance.
+    """Remove equations for fractures and fracture interfaces in momentum balance.
 
-    To simulate simulate an internal Neumann boundary (that is, an open fracture) we
-    have to remove some equations and variables. This mixin includes the necessary
-    modifications to the code for the equations and variables related to fractures and
-    fracture interfaces to be discarded.
+    To simulate an internal Neumann boundary (that is, an open fracture) we have to
+    remove some equations and variables. This mixin includes the necessary modifications
+    to the code for the equations and variables related to fractures and fracture
+    interfaces to be discarded.
 
     """
 
@@ -73,12 +73,10 @@ class RemoveFractureRelatedEquationsMomentumBalance:
             subdomains=domains,
             dirichlet_operator=self.displacement,
             neumann_operator=self.mechanical_stress,
+            robin_operator=self.mechanical_stress,
             bc_type=self.bc_type_mechanics,
             dim=self.nd,
             name=self.bc_values_mechanics_key,
-            robin_operator=lambda bgs: self.create_boundary_operator(
-                name=self.bc_robin_key, domains=bgs
-            ),
         )
 
         stress = (

@@ -11,7 +11,7 @@ class StiffnessTensorInnerVTI(object):
 
     The tensor is represented by a (3^2, 3^2 ,Nc)-array, where Nc denotes the number of cells, i.e. the tensor values are stored discretely.
 
-    See pp.FourthOrderTensor for more extensive documentation.
+    See pp.FourthOrderTensor in PorePy for more extensive documentation.
 
     The only constructor available (here, in this file) for the moment is based on five
     independent material parameters. It should also be noted that the construction of
@@ -47,15 +47,13 @@ class StiffnessTensorInnerVTI(object):
         """Constructor for the fourth order tensor.
 
         Parameters:
-            lmbda (np.ndarray): Nc array of first Lame parameter.
-            mu (np.ndarray): Nc array of second Lame parameter.
-            mu_parallel (np.ndarray): Nc array of transverse shear parameter.
-            mu_orthogonal (np.ndarray): Nc array of transverse-to-perpendicular shear
-                parameter.
-            lambda_parallell (np.ndarray): Transverse compressive stress parameter.
-            lambda_orthogonal (np.ndarray): Perpendicular compressive stress parameter.
-            volumetric_compr_lambda (np.ndarray): Volumetric compressive stress
-                parameter.
+            lmbda: Nc array of first Lame parameter.
+            mu: Nc array of second Lame parameter.
+            mu_parallel: Nc array of transverse shear parameter.
+            mu_orthogonal: Nc array of transverse-to-perpendicular shear parameter.
+            lambda_parallell: Transverse compressive stress parameter.
+            lambda_orthogonal: Perpendicular compressive stress parameter.
+            volumetric_compr_lambda: Volumetric compressive stress parameter.
         """
         # Creating attributes of the values, as this might come in handy later
         self.lmbda = lmbda
@@ -107,7 +105,7 @@ class StiffnessTensorInnerVTI(object):
         self.values = c
 
     def copy(self) -> "StiffnessTensorInnerVTI":
-        """`
+        """
         Define a deep copy of the tensor.
 
         Returns:
