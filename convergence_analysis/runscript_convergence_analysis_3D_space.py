@@ -1,3 +1,11 @@
+import os
+
+N_THREADS = "1"
+os.environ["MKL_NUM_THREADS"] = N_THREADS
+os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
+os.environ["OMP_NUM_THREADS"] = N_THREADS
+os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
+
 from copy import deepcopy
 
 import porepy as pp
