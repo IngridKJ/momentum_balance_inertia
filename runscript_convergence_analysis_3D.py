@@ -5,7 +5,7 @@ from manufactured_solution_dynamic_3D import ManuMechSetup3d
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 t_shift = 0.0
-time_steps = 100
+time_steps = 150
 tf = 1.0
 dt = tf / time_steps
 
