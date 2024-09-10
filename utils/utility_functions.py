@@ -189,10 +189,6 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
     elif manufactured_sol == "drum_solution":
         u1 = u2 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y)
         u = [u1, u2]
-    elif manufactured_sol == "diag_wave":
-        alpha = model.rotation_angle
-        u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
-        u = [u1, u2]
     elif manufactured_sol == "diagonal_wave":
         alpha = model.rotation_angle
         u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
@@ -347,11 +343,6 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
         u1 = 0
         u2 = 0
         u3 = sym.sin(t + z / cp)
-        u = [u1, u2, u3]
-    elif manufactured_sol == "diag_wave":
-        alpha = model.rotation_angle
-        u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
-        u3 = 0
         u = [u1, u2, u3]
     if return_dt:
         dt_u = [sym.diff(u[0], t), sym.diff(u[1], t), sym.diff(u[2], t)]

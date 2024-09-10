@@ -100,5 +100,4 @@ class CustomSolverMixin:
             except AttributeError:
                 sol = super().solve_linear_system()
         te = time.time()
-        print("Elapsed time linear solve: ", te - tb)
         return sol
