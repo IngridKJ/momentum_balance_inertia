@@ -1,0 +1,5 @@
+num_cells, error_displacement, error_force
+387, 3.32e-1, 3.42e-1
+2570, 5.88e-2, 7.38e-2
+19071, 1.45e-2, 2.26e-2
+148129, 3.6e-3, 8.00e-3
