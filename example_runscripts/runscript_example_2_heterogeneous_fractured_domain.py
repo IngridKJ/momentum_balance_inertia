@@ -7,12 +7,15 @@ os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
 
 import logging
+import sys
+
 import numpy as np
 import porepy as pp
 
+sys.path.append("../")
+import run_models.run_linear_model as rlm
 from models import DynamicMomentumBalanceABC2Linear
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
-import scipy.sparse as sps
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +161,7 @@ class MomentumBalanceModifiedGeometry(
 ): ...
 
 
-time_steps = 500
+time_steps = 5
 tf = 0.25
 dt = tf / time_steps
 
@@ -172,7 +175,7 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "grid_type": "simplex",
-    "folder_name": "877k_500ts_025s_cs_0_0175_bigger_lambda",
+    "folder_name": "visualization_example_2",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
     "prepare_simulation": False,
@@ -189,7 +192,7 @@ end = time.time() - start
 print(f"Num dofs system, {params['grid_type']}: ", model.equation_system.num_dofs())
 print("Time for prepare simulation:", end)
 
-pp.run_time_dependent_model(model, params)
+rlm.run_linear_model(model, params)
 
 print("After simulation")
 print("Time for prepare simulation:", end)
