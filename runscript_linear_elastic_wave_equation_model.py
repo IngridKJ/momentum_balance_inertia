@@ -2,8 +2,6 @@ import numpy as np
 import porepy as pp
 
 from run_models import run_linear_model as rlm
-
-# from models import DynamicMomentumBalanceABC2
 from models import DynamicMomentumBalanceABC2Linear
 from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentumBalance
 
@@ -124,7 +122,6 @@ class MomentumBalanceModifiedGeometryLinear(
     MyGeometry,
     RemoveFractureRelatedEquationsMomentumBalance,
     DynamicMomentumBalanceABC2Linear,
-    # DynamicMomentumBalanceABC2,
 ): ...
 
 
@@ -149,6 +146,3 @@ params = {
 
 model = MomentumBalanceModifiedGeometryLinear(params)
 rlm.run_linear_model(model, params)
-
-# model = MomentumBalanceModifiedGeometryLinear(params)
-# pp.run_time_dependent_model(model, params)

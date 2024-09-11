@@ -1,10 +1,12 @@
-"""This file contains the necessary classes and functions to run the model class which
-only assembles the Jacobian once.
+"""This file contains the necessary classes and functions to run model classes which
+only assemble the Jacobian once.
 
 Contents:
 * The class defining the linear solver. Now the residual is fetched from the model
-attribute linear_system_residual instead of constructed. It is constructed already in the "custom" solution strategy.
-* The function choosing the solver now ghooses the "custom" linear solver defined in this file.
+attribute linear_system_residual instead of constructed. It is constructed already in
+the "custom" solution strategy.
+* The function choosing the solver now chooses the "custom" linear solver defined in
+this file.
 * A function for running the linear model. The same as pp.run_time_dependent_model(),
 with the only difference being its name. Just needed a new function for it as it
 utilizes _choose_solver(), and that method had changes to it.
@@ -81,7 +83,12 @@ def _choose_solver(model, params: dict) -> Union[pp.LinearSolver, pp.NewtonSolve
 
 
 def run_linear_model(model, params: dict) -> None:
-    """"""
+    """Run a time dependent model.
+
+    This function is the same as the pp.run_time_dependent_model() in run_models.py
+    within PorePy. Check out that function for documentation.
+
+    """
     # Assign parameters, variables and discretizations. Discretize time-indepedent terms
     if params.get("prepare_simulation", True):
         model.prepare_simulation()
