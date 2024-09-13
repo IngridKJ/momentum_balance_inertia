@@ -9,8 +9,10 @@ os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
 from copy import deepcopy
 
 import porepy as pp
-from manufactured_solution_dynamic_3D import ManuMechSetup3d
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
+
+from manufactured_solution_dynamic_3D import ManuMechSetup3d
+from utils_convergence_analysis import export_errors_to_txt, run_analysis
 
 time_steps = 150
 tf = 1.0
@@ -43,7 +45,7 @@ conv_analysis = ConvergenceAnalysis(
 ooc: list[list[dict[str, float]]] = []
 ooc_setup: list[dict[str, float]] = []
 
-results = conv_analysis.run_analysis()
+results = run_analysis(conv_analysis)
 ooc_setup.append(
     conv_analysis.order_of_convergence(
         results,
@@ -51,6 +53,8 @@ ooc_setup.append(
 )
 ooc.append(ooc_setup)
 print(ooc_setup)
-conv_analysis.export_errors_to_txt(
-    list_of_results=results, file_name="error_analysis_space_time.txt"
+export_errors_to_txt(
+    self=conv_analysis,
+    list_of_results=results,
+    file_name="displacement_and_traction_errors_space_time.txt",
 )

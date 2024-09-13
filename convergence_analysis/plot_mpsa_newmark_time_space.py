@@ -7,7 +7,7 @@ sys.path.append("../")
 
 from plotting.plot_utils import draw_multiple_loglog_slopes, fetch_numbers_from_file
 
-values = fetch_numbers_from_file("displacement_and_traction_errors.txt")
+values = fetch_numbers_from_file("displacement_and_traction_errors_space_time.txt")
 num_cells = np.array(values["num_cells"]) ** (1 / 3)
 y_disp = values["error_displacement"]
 y_trac = values["error_force"]
