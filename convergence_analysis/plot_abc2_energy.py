@@ -29,7 +29,7 @@ index_dx_dict = {
 }
 
 for key, value in index_angle_dict.items():
-    filename = f"energy_values_{key}.txt"
+    filename = f"energy_values/energy_values_{key}.txt"
     energy_values = (
         pu.read_float_values(filename=filename)
         / pu.read_float_values(filename=filename)[0]
