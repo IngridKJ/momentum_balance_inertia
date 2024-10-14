@@ -10,7 +10,7 @@ from .utility_functions import (
 )
 
 from .anisotropy_mixins import (
-    TransverselyAnisotropicStiffnessTensor,
+    TransverselyIsotropicStiffnessTensor,
     SimpleAnisotropy,
     InnerDomainVTIStiffnessTensorMixin,
 )

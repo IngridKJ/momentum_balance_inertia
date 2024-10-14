@@ -15,7 +15,7 @@ sys.path.append("../")
 import run_models.run_linear_model as rlm
 from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABC2Linear
 
-from utils import TransverselyAnisotropicStiffnessTensor
+from utils import TransverselyIsotropicStiffnessTensor
 
 
 class MyGeometry:
@@ -40,7 +40,7 @@ class MyGeometry:
 
 class MomentumBalanceABCModifiedGeometry(
     MyGeometry,
-    TransverselyAnisotropicStiffnessTensor,
+    TransverselyIsotropicStiffnessTensor,
     DynamicMomentumBalanceABC2Linear,
 ):
 
