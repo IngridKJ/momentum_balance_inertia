@@ -1,6 +1,7 @@
 """Manufactured solution setup for a 3D elastic wave equation.
 
-The setup is an adaptation/extension of a similar setup for poromechanics found within PorePy.
+The setup is an adaptation/extension of a similar setup for poromechanics found within
+PorePy.
 
 """
 
@@ -8,14 +9,14 @@ from __future__ import annotations
 
 import sys
 
-sys.path.append("../")
+sys.path.append("../../")
 from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
 import porepy as pp
 import sympy as sym
-from models import DynamicMomentumBalanceABC2
+from models import DynamicMomentumBalanceABC2Linear
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
@@ -146,8 +147,8 @@ class ManuMechExactSolution3d:
         ) = symbolic_equation_terms(model=setup, u=u, x=x, y=y, z=z, t=t, is_2D=False)
 
         # Public attributes
-        self.u = u  # displacement
-        self.sigma_total = sigma_total  # elastic stress
+        self.u = u  # Displacement
+        self.sigma_total = sigma_total  # Elastic stress
         self.source_mech = source_mech  # Source term entering the momentum balance
         self.acceleration_term = acceleration_term  # Acceleration term entering mom bal
 
@@ -441,7 +442,7 @@ class ManuMechSetup3d(  # type: ignore[misc]
     ManuMechUtils,
     ManuMechDataSaving,
     ManuMechBoundaryConditions,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC2Linear,
 ):
     """
     Mixer class for the two-dimensional mechanics verification setup.

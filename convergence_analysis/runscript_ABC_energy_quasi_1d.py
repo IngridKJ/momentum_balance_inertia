@@ -1,3 +1,4 @@
+import os
 import sys
 
 import numpy as np
@@ -5,7 +6,13 @@ import porepy as pp
 
 sys.path.append("../")
 
-from model_convergence_ABC2 import ABC2Model
+from convergence_analysis_models.model_convergence_ABC2 import ABC2Model
+
+# Prepare path for generated output files
+folder_name = "energy_values"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_dir = os.path.join(script_dir, folder_name)
+os.makedirs(output_dir, exist_ok=True)
 
 
 class BoundaryConditionAndSourceValuesEnergyTest:
@@ -67,7 +74,7 @@ class ExportEnergy:
         data.append((sd, "energy", vel_op_int_val))
         data.append((sd, "velocity", vel))
 
-        with open(f"energy_values_5.txt", "a") as file:
+        with open(os.path.join(output_dir, f"energy_values_5.txt"), "a") as file:
             file.write(f"{np.sum(vel_op_int_val)},")
 
         return data

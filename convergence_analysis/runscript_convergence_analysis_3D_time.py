@@ -5,15 +5,30 @@ os.environ["MKL_NUM_THREADS"] = N_THREADS
 os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
-
+import sys
 from copy import deepcopy
 
 import porepy as pp
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
-from manufactured_solution_dynamic_3D import ManuMechSetup3d
+sys.path.append("../")
+from convergence_analysis_models.manufactured_solution_dynamic_3D import ManuMechSetup3d
 from utils_convergence_analysis import export_errors_to_txt, run_analysis
 
+# Prepare path for generated output files
+folder_name = "convergence_analysis_results"
+filename = "displacement_and_traction_errors_time.txt"
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_dir = os.path.join(script_dir, folder_name)
+os.makedirs(output_dir, exist_ok=True)
+
+filename = os.path.join(output_dir, filename)
+
+# Coarse/Fine variables
+coarse = True
+
+# Simulation details from here and onwards
 time_steps = 4
 tf = 1.0
 dt = tf / time_steps
@@ -31,14 +46,14 @@ params = {
     "time_manager": time_manager,
     "manufactured_solution": "sin_bubble",
     "grid_type": "simplex",
-    "meshing_arguments": {"cell_size": 0.03125},
+    "meshing_arguments": {"cell_size": 0.1 if coarse else 0.03125},
     "plot_results": False,
 }
 
 conv_analysis = ConvergenceAnalysis(
     model_class=ManuMechSetup3d,
     model_params=deepcopy(params),
-    levels=4,
+    levels=2 if coarse else 4,
     spatial_refinement_rate=1,
     temporal_refinement_rate=2,
 )
@@ -57,5 +72,5 @@ print(ooc_setup)
 export_errors_to_txt(
     self=conv_analysis,
     list_of_results=results,
-    file_name="displacement_and_traction_errors_time.txt",
+    file_name=filename,
 )

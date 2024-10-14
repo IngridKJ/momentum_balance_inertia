@@ -1,8 +1,12 @@
+import sys
 from copy import deepcopy
 
-import porepy as pp
 import numpy as np
 from porepy.utils.txt_io import TxtData, export_data_to_txt
+
+sys.path.append("../")
+
+import run_models.run_linear_model as rlm
 
 
 def run_analysis(self) -> list:
@@ -20,7 +24,7 @@ def run_analysis(self) -> list:
     convergence_results: list = []
     for level in range(self.levels):
         setup = self.model_class(deepcopy(self.model_params[level]))
-        pp.run_time_dependent_model(setup, deepcopy(self.model_params[level]))
+        rlm.run_linear_model(setup, deepcopy(self.model_params[level]))
 
         setattr(setup.results[-1], "cell_diameter", setup.mdg.diameter())
         setattr(setup.results[-1], "dt", setup.time_manager.dt)

@@ -14,7 +14,7 @@ from utils import inner_domain_cells
 from utils.stiffness_tensors import StiffnessTensorInnerVTI
 
 
-class TransverselyAnisotropicStiffnessTensor:
+class TransverselyIsotropicStiffnessTensor:
     """Note: there is a less brute-force version in the bottom of this file."""
 
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
