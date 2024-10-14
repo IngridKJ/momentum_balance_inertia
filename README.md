@@ -10,11 +10,12 @@ The model classes are standardized setups for solving the elastic wave equation 
 * [elastic_wave_equation_abc_linear](./models/elastic_wave_equation_abc_linear.py)
   considers the case where all equations related to fractures in the domain are
   discarded. In practice this means that the model class is used for solving elastic
-  wave propagation in rocks without fractures or rocks with **open** fractures. In both
-  cases the problem is linear, meaning that the Jacobian doesn't change between
-  time steps. Hence, this model setup facilitates that the Jacobian is assembled only
-  once. The linear model setup should be used together with the custom run-model
-  function which is detailed in the section below.
+  wave propagation in rocks without fractures, or in rocks with **open** fractures
+  (inner zero traction Neumann boundaries). In both cases the problem is linear, meaning
+  that the Jacobian doesn't change between time steps. Hence, this model setup
+  facilitates that the Jacobian is assembled only once. The linear model setup should be
+  used together with the custom run-model function which is detailed in the section
+  below.
 
 ## Custom solvers and run-functions
 [solvers](./solvers) contains mixins for custom solvers. Specifically, the mixin that is
@@ -41,27 +42,24 @@ homogeneous Dirichlet conditions on a 3D simplex grid:
   * [runscript_convergence_analysis_3D_time](./convergence_analysis/runscript_convergence_analysis_3D_time.py) 
 
 All the runscripts utilize
-[manufactured_solution_dynamic_3D](./convergence_analysis/manufactured_solution_dynamic_3D.py)
+[manufactured_solution_dynamic_3D](./convergence_analysis/convergence_analysis_models/manufactured_solution_dynamic_3D.py)
 as the manufactured solution setup.
 
 ### Convergence analysis of MPSA-Newmark with absorbing boundaries
-Convergence of the solution is performed in a quasi-1D setting. All the following
-scripts also render figures of the convergence results.
-* Convergence in space and time:
+Convergence of the solution is performed in a quasi-1D setting
+
+Convergence in space and time:
   * [convergence_model_with_abc2_space_time](./convergence_analysis/convergence_model_with_abc2_space_time.py)
-* Convergence in space:
-  * [convergence_model_with_abc2_space](./convergence_analysis/convergence_model_with_abc2_space.py)
-* Convergence in time:
-  * [convergence_model_with_abc2_time](./convergence_analysis/convergence_model_with_abc2_time.py)
+
 
 All the runscripts utilize
-[model_convergence_ABC2](./convergence_analysis/model_convergence_ABC2.py) as the model class setup. 
+[model_convergence_ABC2](./convergence_analysis/convergence_analysis_models/model_convergence_ABC2.py)
+as the model class setup. 
 
 ### Energy decay analysis of MPSA-Newmark with absorbing boundaries
 The energy decay analysis is performed both for successive refinement 
 of the grid, as well as for varying wave incidence angles. 
 
-Rendering the figure for:
 * Successive grid refinement is done by running the script
 [render_figure_energy_decay_space_refinement](./convergence_analysis/render_figure_energy_decay_space_refinement.py).
 The script which renders the figure uses the runscript
@@ -69,12 +67,10 @@ The script which renders the figure uses the runscript
 for running the simulations.
 
 * Varying the wave incidence angle, $\theta$, is done by running the script
-[render_figure_energy_decay_vary_theta](./convergence_analysis/render_figure_energy_decay_vary_theta.py).
-The script which renders the figure uses the runscripts
-[runscript_ABC_energy_quasi_1d](./convergence_analysis/runscript_ABC_energy_quasi_1d.py)
-and
-[runscript_ABC_energy_vary_theta](./convergence_analysis/runscript_ABC_energy_vary_theta.py)
-for running the simulations.
+  [runscript_ABC_energy_vary_theta](./convergence_analysis/runscript_ABC_energy_vary_theta.py).
+  
+* A quasi-1d version is found in
+  [runscript_ABC_energy_quasi_1d](./convergence_analysis/runscript_ABC_energy_quasi_1d.py).
 
 ## Simulation examples
 Simulation example runscripts are found within [this](./example_runscripts/) folder.
