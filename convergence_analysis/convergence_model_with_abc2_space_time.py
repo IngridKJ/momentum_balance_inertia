@@ -42,7 +42,7 @@ class Geometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.25 / 2 ** (self.refinement), "m")
+        cell_size = self.units.convert_units(0.25 / 2 ** (self.refinement), "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
@@ -110,7 +110,7 @@ for refinement_coefficient in refinements:
         constant_dt=True,
     )
     # Unit square:
-    solid_constants = pp.SolidConstants({"lame_lambda": 0.01, "shear_modulus": 0.01})
+    solid_constants = pp.SolidConstants(lame_lambda=0.01, shear_modulus=0.01)
     material_constants = {"solid": solid_constants}
 
     params = {

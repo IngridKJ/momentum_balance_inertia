@@ -211,8 +211,8 @@ class ConstitutiveLawsAndSource:
             Cell-wise stiffness tensor in SI units.
 
         """
-        lmbda = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
-        mu = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+        lmbda = self.solid.lame_lambda * np.ones(subdomain.num_cells)
+        mu = self.solid.shear_modulus * np.ones(subdomain.num_cells)
         return FourthOrderTensorUnitTest(mu, lmbda)
 
     def elastic_force(self, sd, sigma_total, time: float) -> np.ndarray:

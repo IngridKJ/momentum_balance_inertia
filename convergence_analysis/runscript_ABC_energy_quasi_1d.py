@@ -44,12 +44,12 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = self.solid.convert_units(1.0, "m")
-        y = self.solid.convert_units(1.0, "m")
+        x = self.units.convert_units(1.0, "m")
+        y = self.units.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.015625, "m")
+        cell_size = self.units.convert_units(0.015625, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
@@ -98,7 +98,7 @@ time_manager = pp.TimeManager(
     constant_dt=True,
 )
 
-solid_constants = pp.SolidConstants({"lame_lambda": 0.01, "shear_modulus": 0.01})
+solid_constants = pp.SolidConstants(lame_lambda=0.01, shear_modulus=0.01)
 material_constants = {"solid": solid_constants}
 
 params = {

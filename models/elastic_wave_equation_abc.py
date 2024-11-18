@@ -90,12 +90,12 @@ class NamesAndConstants:
             cell-center values, depending on the input parameter.
 
         """
-        rho = self.solid.density()
+        rho = self.solid.density
         if not is_scalar:
             return np.sqrt((self.lambda_vector + 2 * self.mu_vector) / rho)
         else:
             return np.sqrt(
-                (self.solid.lame_lambda() + 2 * self.solid.shear_modulus() / rho)
+                (self.solid.lame_lambda + 2 * self.solid.shear_modulus / rho)
             )
 
     def secondary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
@@ -114,11 +114,11 @@ class NamesAndConstants:
             cell-center values, depending on the input parameter.
 
         """
-        rho = self.solid.density()
+        rho = self.solid.density
         if not is_scalar:
             return np.sqrt(self.mu_vector / rho)
         else:
-            return np.sqrt(self.solid.shear_modulus() / rho)
+            return np.sqrt(self.solid.shear_modulus / rho)
 
 
 class BoundaryAndInitialConditions:
@@ -284,7 +284,7 @@ class BoundaryAndInitialConditions:
 
         """
         dt = self.time_manager.dt
-        rho = self.solid.density()
+        rho = self.solid.density
         mu = self.mu_vector
 
         if direction == "shear":
@@ -842,8 +842,8 @@ class ConstitutiveLawsDynamicMomentumBalance:
         """
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
 
-        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
-        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+        self.lambda_vector = self.solid.lame_lambda * np.ones(subdomain.num_cells)
+        self.mu_vector = self.solid.shear_modulus * np.ones(subdomain.num_cells)
 
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].

@@ -28,14 +28,14 @@ class InitialConditionsAndMaterialProperties:
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
         z = subdomain.cell_centers[2, :]
 
-        lmbda1 = self.solid.lame_lambda()
-        mu1 = self.solid.shear_modulus()
+        lmbda1 = self.solid.lame_lambda
+        mu1 = self.solid.shear_modulus
 
-        lmbda2 = self.solid.lame_lambda() * 2
-        mu2 = self.solid.shear_modulus() * 2
+        lmbda2 = self.solid.lame_lambda * 2
+        mu2 = self.solid.shear_modulus * 2
 
-        lmbda3 = self.solid.lame_lambda() * 3
-        mu3 = self.solid.shear_modulus() * 3
+        lmbda3 = self.solid.lame_lambda * 3
+        mu3 = self.solid.shear_modulus * 3
 
         lmbda_vec = np.ones(subdomain.num_cells)
         mu_vec = np.ones(subdomain.num_cells)
@@ -142,13 +142,13 @@ class MyGeometry:
         ]
 
     def set_domain(self) -> None:
-        x = self.solid.convert_units(1.0, "m")
-        y = self.solid.convert_units(1.0, "m")
-        z = self.solid.convert_units(1.0, "m")
+        x = self.units.convert_units(1.0, "m")
+        y = self.units.convert_units(1.0, "m")
+        z = self.units.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.0175, "m")
+        cell_size = self.units.convert_units(0.0175, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
