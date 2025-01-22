@@ -6,10 +6,16 @@ os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
 
+import sys
+
 import numpy as np
 import porepy as pp
-from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC2
-from utils import TransverselyAnisotropicStiffnessTensor
+
+sys.path.append("../")
+import run_models.run_linear_model as rlm
+from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABC2Linear
+
+from utils import TransverselyIsotropicStiffnessTensor
 
 
 class MyGeometry:
@@ -21,21 +27,21 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = self.solid.convert_units(1.0, "m")
-        y = self.solid.convert_units(1.0, "m")
-        z = self.solid.convert_units(1.0, "m")
+        x = self.units.convert_units(1.0, "m")
+        y = self.units.convert_units(1.0, "m")
+        z = self.units.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.0125)
+        cell_size = self.units.convert_units(0.0125, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
 class MomentumBalanceABCModifiedGeometry(
     MyGeometry,
-    TransverselyAnisotropicStiffnessTensor,
-    DynamicMomentumBalanceABC2,
+    TransverselyIsotropicStiffnessTensor,
+    DynamicMomentumBalanceABC2Linear,
 ):
 
     def initial_velocity(self, dofs: int) -> np.ndarray:
@@ -63,28 +69,6 @@ class MomentumBalanceABCModifiedGeometry(
         vals[2] = common_part * (z - 0.7)
 
         return vals.ravel("F")
-
-    def data_to_export(self):
-        """Define the data to export to vtu.
-
-        Returns:
-            list: List of tuples containing the subdomain, variable name,
-            and values to export.
-
-        """
-        data = super().data_to_export()
-        for sd in self.mdg.subdomains(dim=self.nd):
-            vel_op = self.velocity_time_dep_array([sd]) * self.velocity_time_dep_array(
-                [sd]
-            )
-            vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=3)
-            vel_op_int_val = vel_op_int.value(self.equation_system)
-
-            vel = self.velocity_time_dep_array([sd]).value(self.equation_system)
-
-            data.append((sd, "energy", vel_op_int_val))
-            data.append((sd, "velocity", vel))
-        return data
 
 
 tf = 0.15
@@ -126,4 +110,4 @@ end = time.time() - start
 print("Num dofs system, cartesian", model.equation_system.num_dofs())
 print("Time for prep sim:", end)
 
-pp.run_time_dependent_model(model, params)
+rlm.run_linear_model(model, params)

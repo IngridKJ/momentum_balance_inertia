@@ -1,88 +1,105 @@
 # momentum_balance_inertia
-Within PorePy there is a model class for solving the static momentum balance equation.
-This repo is dedicated to including inertia term to this model class, such that the
-dynamic momentum balance equation (elastic wave equation) can be solved.
-
-Specifically, this includes implementation of the Newmark time discretization scheme.
-The implementation is verified by:
-* Convergence analysis using manufactured analytical
-solution
-
-In addition to this I have implemented some absorbing boundary conditions.
+This repository contains everything needed to run the simulation examples found in the
+MPSA-Newmark paper.
 
 ## Models
-The model class for solving the elastic wave equation is found within
-[elastic_wave_equation_abc](./models/elastic_wave_equation_abc.py). Absorbing boundary
-conditions are by default applied to all domain boundaries. 
-* A special case of this equation is found
-  [here](./models/elastic_wave_equation_abc_linear.py). In the case of a linear problem,
-  the Jacobian doesn't change. This model setup makes sure that the Jacobian is
-  assembled only once.
-
-A model class for the static problem is found within [momentum
-  balance](./models/no_inertia_momentum_balance.py). This is just a call to (and slight
-  modification of) the built-in PorePy model.
+The model classes are standardized setups for solving the elastic wave equation with absorbing boundary conditions with PorePy. There are currently two model class setups:
+* [elastic_wave_equation_abc](./models/elastic_wave_equation_abc.py) considers a general
+  setup for solving the elastic wave equation with absorbing boundaries on all domain
+  sides.
+* [elastic_wave_equation_abc_linear](./models/elastic_wave_equation_abc_linear.py)
+  considers the case where all equations related to fractures in the domain are
+  discarded. In practice this means that the model class is used for solving elastic
+  wave propagation in rocks without fractures, or in rocks with **open** fractures
+  (inner zero traction Neumann boundaries). In both cases the problem is linear, meaning
+  that the Jacobian doesn't change between time steps. Hence, this model setup
+  facilitates that the Jacobian is assembled only once. The linear model setup should be
+  used together with the custom run-model function which is detailed in the section
+  below.
 
 ## Custom solvers and run-functions
 [solvers](./solvers) contains mixins for custom solvers. Specifically, the mixin that is
 there now will allow for PETSc usage whenever that is available. It also takes into
-consideration whether the Jacobian should be assembled or fetched.
+consideration whether the Jacobian should be assembled or fetched, where the latter is
+the case if
+[elastic_wave_equation_abc_linear](./models/elastic_wave_equation_abc_linear.py) is the
+model setup to be run.
 
 [run_models](./run_models) contains custom run-models functions. In the case of a the
 Jacobian being assembled only once, adaptations were needed to the run-model-function
-such that the residual was not assembled twice per time step.
+which originally lies within PorePy such that the residual was not assembled twice per
+time step.
 
-TODO: Adapt all runscripts to match this. Currently some of them rely on a specific
-modification to porepy source code files.
+## Verification: Convergence and energy decay analyses
+### Convergence analysis of MPSA-Newmark
+The convergence analyses presented in the article are performed with 
+homogeneous Dirichlet conditions on a 3D simplex grid:
+* Convergence in space and time:
+  * [runscript_convergence_analysis_3D_space_time](./convergence_analysis/runscript_convergence_analysis_3D_space_time.py)
+* Convergence in space:
+  * [runscript_convergence_analysis_3D_space](./convergence_analysis/runscript_convergence_analysis_3D_space.py) 
+* Convergence in time:
+  * [runscript_convergence_analysis_3D_time](./convergence_analysis/runscript_convergence_analysis_3D_time.py) 
 
-## Verification setup for the dynamic momentum balance
-Convergence analysis is only done in 2D, but 3D should be no different. The setup is as
-follows:
-* [runscript_convergence_analysis](./runscript_convergence_analysis.py) is the runscript
-  for running the convergence analysis. Function "bubble" is used for investigating
-  convergence in space. Function "sine_bubble" is used for investigating convergence in
-  time.
-* [runscript_convergence_analysis_3D](./runscript_convergence_analysis_3D.py) is the
-  same as above but for 3D.
-* [manufactured_solution_dynamic](./manufactured_solution_dynamic.py) is implementation
-  of a verification setup for the dynamic momentum balance.
-* [manufactured_solution_dynamic_3D](./manufactured_solution_dynamic_3D.py) is the same
-  as above but for 3D.
+All the runscripts utilize
+[manufactured_solution_dynamic_3D](./convergence_analysis/convergence_analysis_models/manufactured_solution_dynamic_3D.py)
+as the manufactured solution setup.
+
+### Convergence analysis of MPSA-Newmark with absorbing boundaries
+Convergence of the solution is performed in a quasi-1D setting
+
+Convergence in space and time:
+  * [convergence_model_with_abc2_space_time](./convergence_analysis/convergence_model_with_abc2_space_time.py)
 
 
-### "Old" runscripts
-* [2D_static_analytical_comparison](./2D_static_analytical_comparison.py) is a
-  successfull attempt at MMS with static momentum balance equation.
+All the runscripts utilize
+[model_convergence_ABC2](./convergence_analysis/convergence_analysis_models/model_convergence_ABC2.py)
+as the model class setup. 
+
+### Energy decay analysis of MPSA-Newmark with absorbing boundaries
+The energy decay analysis is performed both for successive refinement 
+of the grid, as well as for varying wave incidence angles. 
+
+* Successive grid refinement is done by running the script
+[render_figure_energy_decay_space_refinement](./convergence_analysis/render_figure_energy_decay_space_refinement.py).
+The script which renders the figure uses the runscript
+[runscript_ABC_energy_vary_dx](./convergence_analysis/runscript_ABC_energy_vary_dx.py)
+for running the simulations.
+
+* Varying the wave incidence angle, $\theta$, is done by running the script
+  [runscript_ABC_energy_vary_theta](./convergence_analysis/runscript_ABC_energy_vary_theta.py).
+  
+* A quasi-1d version is found in
+  [runscript_ABC_energy_quasi_1d](./convergence_analysis/runscript_ABC_energy_quasi_1d.py).
+
+## Simulation examples
+Simulation example runscripts are found within [this](./example_runscripts/) folder.
+* The simulation from Example 1.1, which considers a seismic source located inside an
+  inner transversely isotropic domain, is run by
+  [runscript_example_1_1_source_in_inner_domain](./example_runscripts/runscript_example_1_1_source_in_inner_domain.py).
+* The simulation from Example 1.2, which considers a seismic source located outside an
+  inner transversely isotropic domain, is run by
+  [runscript_example_1_2_source_in_outer_domain](./example_runscripts/runscript_example_1_2_source_in_outer_domain.py).
+* The simulation from Example 2, which considers a layered heterogeneous medium with an
+  open fracture, is run by
+  [runscript_example_2_heterogeneous_fractured_domain](./example_runscripts/runscript_example_2_heterogeneous_fractured_domain.py).
 
 ## Utility material
 A collection of utility material is found within the [utils](./utils/) directory:
-* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic
-  stiffness tensors.
+* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins 
+for anisotropic stiffness tensors.
 * [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for
-  three types/configurations of perturbed geometry.
+three types/configurations of perturbed geometry.
 * [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness
-  tensor object for a transversely isotropic material.
+tensor object for a transversely isotropic material.
 * [utility functions](./utils/utility_functions.py) contains mostly functions related to
-  analytical solution expressions and fetching subdomain-related quantities (that I
-  think are not already covered by PorePy functions, I might be mistaken)
+analytical solution expressions and fetching subdomain-related quantities.
 
-Refer to the files within the directory for more details about the specific contents.
+I refer to the files within the directory for more details about the specific contents.
 
-## Sanity check
-Before the convergence rates for the dynamic momentum balance were as expected, a
-"practice run" of checking the convergence of the static momentum balance was performed.
-* [convergence_runscript_static](./verification/convergence_runscript_static.py) is the
-  runscript for running the convergence analysis.
-* [manufactured_solution_static](./verification/manufactured_solution_static.py) is
-  implementation of a verification setup for the static momentum balance. 
-* [model_static_mom_bal.py](./verification/model_static_mom_bal.py) is the model setup
-  for the above.
-
-This might be deleted, but for now it's just hid within [verification](./verification/).
-
-Note that this part of the repo is not maintained, so it might not run. 
-Small changes to PorePy may have influenced it.
-
-### Known potential/future problems
-* Heterogeneous wave speed representation in cases where manufactured solutions are used.
-* Boundary condition methods might start acting weird in the case of intersecting fractures. Will fix when/if it becomes a problem.
+## Tests
+Tests are covering:
+* MPSA-Newmark convergence with homogeneous Dirichlet conditions in 2D and 3D.
+* MPSA-Newmark convergence with absorbing boundary conditions.
+* Construction of the transversely isotropic tensor.
+* The utility function ``inner_domain_cells`` which is used in the construction of the transversely isotropic tensor.

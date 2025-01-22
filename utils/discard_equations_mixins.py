@@ -118,7 +118,7 @@ class RemoveFractureRelatedEquationsMomentumBalance:
                 variables=[var], time_step_index=0
             )
             units = var.tags["si_units"]
-            values = self.fluid.convert_units(scaled_values, units, to_si=True)
+            values = self.units.convert_units(scaled_values, units, to_si=True)
             data.append((var.domain, var.name, values))
         return data  # type: ignore[return-value]
 

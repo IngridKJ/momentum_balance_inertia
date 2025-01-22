@@ -1,3 +1,4 @@
+import os
 import sys
 
 import numpy as np
@@ -5,7 +6,13 @@ import porepy as pp
 
 sys.path.append("../")
 
-from model_convergence_ABC2 import ABC2Model
+from convergence_analysis_models.model_convergence_ABC2 import ABC2Model
+
+# Prepare path for generated output files
+folder_name = "energy_values"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_dir = os.path.join(script_dir, folder_name)
+os.makedirs(output_dir, exist_ok=True)
 
 
 class BoundaryConditionAndSourceValuesEnergyTest:
@@ -37,12 +44,12 @@ class MyGeometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = self.solid.convert_units(1.0, "m")
-        y = self.solid.convert_units(1.0, "m")
+        x = self.units.convert_units(1.0, "m")
+        y = self.units.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(0.015625, "m")
+        cell_size = self.units.convert_units(0.015625, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
@@ -67,7 +74,7 @@ class ExportEnergy:
         data.append((sd, "energy", vel_op_int_val))
         data.append((sd, "velocity", vel))
 
-        with open(f"energy_values_5.txt", "a") as file:
+        with open(os.path.join(output_dir, f"energy_values_5.txt"), "a") as file:
             file.write(f"{np.sum(vel_op_int_val)},")
 
         return data
@@ -91,7 +98,7 @@ time_manager = pp.TimeManager(
     constant_dt=True,
 )
 
-solid_constants = pp.SolidConstants({"lame_lambda": 0.01, "shear_modulus": 0.01})
+solid_constants = pp.SolidConstants(lame_lambda=0.01, shear_modulus=0.01)
 material_constants = {"solid": solid_constants}
 
 params = {

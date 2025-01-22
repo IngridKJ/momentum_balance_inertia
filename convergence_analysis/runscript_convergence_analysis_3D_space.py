@@ -6,13 +6,31 @@ os.environ["NUMEXPR_NUM_THREADS"] = N_THREADS
 os.environ["OMP_NUM_THREADS"] = N_THREADS
 os.environ["OPENBLAS_NUM_THREADS"] = N_THREADS
 
+import sys
 from copy import deepcopy
 
 import porepy as pp
-from manufactured_solution_dynamic_3D import ManuMechSetup3d
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
-t_shift = 0.0
+sys.path.append("../")
+from convergence_analysis_models.manufactured_solution_dynamic_3D import ManuMechSetup3d
+from utils_convergence_analysis import export_errors_to_txt, run_analysis
+
+# Prepare path for generated output files
+folder_name = "convergence_analysis_results"
+filename = "displacement_and_traction_errors_space.txt"
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_dir = os.path.join(script_dir, folder_name)
+os.makedirs(output_dir, exist_ok=True)
+
+filename = os.path.join(output_dir, filename)
+
+# Coarse/Fine variables and plotting (save figure)
+coarse = True
+save_figure = True
+
+# Simulation details from here and onwards
 time_steps = 150
 tf = 1.0
 dt = tf / time_steps
@@ -37,14 +55,14 @@ params = {
 conv_analysis = ConvergenceAnalysis(
     model_class=ManuMechSetup3d,
     model_params=deepcopy(params),
-    levels=4,
+    levels=2 if coarse else 4,
     spatial_refinement_rate=2,
     temporal_refinement_rate=1,
 )
 ooc: list[list[dict[str, float]]] = []
 ooc_setup: list[dict[str, float]] = []
 
-results = conv_analysis.run_analysis()
+results = run_analysis(conv_analysis)
 ooc_setup.append(
     conv_analysis.order_of_convergence(
         results,
@@ -53,6 +71,8 @@ ooc_setup.append(
 )
 ooc.append(ooc_setup)
 print(ooc_setup)
-conv_analysis.export_errors_to_txt(
-    list_of_results=results, file_name="error_analysis_space.txt"
+export_errors_to_txt(
+    self=conv_analysis,
+    list_of_results=results,
+    file_name=filename,
 )

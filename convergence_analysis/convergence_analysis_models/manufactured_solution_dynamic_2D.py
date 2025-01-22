@@ -2,6 +2,8 @@
 
 The setup is an adaptation/extension of a similar setup for poromechanics found within PorePy.
 
+The setup is currently only used in tests.
+
 """
 
 from __future__ import annotations

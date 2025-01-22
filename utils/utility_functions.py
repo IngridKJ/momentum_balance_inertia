@@ -199,9 +199,9 @@ def _symbolic_equation_terms_2D(model, u, x, y, t):
         A tuple with the full source term, sigma and the acceleration term.
 
     """
-    lam = model.solid.lame_lambda()
-    mu = model.solid.shear_modulus()
-    rho = model.solid.density()
+    lam = model.solid.lame_lambda
+    mu = model.solid.shear_modulus
+    rho = model.solid.density
 
     # Exact acceleration
     ddt_u = [
@@ -334,9 +334,9 @@ def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
         A tuple with the full source term, sigma and the acceleration term.
 
     """
-    lam = model.solid.lame_lambda()
-    mu = model.solid.shear_modulus()
-    rho = model.solid.density()
+    lam = model.solid.lame_lambda
+    mu = model.solid.shear_modulus
+    rho = model.solid.density
 
     # Exact acceleration
     ddt_u = [
@@ -651,8 +651,8 @@ def body_force_func(model) -> list:
     Might be deprecated.
 
     """
-    lam = model.solid.lame_lambda()
-    mu = model.solid.shear_modulus()
+    lam = model.solid.lame_lambda
+    mu = model.solid.shear_modulus
 
     x, y = sym.symbols("x y")
 

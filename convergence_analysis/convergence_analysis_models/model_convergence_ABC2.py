@@ -1,18 +1,25 @@
+"""Model class setup for the convergence analysis of MPSA-Newmark with absorbing
+boundaries.
+
+All off-diagonal/shear components of the stiffness tensor are discarded.
+
+"""
+
 import sys
 
 import numpy as np
 import porepy as pp
 import sympy as sym
 
-sys.path.append("../")
+sys.path.append("../../")
 
-from models import DynamicMomentumBalanceABC2
+from models import DynamicMomentumBalanceABC2Linear
 from utils import u_v_a_wrap
 
 
 class BoundaryConditionsUnitTest:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
-        """Boundary condition type for the absorbing boundary condition model class.
+        """Method for assigning boundary condition type.
 
         Assigns the following boundary condition types:
             * North and south: Neumann
@@ -45,12 +52,12 @@ class BoundaryConditionsUnitTest:
         """Method for assigning Neumann and Robin boundary condition values.
 
         Specifically, for the Robin values, this method assigns the values corresponding
-        to ABC_2, namely a second order approximation to u_t in:
+        to absorbing boundary conditions with a second order approximation of u_t in:
 
             sigma * n + alpha * u_t = G
 
-        Robin/ABC_2 is employed for the east and west boundary. Zero Neumann conditions
-        are assigned for the north and south boundary.
+        Robin/Absorbing boundaries are employed for the east and west boundary. Zero
+        Neumann conditions are assigned for the north and south boundary.
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -59,8 +66,6 @@ class BoundaryConditionsUnitTest:
             Array of boundary values.
 
         """
-        # !!! Check what is the deal with this guy. I think it is a thing for fractured
-        # media.
         if boundary_grid.dim != (self.nd - 1):
             return np.array([])
 
@@ -79,8 +84,8 @@ class BoundaryConditionsUnitTest:
             name=name, data=data, time_step_index=1
         )
 
-        # According to the expression for ABC_2 we have a coefficient 2 in front of the
-        # values u_(n-1) and -0.5 in front of u_(n-2):
+        # According to the expression for the absorbing boundaries we have a coefficient
+        # 2 in front of the values u_(n-1) and -0.5 in front of u_(n-2):
         displacement_values = 2 * displacement_values_0 - 0.5 * displacement_values_1
 
         # Transposing and reshaping displacement values to prepare for broadcasting
@@ -161,10 +166,10 @@ class BoundaryConditionsUnitTest:
     def initial_condition_value_function(
         self, bg: pp.BoundaryGrid, t: float
     ) -> np.ndarray:
-        """Initial values for the ABC boundaries.
+        """Initial values for the absorbing boundaries.
 
         In the quasi-1d test we have to assign initial values to the east and west
-        boundaries (ABC boundaries).
+        boundaries (absorbing boundaries).
 
         """
         sd = bg.parent
@@ -206,12 +211,12 @@ class ConstitutiveLawsAndSource:
             Cell-wise stiffness tensor in SI units.
 
         """
-        lmbda = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
-        mu = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+        lmbda = self.solid.lame_lambda * np.ones(subdomain.num_cells)
+        mu = self.solid.shear_modulus * np.ones(subdomain.num_cells)
         return FourthOrderTensorUnitTest(mu, lmbda)
 
     def elastic_force(self, sd, sigma_total, time: float) -> np.ndarray:
-        """Evaluate exact elastic force [N] at the face centers.
+        """Evaluate exact elastic force [N] at the face centers for a quasi-1D setting.
 
         Parameters:
             sd: Subdomain grid.
@@ -241,7 +246,7 @@ class ConstitutiveLawsAndSource:
             ],
         ]
 
-        # Face-centered elastic force
+        # Face-centered elastic force, but in a quasi 1d setting (y-components are zero)
         force_total_fc: list[np.ndarray] = [
             # (sigma_xx * n_x + sigma_xy * n_y) * face_area
             sigma_total_fun[0][0](fc[0], fc[1], time) * fn[0]
@@ -257,7 +262,7 @@ class ConstitutiveLawsAndSource:
         force_total_flat: np.ndarray = np.asarray(force_total_fc).ravel("F")
         return force_total_flat
 
-    def source_values(self, f, sd, t) -> np.ndarray:
+    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
@@ -337,5 +342,5 @@ class FourthOrderTensorUnitTest(object):
 class ABC2Model(
     BoundaryConditionsUnitTest,
     ConstitutiveLawsAndSource,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC2Linear,
 ): ...

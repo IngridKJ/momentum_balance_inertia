@@ -22,13 +22,13 @@ class Model(AnisotropyModelForTesting):
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = self.solid.convert_units(5.0, "m")
-        y = self.solid.convert_units(5.0, "m")
-        z = self.solid.convert_units(5.0, "m")
+        x = self.units.convert_units(5.0, "m")
+        y = self.units.convert_units(5.0, "m")
+        z = self.units.convert_units(5.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(1.0, "m")
+        cell_size = self.units.convert_units(1.0, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 

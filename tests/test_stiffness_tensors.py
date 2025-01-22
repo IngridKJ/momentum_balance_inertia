@@ -25,13 +25,13 @@ class Model(AnisotropyModelForTesting):
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = self.solid.convert_units(5.0, "m")
-        y = self.solid.convert_units(5.0, "m")
-        z = self.solid.convert_units(5.0, "m")
+        x = self.units.convert_units(5.0, "m")
+        y = self.units.convert_units(5.0, "m")
+        z = self.units.convert_units(5.0, "m")
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.solid.convert_units(1.0, "m")
+        cell_size = self.units.convert_units(1.0, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
@@ -42,8 +42,8 @@ def _build_correct_tensor(anisotropy_constants: dict, model):
     lam_par = anisotropy_constants["lambda_parallel"]
     mu_ort = anisotropy_constants["mu_orthogonal"]
     mu_par = anisotropy_constants["mu_parallel"]
-    lam = model.solid.lame_lambda()
-    mu = model.solid.shear_modulus()
+    lam = model.solid.lame_lambda
+    mu = model.solid.shear_modulus
 
     lambda_mat = np.array(
         [
@@ -137,7 +137,7 @@ def test_iso_vti_tensor():
         "volumetric_compr_lambda": 25,
     }
 
-    solid_constants = pp.SolidConstants({"lame_lambda": 25, "shear_modulus": 30})
+    solid_constants = pp.SolidConstants(lame_lambda=25, shear_modulus=30)
     material_constants = {"solid": solid_constants}
 
     params = {

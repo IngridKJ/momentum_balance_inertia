@@ -10,14 +10,14 @@ strategy mixin is defined. This solution strategy mixin checks the time step to 
 only the residual, or both the residual and Jacobian should be assembled. In the case of
 time_index > 1, the residual is constructed and the Jacobian is kept the same.
     
+Note that the Jacobian must be constant throughout the simulation (linear problem) for
+this simplification to be done.
+
 """
 
 from __future__ import annotations
 import logging
 import time
-
-import numpy as np
-import scipy.sparse as sps
 
 from . import DynamicMomentumBalanceABC2
 
@@ -33,20 +33,14 @@ class SolutionStrategyAssembleLinearSystemOnce:
         """
         t_0 = time.time()
         if self.time_manager.time_index <= 1:
-            ba = time.time()
             self.linear_system = self.equation_system.assemble()
             self.linear_system_jacobian = self.linear_system[0]
             self.linear_system_residual = self.linear_system[1]
-            aa = time.time()
-            print("Time assemble linear system:", aa - ba)
         else:
-            ba = time.time()
             self.linear_system_residual = self.equation_system.assemble(
                 evaluate_jacobian=False
             )
-            aa = time.time()
-            print("\nTime assemble residual:", aa - ba)
-        logger.debug(f"Assembled linear system in {time.time() - t_0:.2e} seconds.")
+        logger.debug(f"\nAssembled linear system in {time.time() - t_0:.2e} seconds.")
 
 
 class DynamicMomentumBalanceABC2Linear(

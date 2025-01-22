@@ -6,8 +6,12 @@ import pytest
 sys.path.append("../")
 import numpy as np
 import porepy as pp
-from convergence_analysis.manufactured_solution_dynamic_2D import ManuMechSetup2d
-from convergence_analysis.manufactured_solution_dynamic_3D import ManuMechSetup3d
+from convergence_analysis.convergence_analysis_models.manufactured_solution_dynamic_2D import (
+    ManuMechSetup2d,
+)
+from convergence_analysis.convergence_analysis_models.manufactured_solution_dynamic_3D import (
+    ManuMechSetup3d,
+)
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 
@@ -16,15 +20,15 @@ from porepy.applications.convergence_analysis import ConvergenceAnalysis
     [
         (
             ManuMechSetup2d,
-            {"ooc_displacement": 2.173359730130687, "ooc_force": 2.2288348413009986},
+            {"ooc_displacement": 2.173359730130687, "ooc_force": 2.2161318563634813},
             (0.3237071890356826, 0.07176387389579363),
-            (0.3478471816966154, 0.07420656802329705),
+            (0.3621648470265387, 0.07794425866447736),
         ),
         (
             ManuMechSetup3d,
-            {"ooc_displacement": 2.150222354959266, "ooc_force": 1.9847116930070468},
+            {"ooc_displacement": 2.150222354959266, "ooc_force": 1.9984124039928801},
             (0.32852333912390724, 0.07400904533902304),
-            (0.31590088132453154, 0.07981657450528876),
+            (0.33113535330348437, 0.08287498692468019),
         ),
     ],
 )

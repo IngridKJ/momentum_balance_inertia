@@ -1,17 +1,14 @@
 import logging
 import sys
-import time
-from functools import cached_property
-from typing import Callable, Sequence, Union, cast
+from typing import Union
 
 import numpy as np
 import porepy as pp
-import scipy.sparse as sps
 from porepy.models.momentum_balance import MomentumBalance
 
 sys.path.append("../")
-from solvers.solver_mixins import CustomSolverMixin
 import time_derivatives
+from solvers.solver_mixins import CustomSolverMixin
 from utils import acceleration_velocity_displacement, body_force_function, u_v_a_wrap
 
 logger = logging.getLogger(__name__)
@@ -22,7 +19,8 @@ class NamesAndConstants:
         """Determining if the problem is nonlinear or not.
 
         The default behavior from momentum_balance.py is to assign True if there are
-        fractures present. Here it is hardcoded to be False. Take note of this.
+        fractures present. Here it is hardcoded to be False, as the methodology has not
+        been used for domains with fractures yet.
 
         """
         return False
@@ -36,7 +34,7 @@ class NamesAndConstants:
         to the "Average acceleration method".
 
         """
-        return 0.25
+        return 1 / 4
 
     @property
     def gamma(self) -> float:
@@ -47,7 +45,7 @@ class NamesAndConstants:
         no numerical damping.
 
         """
-        return 0.5
+        return 1 / 2
 
     @property
     def velocity_key(self) -> str:
@@ -92,12 +90,12 @@ class NamesAndConstants:
             cell-center values, depending on the input parameter.
 
         """
-        rho = self.solid.density()
+        rho = self.solid.density
         if not is_scalar:
             return np.sqrt((self.lambda_vector + 2 * self.mu_vector) / rho)
         else:
             return np.sqrt(
-                (self.solid.lame_lambda() + 2 * self.solid.shear_modulus() / rho)
+                (self.solid.lame_lambda + 2 * self.solid.shear_modulus / rho)
             )
 
     def secondary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
@@ -116,11 +114,11 @@ class NamesAndConstants:
             cell-center values, depending on the input parameter.
 
         """
-        rho = self.solid.density()
+        rho = self.solid.density
         if not is_scalar:
             return np.sqrt(self.mu_vector / rho)
         else:
-            return np.sqrt(self.solid.shear_modulus() / rho)
+            return np.sqrt(self.solid.shear_modulus / rho)
 
 
 class BoundaryAndInitialConditions:
@@ -191,7 +189,7 @@ class BoundaryAndInitialConditions:
                 sd=sd,
             )
 
-            # Depending on which spatial discretization we use for the time derivative
+            # Depending on which temporal discretization we use for the time derivative
             # term in the absorbing boundary conditions, there are different extra
             # coefficients arising in the expression (see the method
             # total_coefficient_matrix).
@@ -286,7 +284,7 @@ class BoundaryAndInitialConditions:
 
         """
         dt = self.time_manager.dt
-        rho = self.solid.density()
+        rho = self.solid.density
         mu = self.mu_vector
 
         if direction == "shear":
@@ -503,7 +501,7 @@ class DynamicMomentumBalanceEquations:
     def inertia(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Inertia mass in the elastic wave equation.
 
-        The elastic wave equation contains a term on the form M * u_tt (M *
+        The elastic wave equation contains a term on the form M * u_tt (that is, M *
         acceleration/inertia term). This method represents an operator for M.
 
         Parameters:
@@ -844,8 +842,8 @@ class ConstitutiveLawsDynamicMomentumBalance:
         """
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
 
-        self.lambda_vector = self.solid.lame_lambda() * np.ones(subdomain.num_cells)
-        self.mu_vector = self.solid.shear_modulus() * np.ones(subdomain.num_cells)
+        self.lambda_vector = self.solid.lame_lambda * np.ones(subdomain.num_cells)
+        self.mu_vector = self.solid.shear_modulus * np.ones(subdomain.num_cells)
 
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
