@@ -1133,10 +1133,9 @@ class BoundaryAndInitialConditionValues2:
             Array of boundary values.
 
         """
-        # !!! Check what is the deal with this guy. I think it is a thing for fractured
-        # media.
+
         if boundary_grid.dim != (self.nd - 1):
-            return np.array([])
+            return np.zeros((self.nd, boundary_grid.num_cells)).ravel("F")
 
         data = self.mdg.boundary_grid_data(boundary_grid)
         sd = boundary_grid.parent
