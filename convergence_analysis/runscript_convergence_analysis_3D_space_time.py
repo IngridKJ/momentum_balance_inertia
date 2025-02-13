@@ -50,10 +50,11 @@ time_manager = pp.TimeManager(
 
 params = {
     "time_manager": time_manager,
-    "manufactured_solution": "sin_bubble",
+    "manufactured_solution": "different_x_y_z_components",
     "grid_type": "simplex",
     "meshing_arguments": {"cell_size": 0.25 / 1.0},
     "plot_results": False,
+    "petsc_solver_q": True,
 }
 
 conv_analysis = ConvergenceAnalysis(
@@ -83,12 +84,13 @@ export_errors_to_txt(
 # Plotting from here and downwards.
 if save_figure:
     values = fetch_numbers_from_file(filename)
-    num_cells = np.array(values["num_cells"]) ** (1 / 3)
+    time_step_numbers = np.array([150, 300, 600, 1200])
+    num_cells = (np.array(values["num_cells"]) * time_step_numbers) ** (1 / 4)
     y_disp = values["error_displacement"]
     y_trac = values["error_force"]
 
     # Plot the sample data
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
     ax.loglog(
         num_cells,
         y_disp,
@@ -103,8 +105,8 @@ if save_figure:
         color="royalblue",
         label="Traction",
     )
-    ax.set_title("Convergence analysis: Spatial and temporal")
-    ax.set_xlabel("$(Number\ of\ cells)^{1/3}$")
+    ax.set_title("Convergence analysis: Setup with Dirichlet boundaries")
+    ax.set_xlabel("$(N_x \cdot N_t)^{1/4}$")
     ax.set_ylabel("Relative $L^2$ error")
     ax.legend()
 

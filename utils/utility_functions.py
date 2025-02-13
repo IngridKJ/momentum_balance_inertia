@@ -296,6 +296,16 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
             sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y) * z * (1 - z)
         )
         u = [u1, u2, u3]
+    elif manufactured_sol == "different_x_y_z_components":
+        u1 = (
+            sym.sin(5 * np.pi / 2 * t)
+            * sym.sin(np.pi * x)
+            * sym.sin(np.pi * y)
+            * sym.sin(np.pi * z)
+        )
+        u2 = sym.sin(5 * np.pi / 2 * t) * x * (1 - x) * y * (1 - y) * z * (1 - z)
+        u3 = sym.sin(5 * np.pi / 2 * t) * x * (1 - x) * y * (1 - y) * sym.sin(np.pi * z)
+        u = [u1, u2, u3]
     elif manufactured_sol == "unit_test":
         u1 = 0
         u2 = 0

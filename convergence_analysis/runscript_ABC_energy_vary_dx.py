@@ -248,14 +248,6 @@ if save_figure:
         )
 
     plt.axvline(
-        x=10 / np.sqrt(3),
-        ymin=0,
-        ymax=5,
-        color=(0.65, 0.65, 0.65),
-        linestyle="--",
-        linewidth=1,
-    )
-    plt.axvline(
         x=10 * np.sqrt(6) / 3,
         ymin=0,
         ymax=5,
