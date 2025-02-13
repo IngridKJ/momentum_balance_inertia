@@ -149,7 +149,7 @@ class TransverselyIsotropicStiffnessTensor:
             mu_parallel = anisotropy_constants["mu_parallel"]
             mu_orthogonal = anisotropy_constants["mu_orthogonal"]
 
-            volumetric_compr_lambda = self.solid.lame_lambda
+            volumetric_compr_lambda = anisotropy_constants["volumetric_compr_lambda"]
 
             lambda_parallel = anisotropy_constants["lambda_parallel"]
             lambda_orthogonal = anisotropy_constants["lambda_orthogonal"]
