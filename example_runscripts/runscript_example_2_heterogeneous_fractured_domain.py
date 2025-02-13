@@ -19,7 +19,12 @@ from utils.discard_equations_mixins import RemoveFractureRelatedEquationsMomentu
 
 logger = logging.getLogger(__name__)
 
-"""Note that the attribute linear_system_residual is needed for this script."""
+# Coarse/Fine variables
+coarse = True
+
+# Only export visualization files corresponding to the ones visualized in the article:
+limit_file_export = False
+times_in_article = [0.05, 0.125, 0.175, 0.225]
 
 
 class InitialConditionsAndMaterialProperties:
@@ -83,7 +88,7 @@ class InitialConditionsAndMaterialProperties:
         return vals.ravel("F")
 
 
-class MyGeometry:
+class Geometry:
     def meshing_kwargs(self) -> dict:
         """Keyword arguments for md-grid creation.
 
@@ -148,20 +153,20 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.units.convert_units(0.0175, "m")
+        cell_size = self.units.convert_units(0.25 if coarse else 0.0175, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
-class MomentumBalanceModifiedGeometry(
+class ModelSetupFracturedHeterogeneous(
     InitialConditionsAndMaterialProperties,
-    MyGeometry,
+    Geometry,
     RemoveFractureRelatedEquationsMomentumBalance,
     DynamicMomentumBalanceABC2Linear,
 ): ...
 
 
-time_steps = 5
+time_steps = 500
 tf = 0.25
 dt = tf / time_steps
 
@@ -178,22 +183,11 @@ params = {
     "folder_name": "visualization_example_2",
     "manufactured_solution": "simply_zero",
     "progressbars": True,
-    "prepare_simulation": False,
     "petsc_solver_q": True,
+    # A value of None for times_to_export means that visualization files for all time
+    # steps are created and exported.
+    "times_to_export": times_in_article if limit_file_export else None,
 }
 
-print("Simulation started.")
-model = MomentumBalanceModifiedGeometry(params)
-import time
-
-start = time.time()
-model.prepare_simulation()
-end = time.time() - start
-print(f"Num dofs system, {params['grid_type']}: ", model.equation_system.num_dofs())
-print("Time for prepare simulation:", end)
-
+model = ModelSetupFracturedHeterogeneous(params)
 rlm.run_linear_model(model, params)
-
-print("After simulation")
-print("Time for prepare simulation:", end)
-print(f"Num dofs system, {params['grid_type']}: ", model.equation_system.num_dofs())

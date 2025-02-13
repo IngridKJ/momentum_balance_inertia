@@ -16,8 +16,15 @@ import run_models.run_linear_model as rlm
 from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABC2Linear
 from utils import TransverselyIsotropicStiffnessTensor
 
+# Coarse/Fine variables
+coarse = True
 
-class MyGeometry:
+# Only export visualization files corresponding to the ones visualized in the article:
+limit_file_export = False
+times_in_article = [0.05, 0.1]
+
+
+class Geometry:
     def nd_rect_domain(self, x, y, z) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
 
@@ -32,13 +39,13 @@ class MyGeometry:
         self._domain = self.nd_rect_domain(x, y, z)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.units.convert_units(0.0125, "m")
+        cell_size = self.units.convert_units(0.1 if coarse else 0.0125, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
 
-class MomentumBalanceABCModifiedGeometry(
-    MyGeometry,
+class ModelSetupSourceInInnerDomain(
+    Geometry,
     TransverselyIsotropicStiffnessTensor,
     DynamicMomentumBalanceABC2Linear,
 ):
@@ -69,8 +76,9 @@ class MomentumBalanceABCModifiedGeometry(
         return vals.ravel("F")
 
 
+time_steps = 90
 tf = 0.15
-dt = tf / 90.0
+dt = tf / time_steps
 
 
 time_manager = pp.TimeManager(
@@ -81,31 +89,25 @@ time_manager = pp.TimeManager(
 
 anisotropy_constants = {
     "mu_parallel": 1,
-    "mu_orthogonal": 1,
+    "mu_orthogonal": 2,
     "lambda_parallel": 5,
     "lambda_orthogonal": 5,
-    "volumetric_compr_lambda": 10,
+    "volumetric_compr_lambda": 1,
 }
 
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "example_1_anisotropic",
+    "folder_name": "visualization_example_1_source_in_inner",
     "manufactured_solution": "simply_zero",
     "anisotropy_constants": anisotropy_constants,
     "progressbars": True,
     "inner_domain_width": 0.5,
     "inner_domain_center": (0.5, 0.5, 0.5),
-    "prepare_simulation": False,
+    # A value of None for times_to_export means that visualization files for all time
+    # steps are created and exported.
+    "times_to_export": times_in_article if limit_file_export else None,
 }
 
-model = MomentumBalanceABCModifiedGeometry(params)
-import time
-
-start = time.time()
-model.prepare_simulation()
-end = time.time() - start
-print("Num dofs system, cartesian", model.equation_system.num_dofs())
-print("Time for prep sim:", end)
-
+model = ModelSetupSourceInInnerDomain(params)
 rlm.run_linear_model(model, params)
