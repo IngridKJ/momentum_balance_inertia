@@ -13,7 +13,7 @@ import sympy as sym
 
 sys.path.append("../../")
 
-from models import DynamicMomentumBalanceABC2Linear
+from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
 
 
@@ -22,7 +22,8 @@ class BoundaryConditionsUnitTest:
         """Method for assigning boundary condition type.
 
         Assigns the following boundary condition types:
-            * North and south: Neumann
+            * North and south: Roller boundary (Neumann in x-direction and Dirichlet in
+              y-direction)
             * West: Dirichlet
             * East: Robin
 
@@ -36,13 +37,15 @@ class BoundaryConditionsUnitTest:
         # Fetch boundary sides and assign type of boundary condition for the different
         # sides
         bounds = self.domain_boundary_sides(sd)
-        bc = pp.BoundaryConditionVectorial(sd, bounds.east + bounds.west, "rob")
+        bc = pp.BoundaryConditionVectorial(sd, bounds.all_bf, "dir")
 
-        # Only the eastern boundary will be Robin (absorbing)
-        bc.is_rob[:, bounds.west] = False
+        # East side: Absorbing
+        bc.is_dir[:, bounds.east] = False
+        bc.is_rob[:, bounds.east] = True
 
-        # Western boundary is Dirichlet
-        bc.is_dir[:, bounds.west] = True
+        # North side: Roller
+        bc.is_dir[0, bounds.north + bounds.south] = False
+        bc.is_neu[0, bounds.north + bounds.south] = True
 
         # Calling helper function for assigning the Robin weight
         self.assign_robin_weight(sd=sd, bc=bc)
@@ -115,6 +118,7 @@ class BoundaryConditionsUnitTest:
         """Method for setting Dirichlet boundary values.
 
         Sets a time dependent sine condition in the x-direction of the western boundary.
+        Zero elsewhere.
 
         Parameters:
             bg: Boundary grid whose boundary displacement value is to be set.
@@ -201,20 +205,6 @@ class BoundaryConditionsUnitTest:
 
 
 class ConstitutiveLawsAndSource:
-    def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
-        """Stiffness tensor [Pa].
-
-        Parameters:
-            subdomain: Subdomain where the stiffness tensor is defined.
-
-        Returns:
-            Cell-wise stiffness tensor in SI units.
-
-        """
-        lmbda = self.solid.lame_lambda * np.ones(subdomain.num_cells)
-        mu = self.solid.shear_modulus * np.ones(subdomain.num_cells)
-        return FourthOrderTensorUnitTest(mu, lmbda)
-
     def elastic_force(self, sd, sigma_total, time: float) -> np.ndarray:
         """Evaluate exact elastic force [N] at the face centers for a quasi-1D setting.
 
@@ -250,12 +240,10 @@ class ConstitutiveLawsAndSource:
         force_total_fc: list[np.ndarray] = [
             # (sigma_xx * n_x + sigma_xy * n_y) * face_area
             sigma_total_fun[0][0](fc[0], fc[1], time) * fn[0]
-            # Eliminate y-direction, as the analytical force is only in x-direction.
-            + 0 * sigma_total_fun[0][1](fc[0], fc[1], time) * fn[1],
+            + sigma_total_fun[0][1](fc[0], fc[1], time) * fn[1],
             # (sigma_yx * n_x + sigma_yy * n_y) * face_area
             sigma_total_fun[1][0](fc[0], fc[1], time) * fn[0]
-            # Eliminate y-direction, as the analytical force is only in x-direction.
-            + 0 * sigma_total_fun[1][1](fc[0], fc[1], time) * fn[1],
+            + sigma_total_fun[1][1](fc[0], fc[1], time) * fn[1],
         ]
 
         # Flatten array
@@ -267,80 +255,8 @@ class ConstitutiveLawsAndSource:
         return vals.ravel("F")
 
 
-class FourthOrderTensorUnitTest(object):
-    """Adapted from the FourthOrderTensor in PorePy.
-
-    Cell-wise representation of a fourth order tensor whose off-diagonal components
-    are discarded. It is represented by (3^2, 3^2 ,Nc) -array, where Nc denotes the
-    number of cells, i.e. the tensor values are stored discretely.
-
-    Attributes:
-        values: dimensions (3^2, 3^2, nc), cell-wise representation of
-            the stiffness matrix.
-        lmbda (np.ndarray): Nc array of first Lame parameter
-        mu (np.ndarray): Nc array of second Lame parameter
-
-    """
-
-    def __init__(self, mu: np.ndarray, lmbda: np.ndarray):
-        if not isinstance(mu, np.ndarray):
-            raise ValueError("Input mu should be a numpy array")
-        if not isinstance(lmbda, np.ndarray):
-            raise ValueError("Input lmbda should be a numpy array")
-        if not mu.ndim == 1:
-            raise ValueError("mu should be 1-D")
-        if not lmbda.ndim == 1:
-            raise ValueError("Lmbda should be 1-D")
-        if mu.size != lmbda.size:
-            raise ValueError("Mu and lmbda should have the same length")
-
-        # Save lmbda and mu, can be useful to have in some cases
-        self.lmbda = lmbda
-        self.mu = mu
-
-        # Basis for the contributions of mu, lmbda and phi is hard-coded
-        mu_mat = np.array(
-            [
-                [2, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 2, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 2],
-            ]
-        )
-        lmbda_mat = np.array(
-            [
-                [1, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1],
-            ]
-        )
-
-        # Expand dimensions to prepare for cell-wise representation
-        mu_mat = mu_mat[:, :, np.newaxis]
-        lmbda_mat = lmbda_mat[:, :, np.newaxis]
-
-        c = mu_mat * mu + lmbda_mat * lmbda
-        self.values = c
-
-    def copy(self) -> "FourthOrderTensorUnitTest":
-        C = FourthOrderTensorUnitTest(mu=self.mu, lmbda=self.lmbda)
-        C.values = self.values.copy()
-        return C
-
-
-class ABC2Model(
+class ABCModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawsAndSource,
-    DynamicMomentumBalanceABC2Linear,
+    DynamicMomentumBalanceABCLinear,
 ): ...

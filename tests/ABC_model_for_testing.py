@@ -5,7 +5,7 @@ import porepy as pp
 
 sys.path.append("../")
 
-from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABC2Linear
+from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABCLinear
 
 
 class GeometryAndInitialCondition:
@@ -52,5 +52,5 @@ class GeometryAndInitialCondition:
 
 class MomentumBalanceABCForTesting(
     GeometryAndInitialCondition,
-    DynamicMomentumBalanceABC2Linear,
+    DynamicMomentumBalanceABCLinear,
 ): ...

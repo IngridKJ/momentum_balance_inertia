@@ -11,7 +11,7 @@ import run_models.run_linear_model as rlm
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 from convergence_analysis.convergence_analysis_models.model_convergence_ABC2 import (
-    ABC2Model,
+    ABCModel,
 )
 
 # Prepare path for generated output files
@@ -47,7 +47,7 @@ class Geometry:
         return mesh_args
 
 
-class SpatialRefinementModel(Geometry, ABC2Model):
+class SpatialRefinementModel(Geometry, ABCModel):
     def data_to_export(self):
         data = super().data_to_export()
         if self.time_manager.final_time_reached():

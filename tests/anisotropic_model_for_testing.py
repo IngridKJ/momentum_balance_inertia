@@ -5,11 +5,11 @@ import porepy as pp
 
 sys.path.append("../")
 
-from models import DynamicMomentumBalanceABC2
+from models import DynamicMomentumBalanceABC
 from utils import InnerDomainVTIStiffnessTensorMixin
 
 
 class AnisotropyModelForTesting(
     InnerDomainVTIStiffnessTensorMixin,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC,
 ): ...

@@ -14,7 +14,7 @@ from typing import Callable
 import numpy as np
 import porepy as pp
 import sympy as sym
-from models import DynamicMomentumBalanceABC2
+from models import DynamicMomentumBalanceABC
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
@@ -411,7 +411,7 @@ class ManuMechSetup2d(  # type: ignore[misc]
     ManuMechUtils,
     ManuMechDataSaving,
     ManuMechBoundaryConditions,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC,
 ):
     """
     Mixer class for the two-dimensional mechanics verification setup.

@@ -5,7 +5,7 @@ every time step. This is not necessary for linear problems, where the Jacobian d
 change between time steps. Hence, this is a model class setup for the purpose of running
 linear models:
 
-The model inherits from the dynamic momentum balance with ABC2. A "custom" solution
+The model inherits from the dynamic momentum balance with ABC. A "custom" solution
 strategy mixin is defined. This solution strategy mixin checks the time step to see if
 only the residual, or both the residual and Jacobian should be assembled. In the case of
 time_index > 1, the residual is constructed and the Jacobian is kept the same.
@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import time
 
-from . import DynamicMomentumBalanceABC2
+from . import DynamicMomentumBalanceABC
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class SolutionStrategyAssembleLinearSystemOnce:
         logger.debug(f"\nAssembled linear system in {time.time() - t_0:.2e} seconds.")
 
 
-class DynamicMomentumBalanceABC2Linear(
+class DynamicMomentumBalanceABCLinear(
     SolutionStrategyAssembleLinearSystemOnce,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC,
 ): ...

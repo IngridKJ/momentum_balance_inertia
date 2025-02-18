@@ -9,7 +9,7 @@ sys.path.append("../")
 
 import plotting.plot_utils as pu
 import run_models.run_linear_model as rlm
-from models import DynamicMomentumBalanceABC2Linear
+from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
 
 # Prepare path for generated output files
@@ -162,7 +162,7 @@ class ModelSetupEnergyDecayAnalysis(
     Geometry,
     ExportEnergy,
     RotationAngle,
-    DynamicMomentumBalanceABC2Linear,
+    DynamicMomentumBalanceABCLinear,
 ):
     def write_pvd_and_vtu(self) -> None:
         """Override method such that pvd and vtu files are not created."""

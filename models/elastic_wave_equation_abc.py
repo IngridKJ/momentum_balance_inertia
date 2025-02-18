@@ -1228,7 +1228,7 @@ class DynamicMomentumBalanceABC1(
     ...
 
 
-class DynamicMomentumBalanceABC2(
+class DynamicMomentumBalanceABC(
     BoundaryAndInitialConditionValues2,
     DynamicMomentumBalanceCommonParts,
 ):
