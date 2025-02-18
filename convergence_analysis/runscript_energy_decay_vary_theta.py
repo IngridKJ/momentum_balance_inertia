@@ -214,7 +214,6 @@ if save_figure:
     #   * Dashed/not dashed line
     #   * Logarithmic y scale/not logarithmic y scale.
     index_angle_dict = {
-        0: ("$\\theta = 0$", pu.RGB(216, 27, 96), False, True),
         1: ("$\\theta = \pi/6$", pu.RGB(30, 136, 229), False, True),
         2: ("$\\theta = \pi/3$", pu.RGB(255, 193, 7), True, True),
         3: ("$\\theta = \pi/4$", pu.RGB(0, 0, 0), True, True),
