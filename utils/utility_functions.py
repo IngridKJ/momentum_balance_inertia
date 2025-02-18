@@ -140,36 +140,12 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         u = [u1, u2]
     elif manufactured_sol == "simply_zero":
         u = [0, 0]
-    elif manufactured_sol == "bubble":
-        u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "drum_solution":
-        u1 = u2 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
     elif manufactured_sol == "diagonal_wave":
         alpha = model.rotation_angle
         u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
         u = [sym.cos(alpha) * u1, sym.sin(alpha) * u2]
-    elif manufactured_sol == "bubble_30":
-        u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "bubble_1000":
-        u1 = u2 = t**2 * x * (1000 - x) * y * (1000 - y)
-        u = [u1, u2]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "cub_cub":
-        u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "quad_time":
-        u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-        u = [u1, u2]
-    elif manufactured_sol == "cub_time":
-        u1 = u2 = t**3 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-        u = [u1, u2]
-    elif manufactured_sol == "quad_space":
-        u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
         u = [u1, u2]
 
     if return_dt:
@@ -654,54 +630,6 @@ def _body_force_func_3D(model) -> list:
     ]
 
 
-# -------- Body force function to be deprecated, but kept for now.
-def body_force_func(model) -> list:
-    """Function for calculating rhs corresponding to a static manufactured solution, 2D.
-
-    Might be deprecated.
-
-    """
-    lam = model.solid.lame_lambda
-    mu = model.solid.shear_modulus
-
-    x, y = sym.symbols("x y")
-
-    # Manufactured solution (bubble<3)
-    u1 = u2 = x * (1 - x) * y * (1 - y)
-    u = [u1, u2]
-
-    grad_u = [
-        [sym.diff(u[0], x), sym.diff(u[0], y)],
-        [sym.diff(u[1], x), sym.diff(u[1], y)],
-    ]
-
-    grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
-
-    trace_grad_u = grad_u[0][0] + grad_u[1][1]
-
-    strain = 0.5 * np.array(
-        [
-            [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
-            [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
-        ]
-    )
-
-    sigma = [
-        [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
-        [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
-    ]
-
-    div_sigma = [
-        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
-        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
-    ]
-
-    return [
-        sym.lambdify((x, y), div_sigma[0], "numpy"),
-        sym.lambdify((x, y), div_sigma[1], "numpy"),
-    ]
-
-
 # -------- Functions related to subdomains
 
 
@@ -748,9 +676,6 @@ def inner_domain_cells(
     Relevant for e.g. constructing an inner anisotropic domain within an outer isotropic
     one. I need the cell numbers of the inner cells. Cell indices of the cells in the
     internal domain is returned.
-
-    TODO:
-        * Raise an error if the inner domains are intersecting with the outer domain.
 
     Raises:
         ValueError if the inner domain width exceeds that of the outer domain.

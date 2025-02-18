@@ -22,7 +22,7 @@ try:
 except ImportError:
     _IS_PETSC4PY_AVAILABLE: bool = False
 else:
-    _IS_TQDM_AVAILABLE = True
+    _IS_PETSC4PY_AVAILABLE = True
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,6 @@ class CustomSolverMixin:
         import time
 
         petsc_solver_q = self.params.get("petsc_solver_q", False)
-        tb = time.time()
         if petsc_solver_q and _IS_PETSC4PY_AVAILABLE:
             try:
                 csr_mat = self.linear_system_jacobian
@@ -99,5 +98,4 @@ class CustomSolverMixin:
                 sol = np.atleast_1d(x)
             except AttributeError:
                 sol = super().solve_linear_system()
-        te = time.time()
         return sol
