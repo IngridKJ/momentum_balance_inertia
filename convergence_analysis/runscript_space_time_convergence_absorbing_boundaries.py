@@ -10,7 +10,7 @@ from plotting.plot_utils import draw_multiple_loglog_slopes
 import run_models.run_linear_model as rlm
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
-from convergence_analysis.convergence_analysis_models.model_convergence_ABC2 import (
+from convergence_analysis.convergence_analysis_models.model_convergence_ABC import (
     ABCModel,
 )
 
