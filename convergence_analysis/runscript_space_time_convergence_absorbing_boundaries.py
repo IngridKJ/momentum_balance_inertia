@@ -69,9 +69,9 @@ class SpatialRefinementModel(Geometry, ABCModel):
 
             # Approximated displacement and traction
             displacement_ad = self.displacement([sd])
-            u_approximate = displacement_ad.value(self.equation_system)
+            u_approximate = self.equation_system.evaluate(displacement_ad)
             traction_ad = self.stress([sd])
-            T_approximate = traction_ad.value(self.equation_system)
+            T_approximate = self.equation_system.evaluate(traction_ad)
             # Compute error for displacement and traction
             error_displacement = ConvergenceAnalysis.lp_error(
                 grid=sd,

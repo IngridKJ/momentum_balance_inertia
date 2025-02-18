@@ -137,9 +137,9 @@ class ExportEnergy:
         sd = self.mdg.subdomains(dim=self.nd)[0]
         vel_op = self.velocity_time_dep_array([sd]) * self.velocity_time_dep_array([sd])
         vel_op_int = self.volume_integral(integrand=vel_op, grids=[sd], dim=2)
-        vel_op_int_val = vel_op_int.value(self.equation_system)
+        vel_op_int_val = self.equation_system.evaluate(vel_op_int)
 
-        vel = self.velocity_time_dep_array([sd]).value(self.equation_system)
+        vel = self.equation_system.evaluate(self.velocity_time_dep_array([sd]))
 
         data.append((sd, "energy", vel_op_int_val))
         data.append((sd, "velocity", vel))

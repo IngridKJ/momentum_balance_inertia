@@ -116,7 +116,6 @@ class NamesAndConstants:
 
 
 class BoundaryAndInitialConditions:
-
     @property
     def discrete_robin_weight_coefficient(self) -> float:
         """Additional coefficient for discrete Robin boundary conditions.
@@ -909,7 +908,9 @@ class SolutionStrategyDynamicMomentumBalance:
 
         sd = boundary_grid.parent
         displacement_boundary_operator = self.boundary_displacement([sd])
-        displacement_values = displacement_boundary_operator.value(self.equation_system)
+        displacement_values = self.equation_system.evaluate(
+            displacement_boundary_operator
+        )
 
         displacement_values_0 = boundary_grid.projection(self.nd) @ displacement_values
         pp.set_solution_values(
