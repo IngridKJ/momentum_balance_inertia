@@ -20,7 +20,6 @@ from models import DynamicMomentumBalanceABC2Linear
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 from porepy.applications.md_grids.domains import nd_cube_domain
 from porepy.utils.examples_utils import VerificationUtils
-from porepy.viz.data_saving_model_mixin import VerificationDataSaving
 from utils import symbolic_equation_terms, symbolic_representation
 
 # PorePy typings
@@ -55,7 +54,7 @@ class ManuMechSaveData:
     """Current simulation time."""
 
 
-class ManuMechDataSaving(VerificationDataSaving):
+class ManuMechDataSaving(pp.PorePyModel):
     """Mixin class to save relevant data."""
 
     displacement: Callable[[list[pp.Grid]], pp.ad.MixedDimensionalVariable]
@@ -73,8 +72,8 @@ class ManuMechDataSaving(VerificationDataSaving):
 
     """
 
-    relative_l2_error: Callable
-    """Method for computing the discrete relative L2-error. Normally provided by a
+    lp_error: Callable
+    """Method for computing the discrete relative Lp-error. Normally provided by a
     mixin instance of :class:`~porepy.applications.building_blocks.
     verification_utils.VerificationUtils`.
 
@@ -97,7 +96,7 @@ class ManuMechDataSaving(VerificationDataSaving):
         exact_displacement = self.exact_sol.displacement(sd=sd, time=t)
         displacement_ad = self.displacement([sd])
         approx_displacement = displacement_ad.value(self.equation_system)
-        error_displacement = ConvergenceAnalysis.l2_error(
+        error_displacement = ConvergenceAnalysis.lp_error(
             grid=sd,
             true_array=exact_displacement,
             approx_array=approx_displacement,
@@ -109,7 +108,7 @@ class ManuMechDataSaving(VerificationDataSaving):
         exact_force = self.exact_sol.elastic_force(sd=sd, time=t)
         force_ad = self.stress([sd])
         approx_force = force_ad.value(self.equation_system)
-        error_force = ConvergenceAnalysis.l2_error(
+        error_force = ConvergenceAnalysis.lp_error(
             grid=sd,
             true_array=exact_force,
             approx_array=approx_force,

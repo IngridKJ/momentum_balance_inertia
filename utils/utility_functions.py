@@ -677,8 +677,6 @@ def body_force_func(model) -> list:
 
     grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
 
-    div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
-
     trace_grad_u = grad_u[0][0] + grad_u[1][1]
 
     strain = 0.5 * np.array(
@@ -705,6 +703,38 @@ def body_force_func(model) -> list:
 
 
 # -------- Functions related to subdomains
+
+
+def use_constraints_for_inner_domain_cells(self, sd):
+    """"""
+    points = sd.cell_centers[: self.nd, :]
+
+    def nodes_of_constraints(self):
+        """Helper function to fetch the nodes of the meshing constraints in the grid."""
+        return np.array(
+            [
+                self._fractures[i].pts
+                for i in self.params["meshing_kwargs"]["constraints"]
+            ]
+        )
+
+    if self.nd == 2:
+        if self.params["grid_type"] == "simplex":
+            all_nodes_of_constraints = nodes_of_constraints(self)
+        else:
+            c1, c2, c3, c4 = self.set_polygons()
+            all_nodes_of_constraints = np.array([c1, c2, c3, c4])
+        polygon_vertices = all_nodes_of_constraints[:, 0].T
+        inside = pp.geometry_property_checks.point_in_polygon(polygon_vertices, points)
+    elif self.nd == 3:
+        if self.params["grid_type"] == "simplex":
+            all_nodes_of_constraints = nodes_of_constraints(self)
+        else:
+            all_nodes_of_constraints = self.set_polygons()
+        inside = pp.geometry_property_checks.point_in_polyhedron(
+            polyhedron=all_nodes_of_constraints, test_points=points
+        )
+    return np.where(inside)
 
 
 def inner_domain_cells(

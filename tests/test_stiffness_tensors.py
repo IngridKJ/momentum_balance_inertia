@@ -35,6 +35,15 @@ class Model(AnisotropyModelForTesting):
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
+    def set_polygons(self):
+        west = np.array([[1, 1, 1, 1], [1, 4, 4, 1], [1, 1, 4, 4]])
+        east = np.array([[4, 4, 4, 4], [1, 4, 4, 1], [1, 1, 4, 4]])
+        south = np.array([[1, 4, 4, 1], [1, 1, 1, 1], [1, 1, 4, 4]])
+        north = np.array([[1, 4, 4, 1], [4, 4, 4, 4], [1, 1, 4, 4]])
+        bottom = np.array([[1, 4, 4, 1], [1, 1, 4, 4], [1, 1, 1, 1]])
+        top = np.array([[1, 4, 4, 1], [1, 1, 4, 4], [4, 4, 4, 4]])
+        return west, east, south, north, bottom, top
+
 
 def _build_correct_tensor(anisotropy_constants: dict, model):
     # Hard-coded true outer-isotropic-inner-VTI-tensor. Sort of.
