@@ -52,7 +52,6 @@ class ModelSetupSourceInInnerDomain(
     def initial_velocity(self, dofs: int) -> np.ndarray:
         """Initial velocity values."""
         sd = self.mdg.subdomains()[0]
-        t = self.time_manager.time
 
         x = sd.cell_centers[0, :]
         y = sd.cell_centers[1, :]
