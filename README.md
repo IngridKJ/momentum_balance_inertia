@@ -35,42 +35,42 @@ time step.
 The convergence analyses presented in the article are performed with 
 homogeneous Dirichlet conditions on a 3D simplex grid:
 * Convergence in space and time:
-  * [runscript_convergence_analysis_3D_space_time](./convergence_analysis/runscript_convergence_analysis_3D_space_time.py)
+  * [runscript_space_time_convergence_dirichlet_boundaries](./convergence_analysis/runscript_space_time_convergence_dirichlet_boundaries.py)
 * Convergence in space:
-  * [runscript_convergence_analysis_3D_space](./convergence_analysis/runscript_convergence_analysis_3D_space.py) 
+  * [runscript_space_convergence_dirichlet_boundaries](./convergence_analysis/runscript_space_convergence_dirichlet_boundaries.py) 
 * Convergence in time:
-  * [runscript_convergence_analysis_3D_time](./convergence_analysis/runscript_convergence_analysis_3D_time.py) 
+  * [runscript_time_convergence_dirichlet_boundaries](./convergence_analysis/runscript_time_convergence_dirichlet_boundaries.py) 
 
 All the runscripts utilize
 [manufactured_solution_dynamic_3D](./convergence_analysis/convergence_analysis_models/manufactured_solution_dynamic_3D.py)
 as the manufactured solution setup.
 
 ### Convergence analysis of MPSA-Newmark with absorbing boundaries
-Convergence of the solution is performed in a quasi-1D setting
+Convergence of the solution is performed by sending an orthogonal wave from the left
+towards the right boundary, where the right boundary is absorbing. The top and bottom
+boundaries have roller conditions, and the left boundary is a time-dependent Dirichlet
+condition which sends in the orthogonal wave.
 
-Convergence in space and time:
-  * [convergence_model_with_abc2_space_time](./convergence_analysis/convergence_model_with_abc2_space_time.py)
+Convergence in space and time, isotropic:
+  * [runscript_space_time_convergence_absorbing_boundaries](./convergence_analysis/runscript_space_time_convergence_absorbing_boundaries.py) which uses the model class setup found in [model_convergence_ABC](./convergence_analysis/convergence_analysis_models/model_convergence_ABC.py)
 
+Convergence in space and time, vertical strip inside the domain which is anisotropic in
+directions orthogonal to the propagating wave:
+  * [runscript_space_time_absorbing_boundaries_anisotropy](./convergence_analysis/runscript_space_time_absorbing_boundaries_anisotropy.py)
+    which uses the model class setup found in
+    [model_convergence_ABC_anisotropy](./convergence_analysis/convergence_analysis_models/model_convergence_ABC_anisotropy.py)
 
-All the runscripts utilize
-[model_convergence_ABC2](./convergence_analysis/convergence_analysis_models/model_convergence_ABC2.py)
-as the model class setup. 
 
 ### Energy decay analysis of MPSA-Newmark with absorbing boundaries
 The energy decay analysis is performed both for successive refinement 
 of the grid, as well as for varying wave incidence angles. 
 
 * Successive grid refinement is done by running the script
-[render_figure_energy_decay_space_refinement](./convergence_analysis/render_figure_energy_decay_space_refinement.py).
-The script which renders the figure uses the runscript
-[runscript_ABC_energy_vary_dx](./convergence_analysis/runscript_ABC_energy_vary_dx.py)
-for running the simulations.
+[runscript_energy_decay_space_refinement](./convergence_analysis/runscript_energy_decay_space_refinement.py).
 
 * Varying the wave incidence angle, $\theta$, is done by running the script
-  [runscript_ABC_energy_vary_theta](./convergence_analysis/runscript_ABC_energy_vary_theta.py).
+  [runscript_energy_decay_vary_theta](./convergence_analysis/runscript_energy_decay_vary_theta.py).
   
-* A quasi-1d version is found in
-  [runscript_ABC_energy_quasi_1d](./convergence_analysis/runscript_ABC_energy_quasi_1d.py).
 
 ## Simulation examples
 Simulation example runscripts are found within [this](./example_runscripts/) folder.
@@ -102,4 +102,6 @@ Tests are covering:
 * MPSA-Newmark convergence with homogeneous Dirichlet conditions in 2D and 3D.
 * MPSA-Newmark convergence with absorbing boundary conditions.
 * Construction of the transversely isotropic tensor.
-* The utility function ``inner_domain_cells`` which is used in the construction of the transversely isotropic tensor.
+* The utility function ``inner_domain_cells`` which is used in the construction of the
+  transversely isotropic tensor. Note: Moving over to use
+  ``use_constraints_for_inner_domain_cells``. Consistent update pending.
