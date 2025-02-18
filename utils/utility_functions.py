@@ -652,7 +652,7 @@ def use_constraints_for_inner_domain_cells(self, sd):
         else:
             c1, c2, c3, c4 = self.set_polygons()
             all_nodes_of_constraints = np.array([c1, c2, c3, c4])
-        polygon_vertices = all_nodes_of_constraints[:, 1].T
+        polygon_vertices = all_nodes_of_constraints.T[0]
         inside = pp.geometry_property_checks.point_in_polygon(polygon_vertices, points)
     elif self.nd == 3:
         if self.params["grid_type"] == "simplex":
