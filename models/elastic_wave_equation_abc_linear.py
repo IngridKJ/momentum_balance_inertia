@@ -1,21 +1,15 @@
-"""This file contains a model setup which only assembles the Jacobian once.
+"""This file contains a model setup which facilitates only assembling the Jacobian once.
 
-The default behavior when running porepy models is that the Jacobian is assembled at
+The default behavior when running PorePy models is that the Jacobian is assembled at
 every time step. This is not necessary for linear problems, where the Jacobian doesn't
-change between time steps. Hence, this is a model class setup for the purpose of running
-linear models:
-
-The model inherits from the dynamic momentum balance with ABC. A "custom" solution
-strategy mixin is defined. This solution strategy mixin checks the time step to see if
-only the residual, or both the residual and Jacobian should be assembled. In the case of
-time_index > 1, the residual is constructed and the Jacobian is kept the same.
+change between time steps. Hence, this is a model class setup with the purpose of
+running linear models.
     
 Note that the Jacobian must be constant throughout the simulation (linear problem) for
-this simplification to be done.
+this simplification to be valid.
 
 """
 
-from __future__ import annotations
 import logging
 import time
 
