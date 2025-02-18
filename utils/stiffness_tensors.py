@@ -4,9 +4,10 @@ Analogous to the tensors.py module within PorePy, but this one provides a tensor
 corresponding to an anisotropic medium."""
 
 import numpy as np
+import porepy as pp
 
 
-class StiffnessTensorInnerVTI(object):
+class StiffnessTensorInnerVTI(pp.FourthOrderTensor):
     """Cell-wise representation of fourth order tensor.
 
     The tensor is represented by a (3^2, 3^2 ,Nc)-array, where Nc denotes the number of cells, i.e. the tensor values are stored discretely.
@@ -91,10 +92,8 @@ class StiffnessTensorInnerVTI(object):
         m_ort_mat = m_ort_mat[:, :, np.newaxis]
 
         c = (
-            # Isotropic outer domain
             mu_mat * mu
             + lmbda_mat * lmbda
-            # VTI inner domain
             + l_mat * volumetric_compr_lambda
             + l_par_mat * lambda_parallel
             + l_ort_mat * lambda_orthogonal

@@ -73,7 +73,7 @@ class SpatialRefinementModel(Geometry, ABC2Model):
             traction_ad = self.stress([sd])
             T_approximate = traction_ad.value(self.equation_system)
             # Compute error for displacement and traction
-            error_displacement = ConvergenceAnalysis.l2_error(
+            error_displacement = ConvergenceAnalysis.lp_error(
                 grid=sd,
                 true_array=u_exact,
                 approx_array=u_approximate,
@@ -81,7 +81,7 @@ class SpatialRefinementModel(Geometry, ABC2Model):
                 is_cc=True,
                 relative=True,
             )
-            error_traction = ConvergenceAnalysis.l2_error(
+            error_traction = ConvergenceAnalysis.lp_error(
                 grid=sd,
                 true_array=T_exact,
                 approx_array=T_approximate,
@@ -98,7 +98,7 @@ class SpatialRefinementModel(Geometry, ABC2Model):
 with open(filename, "w") as file:
     file.write("num_cells, displacement_error, traction_error\n")
 
-refinements = np.arange(0, 5)
+refinements = np.arange(0, 4)
 for refinement_coefficient in refinements:
     tf = 15.0
     time_steps = 15 * (2**refinement_coefficient)
@@ -135,7 +135,7 @@ num_cells, displacement_errors, traction_errors = np.loadtxt(
     dtype=float,
 )
 
-num_time_steps = np.array([15, 30, 60, 120, 240])
+num_time_steps = np.array([15, 30, 60, 120])
 x_axis = (num_cells * num_time_steps) ** (1 / 4)
 
 # Plot the sample data
