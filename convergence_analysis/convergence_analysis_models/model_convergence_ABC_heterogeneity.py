@@ -131,13 +131,16 @@ class BoundaryConditionsUnitTest:
         bounds = self.domain_boundary_sides(bg)
         t = self.time_manager.time
 
+        xmax = self.domain.bounding_box["xmax"]
+        xmin = self.domain.bounding_box["xmin"]
+
         # Time dependent sine Dirichlet condition
-        bc_left, bc_right = self.heterogeneous_analytical_solution()
+        bc_left, bc_right = self.heterogeneous_analytical_solution(bc_eval=True)
         values[0][bounds.west] += np.ones(len(values[0][bounds.west])) * bc_left[0](
-            0.0, t
+            xmin, t
         )
         values[0][bounds.east] += np.ones(len(values[0][bounds.west])) * bc_right[0](
-            1.0, t
+            xmax, t
         )
 
         return values.ravel("F")
@@ -211,19 +214,44 @@ class BoundaryConditionsUnitTest:
 
 
 class InitialConditions:
-    def heterogeneous_analytical_solution(self, return_dt=False, return_ddt=False):
+    def heterogeneous_analytical_solution(
+        self, return_dt=False, return_ddt=False, bc_eval=False, analytical_init=False
+    ):
         """Compute the analytical solution and its time derivatives."""
         x, t = sym.symbols("x t")
 
         L = self.params.get("L", 0.5)
         cp = self.primary_wave_speed(is_scalar=False)
-        c_A, c_C = cp[0], cp[-1]
 
-        u_left = sym.sin(t - (x - L) / c_A) + (c_C - c_A) / (c_C + c_A) * sym.sin(
-            t - (x - L) / c_A
-        )
+        heterogeneity_factor = self.params.get("heterogeneity_factor", 0.5)
+        if heterogeneity_factor >= 1.0:
+            left_speed = min(cp)
+            right_speed = max(cp)
+        elif heterogeneity_factor <= 1.0:
+            left_speed = max(cp)
+            right_speed = min(cp)
 
-        u_right = (2 * c_C) / (c_C + c_A) * sym.sin(t - (x - L) / c_C)
+        if analytical_init:
+            u_left = sym.sin(t - (x - L) / left_speed) + (right_speed - left_speed) / (
+                right_speed + left_speed
+            ) * sym.sin(t + (x - L) / left_speed)
+            u_right = (
+                (2 * right_speed)
+                / (right_speed + left_speed)
+                * sym.sin(t - (x - L) / right_speed)
+            )
+        elif self.time_manager.time == 0 or bc_eval:
+            u_left = sym.sin(t - (x - L) / left_speed)
+            u_right = sym.sin(t - (x - L) / right_speed)
+        else:
+            u_left = sym.sin(t - (x - L) / left_speed) + (right_speed - left_speed) / (
+                right_speed + left_speed
+            ) * sym.sin(t + (x - L) / left_speed)
+            u_right = (
+                (2 * right_speed)
+                / (right_speed + left_speed)
+                * sym.sin(t - (x - L) / right_speed)
+            )
 
         # Compute derivatives based on function arguments
         if return_dt:
@@ -231,7 +259,6 @@ class InitialConditions:
         elif return_ddt:
             u_left, u_right = sym.diff(u_left, (t, 2)), sym.diff(u_right, (t, 2))
 
-        # Lambdify the results for numerical evaluation
         return [sym.lambdify((x, t), u_left, "numpy"), 0], [
             sym.lambdify((x, t), u_right, "numpy"),
             0,
@@ -244,8 +271,8 @@ class InitialConditions:
         t = self.time_manager.time
 
         L = self.params.get("L", 0.5)
-        layer_A = x < L
-        layer_C = x > L
+        left_layer = x < L
+        right_layer = x > L
 
         vals = np.zeros((self.nd, sd.num_cells))
 
@@ -253,8 +280,8 @@ class InitialConditions:
             return_dt=return_dt, return_ddt=return_ddt
         )
 
-        vals[0, layer_A] = left_solution[0](x[layer_A], t)
-        vals[0, layer_C] = right_solution[0](x[layer_C], t)
+        vals[0, left_layer] = left_solution[0](x[left_layer], t)
+        vals[0, right_layer] = right_solution[0](x[right_layer], t)
         return vals.ravel("F")
 
     def initial_displacement(self, dofs):
@@ -292,14 +319,14 @@ class ConstitutiveLawsAndSource:
         lmbda_vec = np.ones(subdomain.num_cells)
         mu_vec = np.ones(subdomain.num_cells)
 
-        layer_A = x < self.params.get("L", 0.5)
-        layer_C = x > self.params.get("L", 0.5)
+        left_layer = x < self.params.get("L", 0.5)
+        right_layer = x > self.params.get("L", 0.5)
 
-        lmbda_vec[layer_A] *= lmbda1
-        mu_vec[layer_A] *= mu1
+        lmbda_vec[left_layer] *= lmbda1
+        mu_vec[left_layer] *= mu1
 
-        lmbda_vec[layer_C] *= lmbda2
-        mu_vec[layer_C] *= mu2
+        lmbda_vec[right_layer] *= lmbda2
+        mu_vec[right_layer] *= mu2
 
         self.mu_vector = mu_vec
         self.lambda_vector = lmbda_vec
