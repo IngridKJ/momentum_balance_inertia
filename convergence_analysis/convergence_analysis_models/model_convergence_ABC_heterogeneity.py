@@ -48,7 +48,7 @@ class BoundaryConditionsUnitTest:
         bc.is_neu[0, bounds.north + bounds.south] = True
 
         # Calling helper function for assigning the Robin weight
-        self.assign_robin_weight(sd=sd, bc=bc)
+        # self.assign_robin_weight(sd=sd, bc=bc)
         return bc
 
     def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
@@ -231,27 +231,14 @@ class InitialConditions:
             left_speed = max(cp)
             right_speed = min(cp)
 
-        if analytical_init:
-            u_left = sym.sin(t - (x - L) / left_speed) + (right_speed - left_speed) / (
-                right_speed + left_speed
-            ) * sym.sin(t + (x - L) / left_speed)
-            u_right = (
-                (2 * right_speed)
-                / (right_speed + left_speed)
-                * sym.sin(t - (x - L) / right_speed)
-            )
-        elif self.time_manager.time == 0 or bc_eval:
-            u_left = sym.sin(t - (x - L) / left_speed)
-            u_right = sym.sin(t - (x - L) / right_speed)
-        else:
-            u_left = sym.sin(t - (x - L) / left_speed) + (right_speed - left_speed) / (
-                right_speed + left_speed
-            ) * sym.sin(t + (x - L) / left_speed)
-            u_right = (
-                (2 * right_speed)
-                / (right_speed + left_speed)
-                * sym.sin(t - (x - L) / right_speed)
-            )
+        u_left = sym.sin(t - (x - L) / left_speed) + (right_speed - left_speed) / (
+            right_speed + left_speed
+        ) * sym.sin(t + (x - L) / left_speed)
+        u_right = (
+            (2 * right_speed)
+            / (right_speed + left_speed)
+            * sym.sin(t - (x - L) / right_speed)
+        )
 
         # Compute derivatives based on function arguments
         if return_dt:

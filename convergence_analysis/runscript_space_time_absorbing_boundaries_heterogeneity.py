@@ -49,7 +49,7 @@ class Geometry:
         south = np.array([[W, L], [0.0, 0.0]])
         return west, north, east, south
 
-    def set_fractures(self) -> None:
+    def set_fractures_(self) -> None:
         """Setting a diagonal fracture"""
         west, north, east, south = self.set_polygons()
 
@@ -65,7 +65,7 @@ class SpatialRefinementModel(Geometry, ABCModel):
     def data_to_export(self):
         data = super().data_to_export()
         sd = self.mdg.subdomains(dim=self.nd)[0]
-        t = self.time_manager.time
+
         x = sd.cell_centers[0, :]
 
         # displacement_ad = self.displacement([sd])
@@ -81,12 +81,8 @@ class SpatialRefinementModel(Geometry, ABCModel):
 
         vals = np.zeros((self.nd, sd.num_cells))
 
-        vals[0, left_layer] = left_solution[0](
-            x[left_layer], self.time_manager.time_final
-        )
-        vals[0, right_layer] = right_solution[0](
-            x[right_layer], self.time_manager.time_final
-        )
+        vals[0, left_layer] = left_solution[0](x[left_layer], self.time_manager.time)
+        vals[0, right_layer] = right_solution[0](x[right_layer], self.time_manager.time)
 
         data.append((sd, "analytical", vals))
 
@@ -114,7 +110,7 @@ for refinement_coefficient in refinements:
         "manufactured_solution": "simply_zero",
         "progressbars": True,
         "folder_name": "pffff_het",
-        "heterogeneity_factor": 2.0,
+        "heterogeneity_factor": 0.5,
         "L": 1.0,
         "material_constants": material_constants,
         "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
