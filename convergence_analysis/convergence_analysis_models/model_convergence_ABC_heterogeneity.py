@@ -220,14 +220,14 @@ class InitialConditions:
         """Compute the analytical solution and its time derivatives."""
         x, t = sym.symbols("x t")
 
-        L = self.params.get("L", 0.5)
+        L = self.heterogeneity_location
         cp = self.primary_wave_speed(is_scalar=False)
 
-        heterogeneity_factor = self.params.get("heterogeneity_factor", 0.5)
+        heterogeneity_factor = self.heterogeneity_factor
         if heterogeneity_factor >= 1.0:
             left_speed = min(cp)
             right_speed = max(cp)
-        elif heterogeneity_factor <= 1.0:
+        else:
             left_speed = max(cp)
             right_speed = min(cp)
 
@@ -244,7 +244,7 @@ class InitialConditions:
         if return_dt:
             u_left, u_right = sym.diff(u_left, t), sym.diff(u_right, t)
         elif return_ddt:
-            u_left, u_right = sym.diff(u_left, (t, 2)), sym.diff(u_right, (t, 2))
+            u_left, u_right = sym.diff(u_left, t, 2), sym.diff(u_right, t, 2)
 
         return [sym.lambdify((x, t), u_left, "numpy"), 0], [
             sym.lambdify((x, t), u_right, "numpy"),
@@ -257,7 +257,7 @@ class InitialConditions:
         x = sd.cell_centers[0, :]
         t = self.time_manager.time
 
-        L = self.params.get("L", 0.5)
+        L = self.heterogeneity_location
         left_layer = x < L
         right_layer = x > L
 
@@ -300,14 +300,15 @@ class ConstitutiveLawsAndSource:
         lmbda1 = self.solid.lame_lambda
         mu1 = self.solid.shear_modulus
 
-        lmbda2 = self.solid.lame_lambda * self.params.get("heterogeneity_factor", 0.5)
-        mu2 = self.solid.shear_modulus * self.params.get("heterogeneity_factor", 0.5)
+        lmbda2 = self.solid.lame_lambda * self.heterogeneity_factor
+        mu2 = self.solid.shear_modulus * self.heterogeneity_factor
 
         lmbda_vec = np.ones(subdomain.num_cells)
         mu_vec = np.ones(subdomain.num_cells)
 
-        left_layer = x < self.params.get("L", 0.5)
-        right_layer = x > self.params.get("L", 0.5)
+
+        left_layer = x < self.heterogeneity_location
+        right_layer = x > self.heterogeneity_location
 
         lmbda_vec[left_layer] *= lmbda1
         mu_vec[left_layer] *= mu1

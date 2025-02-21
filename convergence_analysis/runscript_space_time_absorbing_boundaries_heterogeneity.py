@@ -7,7 +7,6 @@ import numpy as np
 import porepy as pp
 
 import run_models.run_linear_model as rlm
-from porepy.applications.convergence_analysis import ConvergenceAnalysis
 from convergence_analysis.convergence_analysis_models.model_convergence_ABC_heterogeneity import (
     ABCModel,
 )
@@ -30,17 +29,17 @@ class Geometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 2.0 / self.units.m
+        x = 10.0 / self.units.m
         y = 0.125 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.units.convert_units(0.25 / 2 ** (5), "m")
+        cell_size = self.units.convert_units(0.25 / 2 ** 3, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
     def set_polygons(self):
-        L = self.params.get("L", 0.5)
+        L = self.heterogeneity_location
         W = self.domain.bounding_box["xmax"]
         H = self.domain.bounding_box["ymax"]
         west = np.array([[L, L], [0.0, H]])
@@ -49,7 +48,7 @@ class Geometry:
         south = np.array([[W, L], [0.0, 0.0]])
         return west, north, east, south
 
-    def set_fractures_(self) -> None:
+    def set_fractures(self) -> None:
         """Setting a diagonal fracture"""
         west, north, east, south = self.set_polygons()
 
@@ -60,8 +59,16 @@ class Geometry:
             pp.LineFracture(south),
         ]
 
+class RandomProperties:
+    @property
+    def heterogeneity_location(self):
+        return self.params.get("heterogeneity_location", 0.5)
 
-class SpatialRefinementModel(Geometry, ABCModel):
+    @property
+    def heterogeneity_factor(self):
+        return self.params.get("heterogeneity_factor", 0.5)
+
+class SpatialRefinementModel(Geometry, RandomProperties, ABCModel):
     def data_to_export(self):
         data = super().data_to_export()
         sd = self.mdg.subdomains(dim=self.nd)[0]
@@ -74,7 +81,7 @@ class SpatialRefinementModel(Geometry, ABCModel):
         left_solution, right_solution = self.heterogeneous_analytical_solution(
             analytical_init=True
         )
-        L = self.params.get("L", 0.5)
+        L = self.heterogeneity_location
 
         left_layer = x < L
         right_layer = x > L
@@ -86,12 +93,20 @@ class SpatialRefinementModel(Geometry, ABCModel):
 
         data.append((sd, "analytical", vals))
 
+        lambda_vals = np.zeros((self.nd, sd.num_cells))  # Initialize with zeros
+        lambda_vals[0, :] = self.lambda_vector  # Assign lambda values to the first row
+        data.append((sd, "lambda", lambda_vals))
+
+        mu_vals = np.zeros((self.nd, sd.num_cells))  # Initialize with zeros
+        mu_vals[0, :] = self.mu_vector  # Assign lambda values to the first row
+        data.append((sd, "mu", mu_vals))
+
         return data
 
 
-refinements = np.arange(6, 7)
+refinements = [5]#np.arange(6, 7)
 for refinement_coefficient in refinements:
-    tf = 12.0
+    tf = 24
     time_steps = tf * (2**refinement_coefficient)
     dt = tf / time_steps
 
@@ -109,9 +124,9 @@ for refinement_coefficient in refinements:
         "grid_type": "simplex",
         "manufactured_solution": "simply_zero",
         "progressbars": True,
-        "folder_name": "pffff_het",
-        "heterogeneity_factor": 0.5,
-        "L": 1.0,
+        "folder_name": "pffff_hedt",
+        "heterogeneity_factor": 0.25,
+        "heterogeneity_location": 5.0,
         "material_constants": material_constants,
         "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
     }
