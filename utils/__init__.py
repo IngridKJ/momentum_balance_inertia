@@ -6,6 +6,7 @@ from .utility_functions import (
     symbolic_representation,
     inner_domain_cells,
     get_boundary_cells,
+    create_stiffness_tensor_basis
 )
 
 from .anisotropy_mixins import (

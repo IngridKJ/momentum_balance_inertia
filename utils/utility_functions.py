@@ -844,3 +844,105 @@ def get_boundary_cells(
     if return_faces:
         return faces
     return cells
+
+
+# -------- 9x9 representation of transversely isotropic stiffness tensor
+
+import numpy as np
+
+
+def kronecker_delta(i_ind, j_ind):
+    """Returns 1 if i_ind == j_ind, otherwise 0."""
+    return 1 if i_ind == j_ind else 0
+
+
+def compute_term(index_map, n, tensor_func, *args):
+    """Generalized function to compute stiffness terms."""
+    term = np.zeros((9, 9), dtype=float)
+    for i_ind in range(1, 4):  # i_ind, j_ind, k_ind, l_ind range from 1 to 3
+        for j_ind in range(1, 4):
+            for k_ind in range(1, 4):
+                for l_ind in range(1, 4):
+                    idx_ij = index_map[(i_ind, j_ind)]
+                    idx_kl = index_map[(k_ind, l_ind)]
+                    term[idx_ij, idx_kl] += tensor_func(
+                        i_ind, j_ind, k_ind, l_ind, n, *args
+                    )
+    return term
+
+
+def term_1(i_ind, j_ind, k_ind, l_ind, n, lambda_val):
+    return lambda_val * kronecker_delta(i_ind, j_ind) * kronecker_delta(k_ind, l_ind)
+
+
+def term_2(i_ind, j_ind, k_ind, l_ind, n, lambda_parallel):
+    return lambda_parallel * (
+        kronecker_delta(i_ind, j_ind) * kronecker_delta(k_ind, l_ind)
+        - kronecker_delta(i_ind, j_ind) * n[k_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(k_ind, l_ind) * n[i_ind - 1] * n[j_ind - 1]
+        + n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+    )
+
+
+def term_3(i_ind, j_ind, k_ind, l_ind, n, lambda_perpendicular):
+    return (
+        lambda_perpendicular * n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+    )
+
+
+def term_4(i_ind, j_ind, k_ind, l_ind, n, mu_parallel):
+    return mu_parallel * (
+        2 * n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(i_ind, k_ind) * n[j_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(j_ind, k_ind) * n[i_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(i_ind, l_ind) * n[j_ind - 1] * n[k_ind - 1]
+        - kronecker_delta(j_ind, l_ind) * n[i_ind - 1] * n[k_ind - 1]
+        + kronecker_delta(i_ind, k_ind) * kronecker_delta(j_ind, l_ind)
+        + kronecker_delta(i_ind, l_ind) * kronecker_delta(j_ind, k_ind)
+    )
+
+
+def term_5(i_ind, j_ind, k_ind, l_ind, n, mu_perpendicular):
+    return mu_perpendicular * (
+        kronecker_delta(i_ind, k_ind) * n[j_ind - 1] * n[l_ind - 1]
+        + kronecker_delta(j_ind, k_ind) * n[i_ind - 1] * n[l_ind - 1]
+        + kronecker_delta(i_ind, l_ind) * n[j_ind - 1] * n[k_ind - 1]
+        + kronecker_delta(j_ind, l_ind) * n[i_ind - 1] * n[k_ind - 1]
+        - 2 * n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+    )
+
+
+def create_stiffness_tensor_basis(
+    lambda_val, lambda_parallel, lambda_perpendicular, mu_parallel, mu_perpendicular, n
+):
+    """Creates matrix representation of transversely isotropic tensor.
+    
+    Basis for each of the five material parameters used in a transversely isotropic
+    media is generated here.
+
+    """
+    # Define a mapping of indices to a 9x9 structure
+    index_map = {
+        (1, 1): 0,
+        (1, 2): 1,
+        (1, 3): 2,
+        (2, 1): 3,
+        (2, 2): 4,
+        (2, 3): 5,
+        (3, 1): 6,
+        (3, 2): 7,
+        (3, 3): 8,
+    }
+
+    # Compute each term using the generalized function
+    stiffness_matrices = {
+        "lambda": compute_term(index_map, n, term_1, lambda_val),
+        "lambda_parallel": compute_term(index_map, n, term_2, lambda_parallel),
+        "lambda_perpendicular": compute_term(
+            index_map, n, term_3, lambda_perpendicular
+        ),
+        "mu_parallel": compute_term(index_map, n, term_4, mu_parallel),
+        "mu_perpendicular": compute_term(index_map, n, term_5, mu_perpendicular),
+    }
+
+    return stiffness_matrices

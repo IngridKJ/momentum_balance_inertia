@@ -15,7 +15,7 @@ import porepy as pp
 sys.path.append("../")
 import run_models.run_linear_model as rlm
 from models import DynamicMomentumBalanceABCLinear
-from utils.anisotropy_mixins import MoreRobustTensorMixin
+from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class Geometry:
 class ModelSetupFracturedHeterogeneous(
     InitialConditionsAndMaterialProperties,
     Geometry,
-    MoreRobustTensorMixin,
+    TransverselyIsotropicTensorMixin,
     DynamicMomentumBalanceABCLinear,
 ): ...
 

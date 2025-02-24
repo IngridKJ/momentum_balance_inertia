@@ -15,8 +15,15 @@ sys.path.append("../../")
 
 from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
-from utils.anisotropy_mixins import MoreRobustTensorMixin, TensorAllowingForCustomFields
-from utils.utility_functions import use_constraints_for_inner_domain_cells
+from utils.anisotropy_mixins import (
+    TransverselyIsotropicTensorMixin,
+    TensorAllowingForCustomFields,
+)
+from utils.utility_functions import (
+    use_constraints_for_inner_domain_cells,
+    create_stiffness_tensor_basis,
+)
+
 
 class BoundaryConditionsUnitTest:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
@@ -255,58 +262,9 @@ class ConstitutiveLawsAndSource:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
-    def stiffness_tensor(self, subdomain: pp.Grid):
-        # Fetch inner domain indices such that we can distribute values of the material
-        # parameters in arrays according to cell numbers.
-        inner_cell_indices = use_constraints_for_inner_domain_cells(
-            self=self,
-            sd=subdomain,
-        )
-
-        # Preparing basis arrays for inner and outer domains
-        inner = np.zeros(subdomain.num_cells)
-        inner[inner_cell_indices] = 1
-
-        outer = np.ones(subdomain.num_cells)
-        outer = outer - inner
-
-        # Non-standard matrices
-        random_anisotropy_matrix = np.array(
-            [
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 2],
-            ]
-        )
-
-        # Standard material values: These are assigned to the outer domain
-        lmbda = self.solid.lame_lambda * (outer + inner)
-        mu = self.solid.shear_modulus * (outer + inner)
-
-        # Anisotropy related values: These are assigned to the inner domain
-        anisotropy_constants = self.params["anisotropy_constants"]
-
-        random_anisotropy = anisotropy_constants["random_anisotropy_value"] * inner
-
-        # Finally a call to the stiffness tensor object itself
-        stiffness_tensor = TensorAllowingForCustomFields(
-            mu=mu,
-            lmbda=lmbda,
-            other_fields={
-                "random_anisotropy": (random_anisotropy_matrix, random_anisotropy),
-            },
-        )
-        return stiffness_tensor
-
 class ABCModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawsAndSource,
-    MoreRobustTensorMixin,
+    TransverselyIsotropicTensorMixin,
     DynamicMomentumBalanceABCLinear,
 ): ...

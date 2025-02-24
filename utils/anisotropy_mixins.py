@@ -13,6 +13,7 @@ import porepy as pp
 from utils.utility_functions import (
     use_constraints_for_inner_domain_cells,
     inner_domain_cells,
+    create_stiffness_tensor_basis,
 )
 from utils.stiffness_tensors import StiffnessTensorInnerVTI
 
@@ -324,10 +325,10 @@ class InnerDomainVTIStiffnessTensorMixin:
         return stiffness_tensor
 
 
-class MoreRobustTensorMixin:
+class TransverselyIsotropicTensorMixin:
     def stiffness_tensor(self, subdomain: pp.Grid):
-        # Fetch inner domain indices such that we can distribute values of the material
-        # parameters in arrays according to cell numbers.
+        """Compute the stiffness tensor for a given subdomain."""
+        # Fetch inner domain indices
         inner_cell_indices = use_constraints_for_inner_domain_cells(
             self=self,
             sd=subdomain,
@@ -340,107 +341,57 @@ class MoreRobustTensorMixin:
         outer = np.ones(subdomain.num_cells)
         outer = outer - inner
 
-        # Non-standard matrices
-        lmbda_mat = np.array(
-            [
-                [1, 0, 0, 0, 1, 0, 0, 0, 1],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [1, 0, 0, 0, 1, 0, 0, 0, 1],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [1, 0, 0, 0, 1, 0, 0, 0, 1],
-            ]
+        # Compute the stiffness tensors for each term using the extracted constants
+        stiffness_matrices = create_stiffness_tensor_basis(
+            lambda_val=1,
+            lambda_parallel=1,
+            lambda_perpendicular=1,
+            mu_parallel=1,
+            mu_perpendicular=1,
+            n=self.params.get("symmetry_axis", [0, 0, 1]),
         )
 
-        lambda_parallel_mat = np.array(
-            [
-                [1, 0, 0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [1, 0, 0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            ]
-        )
+        # Extract stiffness matrices for each component
+        lmbda_mat = stiffness_matrices["lambda"]
+        lambda_parallel_mat = stiffness_matrices["lambda_parallel"]
+        lambda_orthogonal_mat = stiffness_matrices["lambda_perpendicular"]
+        mu_parallel_mat = stiffness_matrices["mu_parallel"]
+        mu_orthogonal_mat = stiffness_matrices["mu_perpendicular"]
 
-        lambda_orthogonal_mat = np.array(
-            [
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1],
-            ]
-        )
-
-        mu_parallel_mat = np.array(
-            [
-                [2, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 1, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 1, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 2, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            ]
-        )
-
-        mu_orthogonal_mat = np.array(
-            [
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 1, 0],
-                [0, 0, 1, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 2],
-            ]
-        )
-        # Standard material values: These are assigned to the outer domain
-        lmbda = self.solid.lame_lambda * outer
-        mu = self.solid.shear_modulus * outer
-
-        # Anisotropy related values: These are assigned to the inner domain
+        # Extract individual constants from the anisotropy constants dictionary
         anisotropy_constants = self.params["anisotropy_constants"]
 
-        mu_parallel = anisotropy_constants["mu_parallel"] * inner
-        mu_orthogonal = anisotropy_constants["mu_orthogonal"] * inner
+        volumetric_compr_lambda = anisotropy_constants["volumetric_compr_lambda"]
+        lambda_parallel = anisotropy_constants["lambda_parallel"]
+        lambda_orthogonal = anisotropy_constants["lambda_orthogonal"]
+        mu_parallel = anisotropy_constants["mu_parallel"]
+        mu_orthogonal = anisotropy_constants["mu_orthogonal"]
 
-        volumetric_compr_lambda = (
-            anisotropy_constants["volumetric_compr_lambda"] * inner
-        )
+        # Standard material values: assigned to the outer domain
+        lmbda = self.solid.lame_lambda * outer
+        mu = self.solid.shear_modulus * outer
+        
+        # Values for inner domain with anisotropic constants
+        mu_parallel_inner = mu_parallel * inner
+        mu_orthogonal_inner = mu_orthogonal * inner
+        volumetric_compr_lambda_inner = volumetric_compr_lambda * inner
+        lambda_parallel_inner = lambda_parallel * inner
+        lambda_orthogonal_inner = lambda_orthogonal * inner
 
-        lambda_parallel = anisotropy_constants["lambda_parallel"] * inner
-        lambda_orthogonal = anisotropy_constants["lambda_orthogonal"] * inner
-
-        # Finally a call to the stiffness tensor object itself
+        # Create the final stiffness tensor
         stiffness_tensor = TensorAllowingForCustomFields(
             mu=mu,
             lmbda=lmbda,
             other_fields={
-                "mu_parallel": (mu_parallel_mat, mu_parallel),
-                "mu_orthogonal": (mu_orthogonal_mat, mu_orthogonal),
-                "volumetric_compr_lambda": (lmbda_mat, volumetric_compr_lambda),
-                "lambda_parallel": (lambda_parallel_mat, lambda_parallel),
-                "lambda_orthogonal": (lambda_orthogonal_mat, lambda_orthogonal),
+                "mu_parallel": (mu_parallel_mat, mu_parallel_inner),
+                "mu_orthogonal": (mu_orthogonal_mat, mu_orthogonal_inner),
+                "volumetric_compr_lambda": (lmbda_mat, volumetric_compr_lambda_inner),
+                "lambda_parallel": (lambda_parallel_mat, lambda_parallel_inner),
+                "lambda_orthogonal": (lambda_orthogonal_mat, lambda_orthogonal_inner),
             },
         )
-
         return stiffness_tensor
+
 
 
 class TensorAllowingForCustomFields(pp.FourthOrderTensor):
@@ -463,7 +414,7 @@ class TensorAllowingForCustomFields(pp.FourthOrderTensor):
         self.mu = mu
         """Nc array of shear modulus (second Lamé parameter)."""
 
-        # Basis for the contributions of mu, lmbda and phi is hard-coded
+        # Basis for the contributions of mu and lambda is hard-coded
         mu_mat = np.array(
             [
                 [2, 0, 0, 0, 0, 0, 0, 0, 0],

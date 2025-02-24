@@ -128,8 +128,13 @@ for refinement_coefficient in refinements:
     solid_constants = pp.SolidConstants(lame_lambda=0.01, shear_modulus=0.01)
     material_constants = {"solid": solid_constants}
     anisotropy_constants = {
-        "random_anisotropy_value": 1.0,
+        "mu_parallel": 0.01,
+        "mu_orthogonal": 0.01,
+        "lambda_parallel": 0.01 * 0,
+        "lambda_orthogonal": 0.5,
+        "volumetric_compr_lambda": 0.01,
     }
+
     params = {
         "time_manager": time_manager,
         "grid_type": "simplex",
@@ -138,6 +143,7 @@ for refinement_coefficient in refinements:
         "folder_name": "unit_test_check",
         "material_constants": material_constants,
         "anisotropy_constants": anisotropy_constants,
+        "symmetry_axis": [0, 1, 0],
         "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
     }
 
