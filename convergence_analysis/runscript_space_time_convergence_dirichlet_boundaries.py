@@ -30,8 +30,10 @@ os.makedirs(output_dir, exist_ok=True)
 
 filename = os.path.join(output_dir, filename)
 
-# Coarse/Fine variables and plotting (save figure)
+# Coarse/Fine variables, grid type (either "simplex" or "cartesian") and plotting (save
+# figure)
 coarse = True
+grid_type = "simplex"
 save_figure = True
 
 # Simulation details from here and onwards
@@ -51,7 +53,7 @@ time_manager = pp.TimeManager(
 params = {
     "time_manager": time_manager,
     "manufactured_solution": "different_x_y_z_components",
-    "grid_type": "simplex",
+    "grid_type": grid_type,
     "meshing_arguments": {"cell_size": 0.25 / 1.0},
     "plot_results": False,
     "petsc_solver_q": True,
@@ -84,7 +86,10 @@ export_errors_to_txt(
 # Plotting from here and downwards.
 if save_figure:
     values = fetch_numbers_from_file(filename)
-    time_step_numbers = np.array([150, 300, 600, 1200])
+    if coarse:
+        time_step_numbers = np.array([150, 300])
+    else:
+        time_step_numbers = np.array([150, 300, 600, 1200])
     num_cells = (np.array(values["num_cells"]) * time_step_numbers) ** (1 / 4)
     y_disp = values["error_displacement"]
     y_trac = values["error_force"]
@@ -106,7 +111,7 @@ if save_figure:
         label="Traction",
     )
     ax.set_title("Convergence analysis: Setup with Dirichlet boundaries")
-    ax.set_xlabel("$(N_x \cdot N_t)^{1/4}$")
+    ax.set_xlabel("$(N_x \\cdot N_t)^{1/4}$")
     ax.set_ylabel("Relative $L^2$ error")
     ax.legend()
 

@@ -25,8 +25,9 @@ os.makedirs(output_dir, exist_ok=True)
 
 filename = os.path.join(output_dir, filename)
 
-# Coarse/Fine variables
+# Coarse/Fine variables and grid type (either "simplex" or "cartesian"):
 coarse = True
+grid_type = "simplex"
 
 # Simulation details from here and onwards
 time_steps = 4
@@ -44,8 +45,8 @@ time_manager = pp.TimeManager(
 
 params = {
     "time_manager": time_manager,
-    "manufactured_solution": "sin_bubble",
-    "grid_type": "simplex",
+    "manufactured_solution": "different_x_y_z_components",
+    "grid_type": grid_type,
     "meshing_arguments": {"cell_size": 0.1 if coarse else 0.03125},
     "plot_results": False,
 }

@@ -15,14 +15,7 @@ sys.path.append("../../")
 
 from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
-from utils.anisotropy_mixins import (
-    TransverselyIsotropicTensorMixin,
-    TensorAllowingForCustomFields,
-)
-from utils.utility_functions import (
-    use_constraints_for_inner_domain_cells,
-    create_stiffness_tensor_basis,
-)
+from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
 
 
 class BoundaryConditionsUnitTest:

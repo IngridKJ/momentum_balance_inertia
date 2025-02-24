@@ -129,8 +129,8 @@ for refinement_coefficient in refinements:
     material_constants = {"solid": solid_constants}
     anisotropy_constants = {
         "mu_parallel": 0.01,
-        "mu_orthogonal": 0.01,
-        "lambda_parallel": 0.01 * 0,
+        "mu_orthogonal": 0.5,
+        "lambda_parallel": 0,
         "lambda_orthogonal": 0.5,
         "volumetric_compr_lambda": 0.01,
     }
