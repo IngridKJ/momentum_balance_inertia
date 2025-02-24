@@ -214,9 +214,7 @@ class BoundaryConditionsUnitTest:
 
 
 class InitialConditions:
-    def heterogeneous_analytical_solution(
-        self, return_dt=False, return_ddt=False, bc_eval=False, analytical_init=False
-    ):
+    def heterogeneous_analytical_solution(self, return_dt=False, return_ddt=False):
         """Compute the analytical solution and its time derivatives."""
         x, t = sym.symbols("x t")
 
@@ -305,7 +303,6 @@ class ConstitutiveLawsAndSource:
 
         lmbda_vec = np.ones(subdomain.num_cells)
         mu_vec = np.ones(subdomain.num_cells)
-
 
         left_layer = x < self.heterogeneity_location
         right_layer = x > self.heterogeneity_location

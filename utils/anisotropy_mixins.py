@@ -19,7 +19,7 @@ from utils.stiffness_tensors import StiffnessTensorInnerVTI
 
 
 class TransverselyIsotropicStiffnessTensor:
-    """Note: there is a less brute-force version in the bottom of this file."""
+    """TO BE DEPRECATED"""
 
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
@@ -169,6 +169,7 @@ class TransverselyIsotropicStiffnessTensor:
 
 
 class SimpleAnisotropy:
+    """TO BE DEPRECATED."""
     def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
         """Stiffness tensor [Pa].
 

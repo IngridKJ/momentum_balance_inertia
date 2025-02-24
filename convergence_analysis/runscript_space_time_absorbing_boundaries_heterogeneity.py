@@ -78,9 +78,7 @@ class SpatialRefinementModel(Geometry, RandomProperties, ABCModel):
         # displacement_ad = self.displacement([sd])
         # u_approximate = self.equation_system.evaluate(displacement_ad)
 
-        left_solution, right_solution = self.heterogeneous_analytical_solution(
-            analytical_init=True
-        )
+        left_solution, right_solution = self.heterogeneous_analytical_solution()
         L = self.heterogeneity_location
 
         left_layer = x < L
@@ -124,7 +122,7 @@ for refinement_coefficient in refinements:
         "grid_type": "simplex",
         "manufactured_solution": "simply_zero",
         "progressbars": True,
-        "folder_name": "pffff_hedt",
+        "folder_name": "testing_visualization",
         "heterogeneity_factor": 0.25,
         "heterogeneity_location": 5.0,
         "material_constants": material_constants,
