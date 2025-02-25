@@ -13,36 +13,8 @@ sys.path.append("../")
 import numpy as np
 import porepy as pp
 from anisotropic_model_for_testing import AnisotropyModelForTesting
-from utils import inner_domain_cells
-
-
-class Model(AnisotropyModelForTesting):
-    def nd_rect_domain(self, x, y, z) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y, "zmin": 0, "zmax": z})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = self.units.convert_units(5.0, "m")
-        y = self.units.convert_units(5.0, "m")
-        z = self.units.convert_units(5.0, "m")
-        self._domain = self.nd_rect_domain(x, y, z)
-
-    def meshing_arguments(self) -> dict:
-        cell_size = self.units.convert_units(1.0, "m")
-        mesh_args: dict[str, float] = {"cell_size": cell_size}
-        return mesh_args
-
-    def set_polygons(self):
-        west = np.array([[1, 1, 1, 1], [1, 4, 4, 1], [1, 1, 4, 4]])
-        east = np.array([[4, 4, 4, 4], [1, 4, 4, 1], [1, 1, 4, 4]])
-        south = np.array([[1, 4, 4, 1], [1, 1, 1, 1], [1, 1, 4, 4]])
-        north = np.array([[1, 4, 4, 1], [4, 4, 4, 4], [1, 1, 4, 4]])
-        bottom = np.array([[1, 4, 4, 1], [1, 1, 4, 4], [1, 1, 1, 1]])
-        top = np.array([[1, 4, 4, 1], [1, 1, 4, 4], [4, 4, 4, 4]])
-        return west, east, south, north, bottom, top
+from models.elastic_wave_equation_abc import DynamicMomentumBalanceABC
+from utils import use_constraints_for_inner_domain_cells
 
 
 def _build_correct_tensor(anisotropy_constants: dict, model):
@@ -139,7 +111,7 @@ def _build_correct_tensor(anisotropy_constants: dict, model):
 def test_iso_vti_tensor():
     # Instantiate model with appropriate parameter values
     anisotropy_constants = {
-        "mu_parallel": 20,
+        "mu_parallel": 15,
         "mu_orthogonal": 20,
         "lambda_parallel": 10,
         "lambda_orthogonal": 5,
@@ -152,12 +124,11 @@ def test_iso_vti_tensor():
     params = {
         "grid_type": "cartesian",
         "manufactured_solution": "simply_zero",
-        "inner_domain_width": 3,
         "anisotropy_constants": anisotropy_constants,
         "material_constants": material_constants,
     }
 
-    model = Model(params)
+    model = AnisotropyModelForTesting(params)
 
     # Run prepare simulation
     model.prepare_simulation()
@@ -167,8 +138,7 @@ def test_iso_vti_tensor():
     stiffness_tensor = data["parameters"]["mechanics"]["fourth_order_tensor"].values
 
     num_cells = sd.num_cells
-    inner_domain_width = model.params.get("inner_domain_width", 0)
-    inner_cell_indices = inner_domain_cells(self=model, sd=sd, width=inner_domain_width)
+    inner_cell_indices = use_constraints_for_inner_domain_cells(model, sd=sd)
     vti_tensor, iso_tensor = _build_correct_tensor(
         anisotropy_constants=anisotropy_constants, model=model
     )
@@ -177,8 +147,84 @@ def test_iso_vti_tensor():
     # The ordering is very different here. So comparison needs to be done with some
     # care. The cell wise tensor that is constructed in this file is fetched for one
     # cell by the indexing [cell_number, :, :]. The one constructed by the mixin is [:,
-    # :, cell_number]. I believe this should be fine tho
+    # :, cell_number]. I believe this should be fine tho.
     full_tensor[inner_cell_indices, :, :] = vti_tensor
 
     for i in range(num_cells):
         assert np.all(full_tensor[i, :, :] == stiffness_tensor[:, :, i])
+
+
+def test_heterogeneous_tensor():
+    class Model(DynamicMomentumBalanceABC):
+        def nd_rect_domain(self, x, y, z) -> pp.Domain:
+            box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
+
+            box.update({"ymin": 0, "ymax": y, "zmin": 0, "zmax": z})
+
+            return pp.Domain(box)
+
+        def set_domain(self) -> None:
+            x = self.units.convert_units(5.0, "m")
+            y = self.units.convert_units(5.0, "m")
+            z = self.units.convert_units(5.0, "m")
+            self._domain = self.nd_rect_domain(x, y, z)
+
+        def meshing_arguments(self) -> dict:
+            cell_size = self.units.convert_units(1.25, "m")
+            mesh_args: dict[str, float] = {"cell_size": cell_size}
+            return mesh_args
+
+        def vector_valued_mu_lambda(self):
+            subdomain = self.mdg.subdomains(dim=self.nd)[0]
+            x = subdomain.cell_centers[0, :]
+
+            lmbda1 = self.solid.lame_lambda
+            mu1 = self.solid.shear_modulus
+
+            lmbda2 = self.solid.lame_lambda * 0.5
+            mu2 = self.solid.shear_modulus * 0.5
+
+            lmbda_vec = np.ones(subdomain.num_cells)
+            mu_vec = np.ones(subdomain.num_cells)
+
+            left_layer = x < 2.5
+            right_layer = x > 2.5
+
+            lmbda_vec[left_layer] *= lmbda1
+            mu_vec[left_layer] *= mu1
+
+            lmbda_vec[right_layer] *= lmbda2
+            mu_vec[right_layer] *= mu2
+
+            self.mu_vector = mu_vec
+            self.lambda_vector = lmbda_vec
+
+    solid_constants = pp.SolidConstants(lame_lambda=5, shear_modulus=5)
+    material_constants = {"solid": solid_constants}
+
+    params = {
+        "grid_type": "cartesian",
+        "manufactured_solution": "simply_zero",
+        "material_constants": material_constants,
+    }
+
+    model = Model(params)
+
+    # Run prepare simulation
+    model.prepare_simulation()
+    sd = model.mdg.subdomains(dim=3)[0]
+    data = model.mdg.subdomain_data(sd)
+
+    x = sd.cell_centers[0, :]
+
+    left_layer = np.where(x < 2.5)
+    right_layer = np.where(x > 2.5)
+
+    # We expect the stiffness tensor values to be HIGHER in the LEFT layer.
+    s = data["parameters"]["mechanics"]["fourth_order_tensor"].values
+    a = 5
+    for i in left_layer[0]:
+        for j in right_layer[0]:
+            assert np.max(s[:, :, i]) > np.max(
+                s[:, :, j]
+            )

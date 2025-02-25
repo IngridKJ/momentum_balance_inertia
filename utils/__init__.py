@@ -6,13 +6,15 @@ from .utility_functions import (
     symbolic_representation,
     inner_domain_cells,
     get_boundary_cells,
-    create_stiffness_tensor_basis
+    create_stiffness_tensor_basis,
+    use_constraints_for_inner_domain_cells
 )
 
 from .anisotropy_mixins import (
     TransverselyIsotropicStiffnessTensor,
     SimpleAnisotropy,
     InnerDomainVTIStiffnessTensorMixin,
+    TransverselyIsotropicTensorMixin,
 )
 
 from .stiffness_tensors import StiffnessTensorInnerVTI
