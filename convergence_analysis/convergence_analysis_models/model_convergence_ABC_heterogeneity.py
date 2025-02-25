@@ -190,15 +190,12 @@ class BoundaryConditionsUnitTest:
 
         bc_vals = np.zeros((sd.dim, sd.num_faces))
 
-        _, displacement_function = self.heterogeneous_analytical_solution()
+        _, displacement_function_left = self.heterogeneous_analytical_solution()
 
         # East
-        bc_vals[0, :][inds_east] = displacement_function[0](
-            x[inds_east], t
-        )
+        bc_vals[0, :][inds_east] = displacement_function_left[0](x[inds_east], t)
 
         bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
-
         return bc_vals
 
 
@@ -244,7 +241,7 @@ class InitialConditions:
             return x, t, u_left, u_right
 
     def _compute_initial_condition(self, return_dt=False, return_ddt=False):
-        """Helper function to compute displacement, velocity, or acceleration."""
+        """Helper function to compute displacement, velocity or acceleration."""
         sd = self.mdg.subdomains()[0]
         x = sd.cell_centers[0, :]
         t = self.time_manager.time
@@ -281,8 +278,8 @@ class ConstitutiveLawsAndSource:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
-    def vector_valued_mu_lambda(self):
-        """Setting a layered medium."""
+    def vector_valued_mu_lambda(self) -> None:
+        """Setting a vertically layered medium."""
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
         x = subdomain.cell_centers[0, :]
 
@@ -309,7 +306,19 @@ class ConstitutiveLawsAndSource:
 
 
 class ExactHeterogeneousSigmaAndForce:
-    def exact_heterogeneous_sigma(self, u, lam, mu, x):
+    def exact_heterogeneous_sigma(self, u, lam, mu, x) -> list:
+        """Representation of the exact stress tensor given a displacement field.
+        
+        Parameters:
+            u: The sympy representation of the exact displacement.
+            lam: The first Lamé parameter.
+            mu: The second Lamé parameter, also called shear modulus.
+            x: The sympy representation of the x-coordinate.
+
+        Returns:
+            A list which represents the sympy expression of the exact stress tensor.
+        
+        """
         y = sym.symbols("y")
 
         u = [u, 0]
@@ -339,38 +348,41 @@ class ExactHeterogeneousSigmaAndForce:
         ]
         return sigma
 
-    def evaluate_exact_force(self, sd, time, sigma, side) -> np.ndarray:
-        """Evaluate exact elastic force at the face centers.
+    def evaluate_exact_force(
+        self, sd, time, sigma, inds, force_array
+    ) -> np.ndarray:
+        """Evaluate exact elastic force at the face centers for certain face indices.
+
+        This method is, as it is implemented now, called more than once. This is because
+        the exact elastic force values may be different in two or more parts of the
+        subdomain. In the case of two parts of the subdomain, the method fills half the
+        `force_array` in the first call, and then the other half in the second call. The
+        filling of the array is done index wise, determined by `inds`.
 
         Parameters:
             sd: Subdomain grid.
             time: Time in seconds.
             sigma: Exact stress tensor.
-            side: Either "left" or "right". Determines whether we evaluate the force on
-                the left or the right side of the heterogeneity, respectively.
+            inds: The face indices which we are computing the force at.
+            force_array: Either empty or semi empty array of shape (self.nd, sd.
+                num_faces) which we are filling with the force values. This is done by
+                indices in `inds`.
 
         Returns:
-            Array of ``shape=(2 * sd.num_faces, )`` containing the exact ealstic
-            force at the face centers for the given ``time``.
+            Array of `shape=(self.nd, sd.num_faces)` containing the exact elastic
+            force at the face centers of `inds` for the given `time`.
 
         Notes:
-            - The returned elastic force is given in PorePy's flattened vector
-              format.
+            - The returned elastic force is _not_ given in PorePy's flattened vector
+              format. Thus, it may be necessary to flatten it at a later point.
             - Recall that force = (stress dot_prod unit_normal) * face_area.
 
         """
         # Symbolic variables
         x, y, t = sym.symbols("x y t")
 
-        # Get cell centers and face normals
-        fc_x = sd.face_centers[0, :]
-        if side == "left":
-            inds = np.where(fc_x < self.heterogeneity_location)
-        elif side == "right":
-            inds = np.where(fc_x >= self.heterogeneity_location)
-
-        fc = sd.face_centers[:, inds]
-        fn = sd.face_normals[:, inds]
+        fc = sd.face_centers[:, inds].squeeze()
+        fn = sd.face_normals[:, inds].squeeze()
 
         # Lambdify expression
         sigma_total_fun = [
@@ -394,11 +406,27 @@ class ExactHeterogeneousSigmaAndForce:
             + sigma_total_fun[1][1](fc[0], fc[1], time) * fn[1],
         ]
 
-        # Flatten array
-        force_total_flat: np.ndarray = np.asarray(force_total_fc).ravel("F")
-        return force_total_flat
+        # Insert values into force_array at the indices given by inds
+        for i, force_component in enumerate(force_total_fc):
+            # Update the appropriate row of force_array
+            force_array[i, inds] = force_component
 
-    def evaluate_exact_heterogeneous_force(self, sd):
+        return force_array
+
+    def evaluate_exact_heterogeneous_force(self, sd) -> np.ndarray:
+        """Evaluate the exact heterogeneous force in the entire domain.
+        
+        The domain is split in 2: One left and one right part, where the exact force may
+        be different in each part of the domain. This method handles computing the exact
+        force values for the entire domain.
+
+        Parameters:
+            sd: The subdomain grid where the forces are to be evaluated.
+
+        Returns:
+            A flattened array of the exact force values in the entire domain. 
+        
+        """
         x, _, u_left, u_right = self.heterogeneous_analytical_solution(lambdify=False)
 
         mu_lambda_values = {
@@ -414,15 +442,27 @@ class ExactHeterogeneousSigmaAndForce:
             u = u_left if side == "left" else u_right
             sigma[side] = self.exact_heterogeneous_sigma(u, lam, mu, x)
 
-        force_exact = np.concatenate(
-            [
-                self.evaluate_exact_force(sd, self.time_manager.time, sigma[side], side)
-                for side in ["left", "right"]
-            ]
-        )
+        fc_x = sd.face_centers[0, :]
 
-        return force_exact
-    
+        empty_force_array = np.zeros((self.nd, sd.num_faces))
+
+        inds_left = np.where(fc_x < self.heterogeneity_location)
+        inds_right = np.where(fc_x >= self.heterogeneity_location)
+
+        semi_full_force_array = self.evaluate_exact_force(
+            sd, self.time_manager.time, sigma["left"], inds_left, empty_force_array
+        )
+        full_force_array = self.evaluate_exact_force(
+            sd,
+            self.time_manager.time,
+            sigma["right"],
+            inds_right,
+            semi_full_force_array,
+        )
+        full_force_array: np.ndarray = np.asarray(full_force_array).ravel("F")
+        return full_force_array
+
+
 class ABCModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawsAndSource,

@@ -144,7 +144,7 @@ for refinement_coefficient in refinements:
         "progressbars": True,
         "folder_name": "testing_visualization",
         "heterogeneity_factor": 1.0,
-        "heterogeneity_location": 0.0,
+        "heterogeneity_location": 0.5,
         "material_constants": material_constants,
         "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
     }
