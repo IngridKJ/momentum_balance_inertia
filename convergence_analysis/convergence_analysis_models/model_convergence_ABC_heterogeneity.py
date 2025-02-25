@@ -135,7 +135,7 @@ class BoundaryConditionsUnitTest:
         xmin = self.domain.bounding_box["xmin"]
 
         # Time dependent sine Dirichlet condition
-        bc_left, bc_right = self.heterogeneous_analytical_solution(bc_eval=True)
+        bc_left, bc_right = self.heterogeneous_analytical_solution()
         values[0][bounds.west] += np.ones(len(values[0][bounds.west])) * bc_left[0](
             xmin, t
         )
@@ -214,7 +214,9 @@ class BoundaryConditionsUnitTest:
 
 
 class InitialConditions:
-    def heterogeneous_analytical_solution(self, return_dt=False, return_ddt=False):
+    def heterogeneous_analytical_solution(
+        self, return_dt=False, return_ddt=False, lambdify=True
+    ):
         """Compute the analytical solution and its time derivatives."""
         x, t = sym.symbols("x t")
 
@@ -244,10 +246,13 @@ class InitialConditions:
         elif return_ddt:
             u_left, u_right = sym.diff(u_left, t, 2), sym.diff(u_right, t, 2)
 
-        return [sym.lambdify((x, t), u_left, "numpy"), 0], [
-            sym.lambdify((x, t), u_right, "numpy"),
-            0,
-        ]
+        if lambdify:
+            return [sym.lambdify((x, t), u_left, "numpy"), 0], [
+                sym.lambdify((x, t), u_right, "numpy"),
+                0,
+            ]
+        else:
+            return x, t, u_left, u_right
 
     def _compute_initial_condition(self, return_dt=False, return_ddt=False):
         """Helper function to compute displacement, velocity, or acceleration."""
@@ -283,9 +288,6 @@ class InitialConditions:
 
 
 class ConstitutiveLawsAndSource:
-    def elastic_force_(self, sd, sigma_total, time: float) -> np.ndarray:
-        """"""
-
     def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
@@ -317,9 +319,125 @@ class ConstitutiveLawsAndSource:
         self.lambda_vector = lmbda_vec
 
 
+class ExactHeterogeneousSigmaAndForce:
+    def exact_heterogeneous_sigma(self, u, lam, mu, x):
+        y = sym.symbols("y")
+
+        u = [u, 0]
+        # Exact gradient of u and transpose of gradient of u
+        grad_u = [
+            [sym.diff(u[0], x), sym.diff(u[0], y)],
+            [sym.diff(u[1], x), sym.diff(u[1], y)],
+        ]
+
+        grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
+
+        # Trace of gradient of u, in the linear algebra sense
+        trace_grad_u = grad_u[0][0] + grad_u[1][1]
+
+        # Exact strain (\epsilon(u))
+        strain = 0.5 * np.array(
+            [
+                [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
+                [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
+            ]
+        )
+
+        # Exact stress tensor (\sigma(\epsilon(u)))
+        sigma = [
+            [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
+            [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
+        ]
+        return sigma
+
+    def evaluate_exact_force(self, sd, time, sigma, side) -> np.ndarray:
+        """Evaluate exact elastic force at the face centers.
+
+        Parameters:
+            sd: Subdomain grid.
+            time: Time in seconds.
+            sigma: Exact stress tensor.
+            side: Either "left" or "right". Determines whether we evaluate the force on
+                the left or the right side of the heterogeneity, respectively.
+
+        Returns:
+            Array of ``shape=(2 * sd.num_faces, )`` containing the exact ealstic
+            force at the face centers for the given ``time``.
+
+        Notes:
+            - The returned elastic force is given in PorePy's flattened vector
+              format.
+            - Recall that force = (stress dot_prod unit_normal) * face_area.
+
+        """
+        # Symbolic variables
+        x, y, t = sym.symbols("x y t")
+
+        # Get cell centers and face normals
+        fc_x = sd.face_centers[0, :]
+        if side == "left":
+            inds = np.where(fc_x < self.heterogeneity_location)
+        elif side == "right":
+            inds = np.where(fc_x >= self.heterogeneity_location)
+
+        fc = sd.face_centers[:, inds]
+        fn = sd.face_normals[:, inds]
+
+        # Lambdify expression
+        sigma_total_fun = [
+            [
+                sym.lambdify((x, y, t), sigma[0][0], "numpy"),
+                sym.lambdify((x, y, t), sigma[0][1], "numpy"),
+            ],
+            [
+                sym.lambdify((x, y, t), sigma[1][0], "numpy"),
+                sym.lambdify((x, y, t), sigma[1][1], "numpy"),
+            ],
+        ]
+
+        # Face-centered elastic force
+        force_total_fc: list[np.ndarray] = [
+            # (sigma_xx * n_x + sigma_xy * n_y) * face_area
+            sigma_total_fun[0][0](fc[0], fc[1], time) * fn[0]
+            + sigma_total_fun[0][1](fc[0], fc[1], time) * fn[1],
+            # (sigma_yx * n_x + sigma_yy * n_y) * face_area
+            sigma_total_fun[1][0](fc[0], fc[1], time) * fn[0]
+            + sigma_total_fun[1][1](fc[0], fc[1], time) * fn[1],
+        ]
+
+        # Flatten array
+        force_total_flat: np.ndarray = np.asarray(force_total_fc).ravel("F")
+        return force_total_flat
+
+    def evaluate_exact_heterogeneous_force(self, sd):
+        x, _, u_left, u_right = self.heterogeneous_analytical_solution(lambdify=False)
+
+        mu_lambda_values = {
+            "left": (self.solid.lame_lambda, self.solid.shear_modulus),
+            "right": (
+                self.solid.lame_lambda * self.heterogeneity_factor,
+                self.solid.shear_modulus * self.heterogeneity_factor,
+            ),
+        }
+
+        sigma = {}
+        for side, (lam, mu) in mu_lambda_values.items():
+            u = u_left if side == "left" else u_right
+            sigma[side] = self.exact_heterogeneous_sigma(u, lam, mu, x)
+
+        force_exact = np.concatenate(
+            [
+                self.evaluate_exact_force(sd, self.time_manager.time, sigma[side], side)
+                for side in ["left", "right"]
+            ]
+        )
+
+        return force_exact
+    
 class ABCModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawsAndSource,
     InitialConditions,
+    ExactHeterogeneousSigmaAndForce,
     DynamicMomentumBalanceABCLinear,
 ): ...

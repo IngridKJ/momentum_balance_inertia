@@ -11,6 +11,8 @@ from convergence_analysis.convergence_analysis_models.model_convergence_ABC_hete
     ABCModel,
 )
 
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
+
 # Prepare path for generated output files
 folder_name = "convergence_analysis_results"
 filename = "heterogeneity_errors.txt"
@@ -29,12 +31,12 @@ class Geometry:
         return pp.Domain(box)
 
     def set_domain(self) -> None:
-        x = 10.0 / self.units.m
-        y = 0.125 / self.units.m
+        x = 1.0 / self.units.m
+        y = 1.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
 
     def meshing_arguments(self) -> dict:
-        cell_size = self.units.convert_units(0.25 / 2 ** 3, "m")
+        cell_size = self.units.convert_units(0.25 / 2 ** (self.refinement), "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
@@ -59,6 +61,7 @@ class Geometry:
             pp.LineFracture(south),
         ]
 
+
 class RandomProperties:
     @property
     def heterogeneity_location(self):
@@ -68,15 +71,13 @@ class RandomProperties:
     def heterogeneity_factor(self):
         return self.params.get("heterogeneity_factor", 0.5)
 
+
 class SpatialRefinementModel(Geometry, RandomProperties, ABCModel):
     def data_to_export(self):
         data = super().data_to_export()
         sd = self.mdg.subdomains(dim=self.nd)[0]
 
         x = sd.cell_centers[0, :]
-
-        # displacement_ad = self.displacement([sd])
-        # u_approximate = self.equation_system.evaluate(displacement_ad)
 
         left_solution, right_solution = self.heterogeneous_analytical_solution()
         L = self.heterogeneity_location
@@ -95,17 +96,36 @@ class SpatialRefinementModel(Geometry, RandomProperties, ABCModel):
         lambda_vals[0, :] = self.lambda_vector  # Assign lambda values to the first row
         data.append((sd, "lambda", lambda_vals))
 
-        mu_vals = np.zeros((self.nd, sd.num_cells))  # Initialize with zeros
-        mu_vals[0, :] = self.mu_vector  # Assign lambda values to the first row
-        data.append((sd, "mu", mu_vals))
+        if self.time_manager.final_time_reached():
+            # displacement_ad = self.displacement([sd])
+            # u_approximate = self.equation_system.evaluate(displacement_ad)
+            # exact_displacement
+
+            exact_force = self.evaluate_exact_heterogeneous_force(sd=sd)
+            force_ad = self.stress([sd])
+            approx_force = self.equation_system.evaluate(force_ad)
+
+            error_traction = ConvergenceAnalysis.lp_error(
+                grid=sd,
+                true_array=exact_force,
+                approx_array=approx_force,
+                is_scalar=False,
+                is_cc=False,
+                relative=True,
+            )
+            with open(filename, "a") as file:
+                file.write(f"{sd.num_cells}, {error_traction}\n")
 
         return data
 
 
-refinements = [5]#np.arange(6, 7)
+with open(filename, "w") as file:
+    file.write("num_cells, traction_error\n")
+
+refinements = np.arange(0, 5)
 for refinement_coefficient in refinements:
-    tf = 24
-    time_steps = tf * (2**refinement_coefficient)
+    tf = 15.0
+    time_steps = 15 * (2**refinement_coefficient)
     dt = tf / time_steps
 
     time_manager = pp.TimeManager(
@@ -123,8 +143,8 @@ for refinement_coefficient in refinements:
         "manufactured_solution": "simply_zero",
         "progressbars": True,
         "folder_name": "testing_visualization",
-        "heterogeneity_factor": 0.25,
-        "heterogeneity_location": 5.0,
+        "heterogeneity_factor": 1.0,
+        "heterogeneity_location": 0.0,
         "material_constants": material_constants,
         "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
     }
