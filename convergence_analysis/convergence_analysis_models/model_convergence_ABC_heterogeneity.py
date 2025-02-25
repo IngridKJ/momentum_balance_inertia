@@ -13,7 +13,7 @@ import porepy as pp
 sys.path.append("../../")
 
 from models import DynamicMomentumBalanceABCLinear
-from utils import u_v_a_wrap
+
 import sympy as sym
 
 
@@ -39,16 +39,16 @@ class BoundaryConditionsUnitTest:
         bounds = self.domain_boundary_sides(sd)
         bc = pp.BoundaryConditionVectorial(sd, bounds.all_bf, "dir")
 
-        # # East side: Absorbing
-        # bc.is_dir[:, bounds.east] = False
-        # bc.is_rob[:, bounds.east] = True
+        # East side: Absorbing
+        bc.is_dir[:, bounds.east] = False
+        bc.is_rob[:, bounds.east] = True
 
         # North side: Roller
         bc.is_dir[0, bounds.north + bounds.south] = False
         bc.is_neu[0, bounds.north + bounds.south] = True
 
         # Calling helper function for assigning the Robin weight
-        # self.assign_robin_weight(sd=sd, bc=bc)
+        self.assign_robin_weight(sd=sd, bc=bc)
         return bc
 
     def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
@@ -131,16 +131,12 @@ class BoundaryConditionsUnitTest:
         bounds = self.domain_boundary_sides(bg)
         t = self.time_manager.time
 
-        xmax = self.domain.bounding_box["xmax"]
         xmin = self.domain.bounding_box["xmin"]
 
         # Time dependent sine Dirichlet condition
         bc_left, bc_right = self.heterogeneous_analytical_solution()
         values[0][bounds.west] += np.ones(len(values[0][bounds.west])) * bc_left[0](
             xmin, t
-        )
-        values[0][bounds.east] += np.ones(len(values[0][bounds.west])) * bc_right[0](
-            xmax, t
         )
 
         return values.ravel("F")
@@ -188,24 +184,17 @@ class BoundaryConditionsUnitTest:
         sd = bg.parent
 
         x = sd.face_centers[0, :]
-        y = sd.face_centers[1, :]
 
         boundary_sides = self.domain_boundary_sides(sd)
         inds_east = np.where(boundary_sides.east)[0]
-        inds_west = np.where(boundary_sides.west)[0]
 
         bc_vals = np.zeros((sd.dim, sd.num_faces))
 
-        displacement_function = u_v_a_wrap(model=self)
+        _, displacement_function = self.heterogeneous_analytical_solution()
 
         # East
         bc_vals[0, :][inds_east] = displacement_function[0](
-            x[inds_east], y[inds_east], t
-        )
-
-        # West
-        bc_vals[0, :][inds_west] = displacement_function[0](
-            x[inds_west], y[inds_west], t
+            x[inds_east], t
         )
 
         bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
