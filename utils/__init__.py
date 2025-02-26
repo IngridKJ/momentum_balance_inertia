@@ -10,14 +10,9 @@ from .utility_functions import (
     use_constraints_for_inner_domain_cells
 )
 
-from .anisotropy_mixins import (
-    TransverselyIsotropicStiffnessTensor,
-    SimpleAnisotropy,
-    InnerDomainVTIStiffnessTensorMixin,
-    TransverselyIsotropicTensorMixin,
-)
+from .anisotropy_mixins import TransverselyIsotropicTensorMixin
 
-from .stiffness_tensors import StiffnessTensorInnerVTI
+from .stiffness_tensors import TensorAllowingForCustomFields
 
 from .perturbed_geometry_mixins import (
     AllPerturbedGeometry,

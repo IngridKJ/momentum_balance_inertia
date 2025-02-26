@@ -14,7 +14,7 @@ import porepy as pp
 sys.path.append("../")
 import run_models.run_linear_model as rlm
 from models.elastic_wave_equation_abc_linear import DynamicMomentumBalanceABCLinear
-from utils.anisotropy_mixins import InnerDomainVTIStiffnessTensorMixin
+from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
 
 
 class Geometry:
@@ -71,7 +71,7 @@ class Geometry:
 
 class ModelSetupSourceInInnerDomain(
     Geometry,
-    InnerDomainVTIStiffnessTensorMixin,
+    TransverselyIsotropicTensorMixin,
     DynamicMomentumBalanceABCLinear,
 ):
     def initial_velocity(self, dofs: int) -> np.ndarray:

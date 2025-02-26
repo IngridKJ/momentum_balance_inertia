@@ -222,7 +222,7 @@ def test_heterogeneous_tensor():
 
     # We expect the stiffness tensor values to be HIGHER in the LEFT layer.
     s = data["parameters"]["mechanics"]["fourth_order_tensor"].values
-    a = 5
+
     for i in left_layer[0]:
         for j in right_layer[0]:
             assert np.max(s[:, :, i]) > np.max(
