@@ -59,8 +59,8 @@ class BoundaryConditionsUnitTest:
 
             sigma * n + alpha * u_t = G
 
-        Robin/Absorbing boundaries are employed for the east and west boundary. Zero
-        Neumann conditions are assigned for the north and south boundary.
+        Robin/Absorbing boundaries are employed for the east boundary. Zero Neumann
+        conditions are assigned for the north and south boundary.
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -103,14 +103,11 @@ class BoundaryConditionsUnitTest:
         robin_rhs = robin_rhs.T
 
         boundary_sides = self.domain_boundary_sides(sd)
-        inds_north = np.where(boundary_sides.north)[0]
-        inds_south = np.where(boundary_sides.south)[0]
+        for direction in ["north", "south"]:
+            inds = np.where(getattr(boundary_sides, direction))[0]
+            inds = np.where(np.isin(boundary_faces, inds))[0]
+            robin_rhs[:, inds] *= 0
 
-        inds_north = np.where(np.isin(boundary_faces, inds_north))[0]
-        inds_south = np.where(np.isin(boundary_faces, inds_south))[0]
-
-        robin_rhs[:, inds_north] *= 0
-        robin_rhs[:, inds_south] *= 0
 
         return robin_rhs.ravel("F")
 
@@ -134,7 +131,7 @@ class BoundaryConditionsUnitTest:
         xmin = self.domain.bounding_box["xmin"]
 
         # Time dependent sine Dirichlet condition
-        bc_left, bc_right = self.heterogeneous_analytical_solution()
+        bc_left, _ = self.heterogeneous_analytical_solution()
         values[0][bounds.west] += np.ones(len(values[0][bounds.west])) * bc_left[0](
             xmin, t
         )
@@ -175,12 +172,7 @@ class BoundaryConditionsUnitTest:
     def initial_condition_value_function(
         self, bg: pp.BoundaryGrid, t: float
     ) -> np.ndarray:
-        """Initial values for the absorbing boundaries.
-
-        In the quasi-1d test we have to assign initial values to the east and west
-        boundaries (absorbing boundaries).
-
-        """
+        """Initial values for the absorbing boundary."""
         sd = bg.parent
 
         x = sd.face_centers[0, :]
@@ -217,11 +209,11 @@ class InitialConditions:
             left_speed = max(cp)
             right_speed = min(cp)
 
-        u_left = sym.sin(t - (x - L) / left_speed) + (right_speed - left_speed) / (
+        u_left = sym.sin(t - (x - L) / left_speed) - (right_speed - left_speed) / (
             right_speed + left_speed
         ) * sym.sin(t + (x - L) / left_speed)
         u_right = (
-            (2 * right_speed)
+            (2 * left_speed)
             / (right_speed + left_speed)
             * sym.sin(t - (x - L) / right_speed)
         )
@@ -247,7 +239,7 @@ class InitialConditions:
         t = self.time_manager.time
 
         L = self.heterogeneity_location
-        left_layer = x < L
+        left_layer = x <= L
         right_layer = x > L
 
         vals = np.zeros((self.nd, sd.num_cells))
@@ -292,7 +284,7 @@ class ConstitutiveLawsAndSource:
         lmbda_vec = np.ones(subdomain.num_cells)
         mu_vec = np.ones(subdomain.num_cells)
 
-        left_layer = x < self.heterogeneity_location
+        left_layer = x <= self.heterogeneity_location
         right_layer = x > self.heterogeneity_location
 
         lmbda_vec[left_layer] *= lmbda1
@@ -308,7 +300,7 @@ class ConstitutiveLawsAndSource:
 class ExactHeterogeneousSigmaAndForce:
     def exact_heterogeneous_sigma(self, u, lam, mu, x) -> list:
         """Representation of the exact stress tensor given a displacement field.
-        
+
         Parameters:
             u: The sympy representation of the exact displacement.
             lam: The first Lamé parameter.
@@ -317,7 +309,7 @@ class ExactHeterogeneousSigmaAndForce:
 
         Returns:
             A list which represents the sympy expression of the exact stress tensor.
-        
+
         """
         y = sym.symbols("y")
 
@@ -348,9 +340,7 @@ class ExactHeterogeneousSigmaAndForce:
         ]
         return sigma
 
-    def evaluate_exact_force(
-        self, sd, time, sigma, inds, force_array
-    ) -> np.ndarray:
+    def evaluate_exact_force(self, sd, time, sigma, inds, force_array) -> np.ndarray:
         """Evaluate exact elastic force at the face centers for certain face indices.
 
         This method is, as it is implemented now, called more than once. This is because
@@ -415,7 +405,7 @@ class ExactHeterogeneousSigmaAndForce:
 
     def evaluate_exact_heterogeneous_force(self, sd) -> np.ndarray:
         """Evaluate the exact heterogeneous force in the entire domain.
-        
+
         The domain is split in 2: One left and one right part, where the exact force may
         be different in each part of the domain. This method handles computing the exact
         force values for the entire domain.
@@ -424,8 +414,8 @@ class ExactHeterogeneousSigmaAndForce:
             sd: The subdomain grid where the forces are to be evaluated.
 
         Returns:
-            A flattened array of the exact force values in the entire domain. 
-        
+            A flattened array of the exact force values in the entire domain.
+
         """
         x, _, u_left, u_right = self.heterogeneous_analytical_solution(lambdify=False)
 
