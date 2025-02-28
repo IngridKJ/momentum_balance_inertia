@@ -17,8 +17,54 @@ from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
 from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
 
+class RandomProperties:
+    @property
+    def heterogeneity_location(self):
+        return self.params.get("heterogeneity_location", 0.5)
 
-class BoundaryConditionsUnitTest:
+    @property
+    def heterogeneity_factor(self):
+        return self.params.get("heterogeneity_factor", 1.0)
+
+
+class Geometry:
+    def nd_rect_domain(self, x, y) -> pp.Domain:
+        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
+        box.update({"ymin": 0, "ymax": y})
+        return pp.Domain(box)
+
+    def set_domain(self) -> None:
+        x = 1.0 / self.units.m
+        y = 1.0 / self.units.m
+        self._domain = self.nd_rect_domain(x, y)
+    
+    def set_polygons(self):
+        if type(self.heterogeneity_location) is list:
+            L = self.heterogeneity_location[0]
+            W = self.heterogeneity_location[1]
+        else:
+            L = self.heterogeneity_location
+            W = self.domain.bounding_box["xmax"]
+
+        H = self.domain.bounding_box["ymax"]
+        west = np.array([[L, L], [0.0, H]])
+        north = np.array([[L, W], [H, H]])
+        east = np.array([[W, W], [H, 0.0]])
+        south = np.array([[W, L], [0.0, 0.0]])
+        return west, north, east, south
+
+    def set_fractures(self) -> None:
+        """Setting a diagonal fracture"""
+        west, north, east, south = self.set_polygons()
+
+        self._fractures = [
+            pp.LineFracture(west),
+            pp.LineFracture(north),
+            pp.LineFracture(east),
+            pp.LineFracture(south),
+        ]
+
+class BoundaryConditions:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         """Method for assigning boundary condition type.
 
@@ -104,14 +150,10 @@ class BoundaryConditionsUnitTest:
         robin_rhs = robin_rhs.T
 
         boundary_sides = self.domain_boundary_sides(sd)
-        inds_north = np.where(boundary_sides.north)[0]
-        inds_south = np.where(boundary_sides.south)[0]
-
-        inds_north = np.where(np.isin(boundary_faces, inds_north))[0]
-        inds_south = np.where(np.isin(boundary_faces, inds_south))[0]
-
-        robin_rhs[:, inds_north] *= 0
-        robin_rhs[:, inds_south] *= 0
+        for direction in ["north", "south"]:
+            inds = np.where(getattr(boundary_sides, direction))[0]
+            inds = np.where(np.isin(boundary_faces, inds))[0]
+            robin_rhs[:, inds] *= 0
 
         return robin_rhs.ravel("F")
 
@@ -256,7 +298,9 @@ class ConstitutiveLawsAndSource:
         return vals.ravel("F")
 
 class ABCModel(
-    BoundaryConditionsUnitTest,
+    RandomProperties,
+    Geometry,
+    BoundaryConditions,
     ConstitutiveLawsAndSource,
     TransverselyIsotropicTensorMixin,
     DynamicMomentumBalanceABCLinear,

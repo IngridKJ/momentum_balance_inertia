@@ -8,14 +8,14 @@ import porepy as pp
 
 import run_models.run_linear_model as rlm
 from convergence_analysis.convergence_analysis_models.model_convergence_ABC_heterogeneity import (
-    ABCModel,
+    ABCModelHeterogeneous,
 )
 
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 # Prepare path for generated output files
 folder_name = "convergence_analysis_results"
-filename = "heterogeneity_errors.txt"
+filename = "heterogeneity_errors_refactored.txt"
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 output_dir = os.path.join(script_dir, folder_name)
@@ -23,56 +23,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 filename = os.path.join(output_dir, filename)
 
-
-class Geometry:
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-        box.update({"ymin": 0, "ymax": y})
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y)
-
-    def meshing_arguments(self) -> dict:
-        cell_size = self.units.convert_units(0.125 / 2 ** (self.refinement), "m")
-        mesh_args: dict[str, float] = {"cell_size": cell_size}
-        return mesh_args
-
-    def set_polygons(self):
-        L = self.heterogeneity_location
-        W = self.domain.bounding_box["xmax"]
-        H = self.domain.bounding_box["ymax"]
-        west = np.array([[L, L], [0.0, H]])
-        north = np.array([[L, W], [H, H]])
-        east = np.array([[W, W], [H, 0.0]])
-        south = np.array([[W, L], [0.0, 0.0]])
-        return west, north, east, south
-
-    def set_fractures(self) -> None:
-        """Setting a diagonal fracture"""
-        west, north, east, south = self.set_polygons()
-
-        self._fractures = [
-            pp.LineFracture(west),
-            pp.LineFracture(north),
-            pp.LineFracture(east),
-            pp.LineFracture(south),
-        ]
-
-
-class RandomProperties:
-    @property
-    def heterogeneity_location(self):
-        return self.params.get("heterogeneity_location", 0.5)
-
-    @property
-    def heterogeneity_factor(self):
-        return self.params.get("heterogeneity_factor", 0.5)
-
-
-class SpatialRefinementModel(Geometry, RandomProperties, ABCModel):
+class ExportData:
     def data_to_export(self):
         data = super().data_to_export()
         sd = self.mdg.subdomains(dim=self.nd)[0]
@@ -121,6 +72,12 @@ class SpatialRefinementModel(Geometry, RandomProperties, ABCModel):
                 )
 
         return data
+    
+class SpatialRefinementModel(ExportData, ABCModelHeterogeneous):
+    def meshing_arguments(self) -> dict:
+        cell_size = self.units.convert_units(0.125 / 2 ** (self.refinement), "m")
+        mesh_args: dict[str, float] = {"cell_size": cell_size}
+        return mesh_args
 
 
 with open(filename, "w") as file:
