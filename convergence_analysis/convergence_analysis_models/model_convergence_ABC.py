@@ -15,6 +15,7 @@ sys.path.append("../../")
 
 from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
+from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
 
 
 class BoundaryConditionsUnitTest:
@@ -254,9 +255,9 @@ class ConstitutiveLawsAndSource:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
-
 class ABCModel(
     BoundaryConditionsUnitTest,
     ConstitutiveLawsAndSource,
+    TransverselyIsotropicTensorMixin,
     DynamicMomentumBalanceABCLinear,
 ): ...

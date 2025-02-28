@@ -10,7 +10,7 @@ from plotting.plot_utils import draw_multiple_loglog_slopes
 import run_models.run_linear_model as rlm
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
-from convergence_analysis.convergence_analysis_models.model_convergence_ABC import (
+from convergence_analysis.convergence_analysis_models.dep_previous_anisotropy_model import (
     ABCModel,
 )
 
@@ -31,9 +31,7 @@ save_figure = True
 class Geometry:
     def nd_rect_domain(self, x, y) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
         box.update({"ymin": 0, "ymax": y})
-
         return pp.Domain(box)
 
     def set_domain(self) -> None:
@@ -45,7 +43,24 @@ class Geometry:
         cell_size = self.units.convert_units(0.25 / 2 ** (self.refinement), "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
+    
+    def set_polygons(self):
+        west = np.array([[0.3, 0.3], [0.0, 1.0]])
+        north = np.array([[0.3, 0.7], [1.0, 1.0]])
+        east = np.array([[0.7, 0.7], [1.0, 0.0]])
+        south = np.array([[0.7, 0.3], [0.0, 0.0]])
+        return west, north, east, south
 
+    def set_fractures(self) -> None:
+        """Setting a diagonal fracture"""
+        west, north, east, south = self.set_polygons()
+
+        self._fractures = [
+            pp.LineFracture(west),
+            pp.LineFracture(north),
+            pp.LineFracture(east),
+            pp.LineFracture(south),
+        ]
 
 class SpatialRefinementModel(Geometry, ABCModel):
     def data_to_export(self):
@@ -112,20 +127,29 @@ for refinement_coefficient in refinements:
 
     solid_constants = pp.SolidConstants(lame_lambda=0.01, shear_modulus=0.01)
     material_constants = {"solid": solid_constants}
+    anisotropy_constants = {
+        "mu_parallel": 0.01,
+        "mu_orthogonal": 0.01,
+        "lambda_parallel": 0.0,
+        "lambda_orthogonal": 0.0,
+        "volumetric_compr_lambda": 0.01,
+    }
 
     params = {
         "time_manager": time_manager,
         "grid_type": "simplex",
         "manufactured_solution": "unit_test",
-        "folder_name": "sjekk_denne",
         "progressbars": True,
+        "folder_name": "unit_test_check",
         "material_constants": material_constants,
+        "anisotropy_constants": anisotropy_constants,
+        "symmetry_axis": [0, 1, 0],
+        "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
     }
 
     model = SpatialRefinementModel(params)
     model.refinement = refinement_coefficient
     rlm.run_linear_model(model, params)
-
 
 # Read the file and extract data into numpy arrays
 num_cells, displacement_errors, traction_errors = np.loadtxt(
@@ -160,6 +184,7 @@ if save_figure:
     ax.set_title("Convergence analysis: Setup with absorbing boundaries")
     ax.set_ylabel("Relative $L^2$ error")
     ax.set_xlabel(r"$(N_x \cdot N_t)^{1/4}$")
+
     ax.legend()
 
     # Draw the convergence triangle with multiple slopes
@@ -180,5 +205,5 @@ if save_figure:
     output_dir = os.path.join(script_dir, folder_name)
     os.makedirs(output_dir, exist_ok=True)
     plt.savefig(
-        os.path.join(output_dir, "space_time_convergence_absorbing_boundaries.png")
+        os.path.join(output_dir, "space_time_anisotropy_figure.png")
     )
