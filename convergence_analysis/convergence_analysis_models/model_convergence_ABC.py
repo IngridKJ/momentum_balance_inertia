@@ -16,6 +16,11 @@ sys.path.append("../../")
 from models import DynamicMomentumBalanceABCLinear
 from utils import u_v_a_wrap
 from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
+import utils
+
+
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
+
 
 class RandomProperties:
     @property
@@ -37,7 +42,7 @@ class Geometry:
         x = 1.0 / self.units.m
         y = 1.0 / self.units.m
         self._domain = self.nd_rect_domain(x, y)
-    
+
     def set_polygons(self):
         if type(self.heterogeneity_location) is list:
             L = self.heterogeneity_location[0]
@@ -63,6 +68,7 @@ class Geometry:
             pp.LineFracture(east),
             pp.LineFracture(south),
         ]
+
 
 class BoundaryConditions:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
@@ -297,11 +303,65 @@ class ConstitutiveLawsAndSource:
         vals = np.zeros((self.nd, sd.num_cells))
         return vals.ravel("F")
 
+
+class ExportData:
+    def data_to_export(self):
+        data = super().data_to_export()
+        if self.time_manager.final_time_reached():
+            self.compute_and_save_errors(filename=self.filename_path)
+        return data
+
+    def compute_and_save_errors(self, filename: str) -> None:
+        sd = self.mdg.subdomains(dim=self.nd)[0]
+        x_cc = sd.cell_centers[0, :]
+        time = self.time_manager.time
+        cp = self.primary_wave_speed(is_scalar=True)
+
+        # Exact displacement and traction
+        u_exact = np.array([np.sin(time - x_cc / cp), np.zeros(len(x_cc))]).ravel("F")
+
+        u, x, y, t = utils.symbolic_representation(model=self)
+        _, sigma, _ = utils.symbolic_equation_terms(model=self, u=u, x=x, y=y, t=t)
+        T_exact = self.elastic_force(
+            sd=sd, sigma_total=sigma, time=self.time_manager.time
+        )
+
+        # Approximated displacement and traction
+        displacement_ad = self.displacement([sd])
+        u_approximate = self.equation_system.evaluate(displacement_ad)
+        traction_ad = self.stress([sd])
+        T_approximate = self.equation_system.evaluate(traction_ad)
+
+        # Compute error for displacement and traction
+        error_displacement = ConvergenceAnalysis.lp_error(
+            grid=sd,
+            true_array=u_exact,
+            approx_array=u_approximate,
+            is_scalar=False,
+            is_cc=True,
+            relative=True,
+        )
+        error_traction = ConvergenceAnalysis.lp_error(
+            grid=sd,
+            true_array=T_exact,
+            approx_array=T_approximate,
+            is_scalar=False,
+            is_cc=False,
+            relative=True,
+        )
+
+        with open(filename, "a") as file:
+            file.write(
+                f"{sd.num_cells}, {self.time_manager.time_index}, {error_displacement}, {error_traction}\n"
+            )
+
+
 class ABCModel(
     RandomProperties,
     Geometry,
     BoundaryConditions,
     ConstitutiveLawsAndSource,
     TransverselyIsotropicTensorMixin,
+    ExportData,
     DynamicMomentumBalanceABCLinear,
 ): ...

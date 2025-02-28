@@ -11,7 +11,6 @@ from convergence_analysis.convergence_analysis_models.model_convergence_ABC_hete
     ABCModelHeterogeneous,
 )
 
-from porepy.applications.convergence_analysis import ConvergenceAnalysis
 
 # Prepare path for generated output files
 folder_name = "convergence_analysis_results"
@@ -23,65 +22,14 @@ os.makedirs(output_dir, exist_ok=True)
 
 filename = os.path.join(output_dir, filename)
 
-class ExportData:
-    def data_to_export(self):
-        data = super().data_to_export()
-        sd = self.mdg.subdomains(dim=self.nd)[0]
-
-        x = sd.cell_centers[0, :]
-        L = self.heterogeneity_location
-
-        left_solution, right_solution = self.heterogeneous_analytical_solution()
-        left_layer = x <= L
-        right_layer = x > L
-
-        vals = np.zeros((self.nd, sd.num_cells))
-        vals[0, left_layer] = left_solution[0](x[left_layer], self.time_manager.time)
-        vals[0, right_layer] = right_solution[0](x[right_layer], self.time_manager.time)
-
-        data.append((sd, "analytical", vals))
-
-        if self.time_manager.final_time_reached():
-            displacement_ad = self.displacement([sd])
-            u_approximate = self.equation_system.evaluate(displacement_ad)
-            exact_displacement = vals.ravel("F")
-
-            exact_force = self.evaluate_exact_heterogeneous_force(sd=sd)
-            force_ad = self.stress([sd])
-            approx_force = self.equation_system.evaluate(force_ad)
-
-            error_displacement = ConvergenceAnalysis.lp_error(
-                grid=sd,
-                true_array=exact_displacement,
-                approx_array=u_approximate,
-                is_scalar=False,
-                is_cc=True,
-                relative=True,
-            )
-            error_traction = ConvergenceAnalysis.lp_error(
-                grid=sd,
-                true_array=exact_force,
-                approx_array=approx_force,
-                is_scalar=False,
-                is_cc=False,
-                relative=True,
-            )
-            with open(filename, "a") as file:
-                file.write(
-                    f"{sd.num_cells}, {self.time_manager.time_index}, {error_displacement}, {error_traction}\n"
-                )
-
-        return data
+with open(filename, "w") as file:
+    file.write("num_cells, num_time_steps, displacement_error, traction_error\n")
     
-class SpatialRefinementModel(ExportData, ABCModelHeterogeneous):
+class SpatialRefinementModel(ABCModelHeterogeneous):
     def meshing_arguments(self) -> dict:
         cell_size = self.units.convert_units(0.125 / 2 ** (self.refinement), "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
-
-
-with open(filename, "w") as file:
-    file.write("num_cells, num_time_steps, displacement_error, traction_error\n")
 
 refinements = np.arange(0, 5)
 for refinement_coefficient in refinements:
@@ -101,7 +49,6 @@ for refinement_coefficient in refinements:
     params = {
         "time_manager": time_manager,
         "grid_type": "simplex",
-        "manufactured_solution": "simply_zero",
         "progressbars": True,
         "folder_name": "pf",
         "heterogeneity_factor": 1 / 2**2,
@@ -112,4 +59,5 @@ for refinement_coefficient in refinements:
 
     model = SpatialRefinementModel(params)
     model.refinement = refinement_coefficient
+    model.filename_path = filename
     rlm.run_linear_model(model, params)

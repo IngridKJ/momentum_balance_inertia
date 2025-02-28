@@ -13,7 +13,7 @@ import porepy as pp
 sys.path.append("../../")
 
 from .model_convergence_ABC import ABCModel
-
+from porepy.applications.convergence_analysis import ConvergenceAnalysis
 import sympy as sym
 
 
@@ -328,11 +328,55 @@ class ExactHeterogeneousSigmaAndForce:
         full_force_array: np.ndarray = np.asarray(full_force_array).ravel("F")
         return full_force_array
 
+class ComputeErrorsHeterogeneity:
+    def compute_and_save_errors(self, filename: str) -> None:
+        sd = self.mdg.subdomains(dim=self.nd)[0]
+
+        x = sd.cell_centers[0, :]
+        L = self.heterogeneity_location
+
+        left_solution, right_solution = self.heterogeneous_analytical_solution()
+        left_layer = x <= L
+        right_layer = x > L
+
+        vals = np.zeros((self.nd, sd.num_cells))
+        vals[0, left_layer] = left_solution[0](x[left_layer], self.time_manager.time)
+        vals[0, right_layer] = right_solution[0](x[right_layer], self.time_manager.time)
+
+        displacement_ad = self.displacement([sd])
+        u_approximate = self.equation_system.evaluate(displacement_ad)
+        exact_displacement = vals.ravel("F")
+
+        exact_force = self.evaluate_exact_heterogeneous_force(sd=sd)
+        force_ad = self.stress([sd])
+        approx_force = self.equation_system.evaluate(force_ad)
+
+        error_displacement = ConvergenceAnalysis.lp_error(
+            grid=sd,
+            true_array=exact_displacement,
+            approx_array=u_approximate,
+            is_scalar=False,
+            is_cc=True,
+            relative=True,
+        )
+        error_traction = ConvergenceAnalysis.lp_error(
+            grid=sd,
+            true_array=exact_force,
+            approx_array=approx_force,
+            is_scalar=False,
+            is_cc=False,
+            relative=True,
+        )
+        with open(filename, "a") as file:
+            file.write(
+                f"{sd.num_cells}, {self.time_manager.time_index}, {error_displacement}, {error_traction}\n"
+            )
 
 class ABCModelHeterogeneous(
     BoundaryConditions,
     ConstitutiveLawsAndSource,
     InitialConditions,
     ExactHeterogeneousSigmaAndForce,
+    ComputeErrorsHeterogeneity,
     ABCModel,
 ): ...
