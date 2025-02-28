@@ -20,44 +20,55 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 output_dir = os.path.join(script_dir, folder_name)
 os.makedirs(output_dir, exist_ok=True)
 
-filename = os.path.join(output_dir, filename)
 
-with open(filename, "w") as file:
-    file.write("num_cells, num_time_steps, displacement_error, traction_error\n")
-    
-class SpatialRefinementModel(ABCModelHeterogeneous):
+class ConvergenceAnalysisHeterogeneity(ABCModelHeterogeneous):
     def meshing_arguments(self) -> dict:
         cell_size = self.units.convert_units(0.125 / 2 ** (self.refinement), "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
-refinements = np.arange(0, 5)
-for refinement_coefficient in refinements:
-    tf = 15.0
-    time_steps = 15 * (2**refinement_coefficient)
-    dt = tf / time_steps
 
-    time_manager = pp.TimeManager(
-        schedule=[0.0, tf],
-        dt_init=dt,
-        constant_dt=True,
-    )
+heterogeneity_factors = [1, 2, 3, 4, 5, 6]
+for factor in heterogeneity_factors:
+    filename = f"displacement_and_traction_errors_heterogeneity_{str(factor)}.txt"
+    filename = os.path.join(output_dir, filename)
 
-    solid_constants = pp.SolidConstants(lame_lambda=0.01, shear_modulus=0.01)
-    material_constants = {"solid": solid_constants}
+    refinements = np.arange(0, 5)
+    for refinement_coefficient in refinements:
+        if refinement_coefficient == 0:
+            with open(filename, "w") as file:
+                file.write(
+                    "num_cells, num_time_steps, displacement_error, traction_error\n"
+                )
+        tf = 15.0
+        time_steps = 15 * (2**refinement_coefficient)
+        dt = tf / time_steps
 
-    params = {
-        "time_manager": time_manager,
-        "grid_type": "simplex",
-        "progressbars": True,
-        "folder_name": "pf",
-        "heterogeneity_factor": 1 / 2**2,
-        "heterogeneity_location": 0.5,
-        "material_constants": material_constants,
-        "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
-    }
+        time_manager = pp.TimeManager(
+            schedule=[0.0, tf],
+            dt_init=dt,
+            constant_dt=True,
+        )
 
-    model = SpatialRefinementModel(params)
-    model.refinement = refinement_coefficient
-    model.filename_path = filename
-    rlm.run_linear_model(model, params)
+        lame_lambda, shear_modulus = 0.01, 0.01
+
+        solid_constants = pp.SolidConstants(
+            lame_lambda=lame_lambda, shear_modulus=shear_modulus
+        )
+        material_constants = {"solid": solid_constants}
+
+        params = {
+            "time_manager": time_manager,
+            "grid_type": "simplex",
+            "progressbars": True,
+            "folder_name": "heterogeneity",
+            "heterogeneity_factor": 1 / 2**factor,
+            "heterogeneity_location": 0.5,
+            "material_constants": material_constants,
+            "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
+        }
+
+        model = ConvergenceAnalysisHeterogeneity(params)
+        model.refinement = refinement_coefficient
+        model.filename_path = filename
+        rlm.run_linear_model(model, params)
