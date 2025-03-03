@@ -14,8 +14,6 @@ from convergence_analysis.convergence_analysis_models.model_convergence_ABC_hete
 
 # Prepare path for generated output files
 folder_name = "convergence_analysis_results"
-filename = "heterogeneity_errors_refactored.txt"
-
 script_dir = os.path.dirname(os.path.abspath(__file__))
 output_dir = os.path.join(script_dir, folder_name)
 os.makedirs(output_dir, exist_ok=True)
@@ -28,12 +26,12 @@ class ConvergenceAnalysisHeterogeneity(ABCModelHeterogeneous):
         return mesh_args
 
 
-heterogeneity_factors = [1, 2, 3, 4, 5, 6]
+heterogeneity_factors = [10] # [1, 2, 3, 4, 5, 6]
 for factor in heterogeneity_factors:
     filename = f"displacement_and_traction_errors_heterogeneity_{str(factor)}.txt"
     filename = os.path.join(output_dir, filename)
 
-    refinements = np.arange(0, 5)
+    refinements = np.arange(0, 7)
     for refinement_coefficient in refinements:
         if refinement_coefficient == 0:
             with open(filename, "w") as file:
