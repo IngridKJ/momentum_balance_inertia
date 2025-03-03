@@ -26,7 +26,7 @@ class ConvergenceAnalysisHeterogeneity(ABCModelHeterogeneous):
         return mesh_args
 
 
-heterogeneity_factors = [10] # [1, 2, 3, 4, 5, 6]
+heterogeneity_factors = [1, 2, 3, 4, 5, 6]
 for factor in heterogeneity_factors:
     filename = f"displacement_and_traction_errors_heterogeneity_{str(factor)}.txt"
     filename = os.path.join(output_dir, filename)
