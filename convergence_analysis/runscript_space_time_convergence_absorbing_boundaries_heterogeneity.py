@@ -39,9 +39,9 @@ anisotropy_factors_mu_lambda = [
     # Isotropic case
     (1, 0),
     # Anisotropic case
-    (1, 1e-4),
+    (1, 1e2),
     # Anisotropic case
-    (1, 1e-8),
+    (1, 1e4),
 ]
 
 for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
