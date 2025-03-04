@@ -33,15 +33,15 @@ heterogeneity_factors = [
     # Heterogeneous case
     1 / 2**5,
     # Heterogeneous case
-    1 / 2**7,
+    1 / 2**8,
 ]
 anisotropy_factors_mu_lambda = [
     # Isotropic case
     (1, 0),
     # Anisotropic case
-    (1, 0.001),
+    (1, 1e-4),
     # Anisotropic case
-    (1, 0.000001),
+    (1, 1e-8),
 ]
 
 for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
@@ -50,7 +50,8 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
         h_mu,
         h_lambda,
     ) in anisotropy_factors_mu_lambda:
-        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_{str(h_mu)}_lam_{str(h_lambda)}.txt"
+        h_mu_ind = anisotropy_factors_mu_lambda.index((h_mu, h_lambda))
+        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_mu_ind)}.txt"
 
         filename = os.path.join(output_dir, filename)
 
@@ -95,6 +96,7 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
                 "anisotropy_constants": anisotropy_constants,
                 "symmetry_axis": [0, 1, 0],
                 "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
+                # "petsc_solver_q": True,
             }
 
             model = ConvergenceAnalysisHeterogeneity(params)
