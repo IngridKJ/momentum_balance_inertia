@@ -14,7 +14,7 @@ class TransverselyIsotropicTensorMixin:
         """Compute the stiffness tensor for a given subdomain."""
         # Fetch inner domain indices
         inner_cell_indices = use_constraints_for_inner_domain_cells(
-            self=self,
+            model=self,
             sd=subdomain,
         )
 

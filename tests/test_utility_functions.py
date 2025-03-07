@@ -61,14 +61,14 @@ def test_inner_domain_cells():
         ]
     )
 
-    # Sorting before the comparison just in case the cell numbers are in different 
+    # Sorting before the comparison just in case the cell numbers are in different
     # order.
     correct_inner_domain_cells_sorted = np.sort(correct_inner_domain_cells)
 
     # Inner domain cells by two different methods:
     inner_domain_cells_method = np.sort(inner_domain_cells(self=model, sd=sd, width=3))
     inner_domain_cells_by_polygons_method = np.sort(
-        use_constraints_for_inner_domain_cells(self=model, sd=sd)
+        use_constraints_for_inner_domain_cells(model=model, sd=sd)
     )
 
     assert np.all(correct_inner_domain_cells_sorted == inner_domain_cells_method)
