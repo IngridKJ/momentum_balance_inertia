@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 coarse = True
 
 # Only export visualization files corresponding to the ones visualized in the article:
-limit_file_export = False
+limit_file_export = True
 times_in_article = [0.05, 0.125, 0.175, 0.225]
 
 
@@ -78,7 +78,7 @@ class InitialConditionsAndMaterialProperties:
         z0 = 0.65
 
         common_part = theta * np.exp(
-            -np.pi**2 * ((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / lam**2
+            -(np.pi**2) * ((x - x0) ** 2 + (y - y0) ** 2 + (z - z0) ** 2) / lam**2
         )
 
         vals[0] = common_part * (x - x0)

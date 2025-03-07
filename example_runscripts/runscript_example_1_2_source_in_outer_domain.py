@@ -21,7 +21,7 @@ from utils.anisotropy_mixins import TransverselyIsotropicTensorMixin
 coarse = True
 
 # Only export visualization files corresponding to the ones visualized in the article:
-limit_file_export = False
+limit_file_export = True
 times_in_article = [0.05, 0.075, 0.125, 0.15]
 
 
@@ -143,10 +143,11 @@ anisotropy_constants = {
 params = {
     "time_manager": time_manager,
     "grid_type": "cartesian",
-    "folder_name": "visualization_example_1_source_in_outer_new",
+    "folder_name": "visualization_example_1_source_in_outer",
     "manufactured_solution": "simply_zero",
     "anisotropy_constants": anisotropy_constants,
     "progressbars": True,
+    "petsc_solver_q": True,
     # A value of None for times_to_export means that visualization files for all time
     # steps are created and exported.
     "times_to_export": times_in_article if limit_file_export else None,

@@ -205,7 +205,6 @@ for rotation_angle in rotation_angles:
     i += 1
 
 # Plotting from here and down
-
 if save_figure:
     plt.figure(figsize=(7, 5))
     # Tuple value in dictionary:
@@ -214,12 +213,10 @@ if save_figure:
     #   * Dashed/not dashed line
     #   * Logarithmic y scale/not logarithmic y scale.
     index_angle_dict = {
-        1: ("$\\theta = \pi/6$", pu.RGB(30, 136, 229), False, True),
-        2: ("$\\theta = \pi/3$", pu.RGB(255, 193, 7), True, True),
-        3: ("$\\theta = \pi/4$", pu.RGB(0, 0, 0), True, True),
-        4: ("$\\theta = \pi/8$", pu.RGB(25, 25, 25), False, True),
-        5: ("$\\theta = \pi/5$", pu.RGB(200, 100, 100), False, True),
-        6: ("$\\theta = 3*\pi/10$", pu.RGB(100, 100, 200), True, True),
+        1: (r"$\\theta = \pi/6$", pu.RGB(30, 136, 229), False, True),
+        2: (r"$\\theta = \pi/3$", pu.RGB(255, 193, 7), True, True),
+        3: (r"$\\theta = \pi/4$", pu.RGB(0, 0, 0), True, True),
+        4: (r"$\\theta = \pi/8$", pu.RGB(25, 25, 25), False, True),
     }
 
     for key, value in index_angle_dict.items():
@@ -228,7 +225,7 @@ if save_figure:
             pu.read_float_values(filename=filename)
             / pu.read_float_values(filename=filename)[0]
         )
-        final_time = 15
+        final_time = tf
         time_values = np.linspace(0, final_time, len(energy_values))
 
         plt.yscale("log" if value[3] else "linear")
