@@ -17,6 +17,8 @@ import numpy as np
 import porepy as pp
 import sympy as sym
 
+from scipy.spatial import Delaunay
+
 # -------- Fetching/Computing values
 
 
@@ -630,52 +632,75 @@ def _body_force_func_3D(model) -> list:
 # -------- Functions related to subdomains
 
 
-def use_constraints_for_inner_domain_cells(self, sd) -> np.ndarray:
+def use_constraints_for_inner_domain_cells(model, sd) -> np.ndarray:
     """Finds cell indices of the cells laying within constraints in the grid.
 
     Assumes the existance of the method set_polygons() in the model class which is
     calling this function. This function takes the nodes of the lines/polygons set by
-    set_polygons(). The nodes are subsequently fed to the PorePy-functions
-    point_in_polygon() (for 2D) or point_in_polyhedron() (for 3D) to find the indices of
-    the cells within the constraints.
-    
+    set_polygons(). The nodes are subsequently fed to the PorePy-function
+    point_in_polygon() (for 2D) or points_in_polyhedron() (for 3D, found in this file)
+    to find the indices of the cells within the constraints.
+
     Parameters:
-        self: The model class (TODO: Rename). 
-        sd: The subdomain where we want to find the indices of the cells within the 
+        model: The model class.
+        sd: The subdomain where we want to find the indices of the cells within the
             constraints.
-    
+
     Returns:
         An array of the cell indices of the cells within the constraints.
 
     """
-    points = sd.cell_centers[: self.nd, :]
+    points = sd.cell_centers[: model.nd, :]
 
-    def nodes_of_constraints(self):
-        """Helper function to fetch the nodes of the meshing constraints in the grid."""
-        return np.array(
-            [
-                self._fractures[i].pts
-                for i in self.params["meshing_kwargs"]["constraints"]
-            ]
-        )
-
-    if self.nd == 2:
-        if self.params["grid_type"] == "simplex":
-            all_nodes_of_constraints = nodes_of_constraints(self)
+    if model.nd == 2:
+        if model.params["grid_type"] == "simplex":
+            all_nodes_of_constraints = np.array(
+                [
+                    model._fractures[i].pts
+                    for i in model.params["meshing_kwargs"]["constraints"]
+                ]
+            )
         else:
-            c1, c2, c3, c4 = self.set_polygons()
+            c1, c2, c3, c4 = model.set_polygons()
             all_nodes_of_constraints = np.array([c1, c2, c3, c4])
         polygon_vertices = all_nodes_of_constraints.T[0]
         inside = pp.geometry_property_checks.point_in_polygon(polygon_vertices, points)
-    elif self.nd == 3:
-        if self.params["grid_type"] == "simplex":
-            all_nodes_of_constraints = nodes_of_constraints(self)
+    elif model.nd == 3:
+        if model.params["grid_type"] == "simplex":
+            all_nodes_of_constraints = np.array(
+                [
+                    model._fractures[i].pts
+                    for i in model.params["meshing_kwargs"]["constraints"]
+                ]
+            )
         else:
-            all_nodes_of_constraints = self.set_polygons()
-        inside = pp.geometry_property_checks.point_in_polyhedron(
-            polyhedron=all_nodes_of_constraints, test_points=points
+            all_nodes_of_constraints = model.set_polygons()
+        inside = points_in_polyhedron(
+            points=points, all_nodes_of_constraints=all_nodes_of_constraints
         )
-    return np.where(inside)
+    return np.where(inside)[0]
+
+
+def points_in_polyhedron(points, all_nodes_of_constraints):
+    """Determine which points are inside a convex polyhedron.
+
+    Parameters:
+        points: (3, N) array of points.
+        all_nodes_of_constraints: tuple of typically six (3, 4) arrays, each
+            representing a face with 4 vertices.
+
+    Returns:
+        Indices of points that are inside the polyhedron.
+
+    """
+    vertices = np.hstack(all_nodes_of_constraints).T
+    unique_vertices = np.unique(vertices, axis=0)
+
+    points = np.asarray(points).T
+
+    hull = Delaunay(unique_vertices)
+    inside = hull.find_simplex(points) >= 0
+    return np.where(inside)[0]
 
 
 def inner_domain_cells(
@@ -927,7 +952,7 @@ def create_stiffness_tensor_basis(
     lambda_val, lambda_parallel, lambda_perpendicular, mu_parallel, mu_perpendicular, n
 ):
     """Creates 9x9 matrix representation of transversely isotropic tensor.
-    
+
     Basis for each of the five material parameters used in a transversely isotropic
     media is generated here. The basis is matrices are constructed from helper functions
     term_1(), term_2(), term_3(), term_4() and term_5().
@@ -943,13 +968,13 @@ def create_stiffness_tensor_basis(
           representation with the set material values, and not only receive the "clean"
           basis matrices as described above.
 
-    Parameters: 
+    Parameters:
         lambda_val: First Lamé parameter.
         lambda_parallel: Transverse compressive stress parameter.
         lambda_perpendicular: Perpendicular compressive stress parameter.
         mu_parallel: transverse shear parameter.
         mu_perpendicular: transverse-to-perpendicular shear parameter.
-        n: The vector representing the symmetry axis of the transversely isotropic  
+        n: The vector representing the symmetry axis of the transversely isotropic
             medium.
 
     """
