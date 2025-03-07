@@ -141,15 +141,6 @@ if save_figure:
             linestyle="-" if not value[2] else "--",
         )
 
-    plt.axvline(
-        x=10 * np.sqrt(6) / 3,
-        ymin=0,
-        ymax=5,
-        color=(0.65, 0.65, 0.65),
-        linestyle="--",
-        linewidth=1,
-    )
-
     plt.axhline(
         y=0,
         xmin=0,
