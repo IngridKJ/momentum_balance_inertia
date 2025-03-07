@@ -8,8 +8,7 @@ import porepy as pp
 sys.path.append("../")
 import plotting.plot_utils as pu
 import run_models.run_linear_model as rlm
-from models import DynamicMomentumBalanceABCLinear
-from utils import u_v_a_wrap
+from convergence_analysis_models.model_energy_decay_analysis import ModelEnergyDecay
 
 # Prepare path for generated output files
 folder_name = "energy_values"
@@ -18,116 +17,17 @@ output_dir = os.path.join(script_dir, folder_name)
 os.makedirs(output_dir, exist_ok=True)
 
 # Coarse/Fine variables and plotting (save figure)
-coarse = True
+coarse = False
 save_figure = True
 
 
-# Model class for setting up and running the simulation from here and onwards.
-class BoundaryConditionsEnergyDecayAnalysis:
-    def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        dt = self.time_manager.dt
-        vals_0 = self.initial_condition_value_function(bg=bg, t=0)
-        vals_1 = self.initial_condition_value_function(bg=bg, t=0 - dt)
-
-        data = self.mdg.boundary_grid_data(bg)
-
-        # The values for the 0th and -1th time step are to be stored
-        pp.set_solution_values(
-            name="boundary_displacement_values",
-            values=vals_1,
-            data=data,
-            time_step_index=1,
-        )
-        pp.set_solution_values(
-            name="boundary_displacement_values",
-            values=vals_0,
-            data=data,
-            time_step_index=0,
-        )
-        return vals_0
-
-    def initial_condition_value_function(self, bg, t):
-        """Assigning initial bc values."""
-        sd = bg.parent
-
-        x = sd.face_centers[0, :]
-        y = sd.face_centers[1, :]
-
-        boundary_sides = self.domain_boundary_sides(sd)
-
-        inds_north = np.where(boundary_sides.north)[0]
-        inds_south = np.where(boundary_sides.south)[0]
-        inds_west = np.where(boundary_sides.west)[0]
-        inds_east = np.where(boundary_sides.east)[0]
-
-        bc_vals = np.zeros((sd.dim, sd.num_faces))
-
-        displacement_function = u_v_a_wrap(model=self)
-
-        # North
-        bc_vals[0, :][inds_north] = displacement_function[0](
-            x[inds_north], y[inds_north], t
-        )
-        bc_vals[1, :][inds_north] = displacement_function[1](
-            x[inds_north], y[inds_north], t
-        )
-
-        # East
-        bc_vals[0, :][inds_east] = displacement_function[0](
-            x[inds_east], y[inds_east], t
-        )
-        bc_vals[1, :][inds_east] = displacement_function[1](
-            x[inds_east], y[inds_east], t
-        )
-
-        # West
-        bc_vals[0, :][inds_west] = displacement_function[0](
-            x[inds_west], y[inds_west], t
-        )
-        bc_vals[1, :][inds_west] = displacement_function[1](
-            x[inds_west], y[inds_west], t
-        )
-
-        # South
-        bc_vals[0, :][inds_south] = displacement_function[0](
-            x[inds_south], y[inds_south], t
-        )
-        bc_vals[1, :][inds_south] = displacement_function[1](
-            x[inds_south], y[inds_south], t
-        )
-
-        bc_vals = bc_vals.ravel("F")
-
-        bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
-        return bc_vals
-
-
-class SourceValuesEnergyDecayAnalysis:
-    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
-        vals = np.zeros((self.nd, sd.num_cells))
-        return vals.ravel("F")
-
-
-class Geometry:
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-
-        box.update({"ymin": 0, "ymax": y})
-
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = 1.0 / self.units.m
-        y = 1.0 / self.units.m
-        self._domain = self.nd_rect_domain(x, y)
-
+# Defining the necessary mixins for creating the model class setup
+class MeshingAndExport:
     def meshing_arguments(self) -> dict:
         cell_size = self.units.convert_units(self.cell_size_value, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
-
-class ExportEnergy:
     def data_to_export(self):
         data = super().data_to_export()
         for sd in self.mdg.subdomains(dim=self.nd):
@@ -138,7 +38,6 @@ class ExportEnergy:
             vel_op_int_val = self.equation_system.evaluate(vel_op_int)
 
             vel = self.equation_system.evaluate(self.velocity_time_dep_array([sd]))
-            
             data.append((sd, "energy", vel_op_int_val))
             data.append((sd, "velocity", vel))
 
@@ -147,6 +46,10 @@ class ExportEnergy:
 
         return data
 
+    def write_pvd_and_vtu(self) -> None:
+        """Override method such that pvd and vtu files are not created."""
+        self.data_to_export()
+
 
 class RotationAngle:
     @property
@@ -154,17 +57,8 @@ class RotationAngle:
         return np.pi / 4
 
 
-class ModelSetupEnergyDecayAnalysis(
-    BoundaryConditionsEnergyDecayAnalysis,
-    SourceValuesEnergyDecayAnalysis,
-    Geometry,
-    ExportEnergy,
-    RotationAngle,
-    DynamicMomentumBalanceABCLinear,
-):
-    def write_pvd_and_vtu(self) -> None:
-        """Override method such that pvd and vtu files are not created."""
-        self.data_to_export()
+class ModelSetupEnergyDecayAnalysis(MeshingAndExport, RotationAngle, ModelEnergyDecay):
+    """Model class setup for the energy decay analysis with space refinement."""
 
 
 # This is where the simulation actually is run. We loop through different space
@@ -217,16 +111,16 @@ if save_figure:
     plt.figure(figsize=(7, 5))
     if coarse:
         index_dx_dict = {
-            9: ("$\Delta x = 1/64$", pu.RGB(255, 193, 7), True, True),
-            8: ("$\Delta x = 1/32$", pu.RGB(0, 0, 0), True, True),
+            9: (r"$\Delta x = 1/64$", pu.RGB(255, 193, 7), True, True),
+            8: (r"$\Delta x = 1/32$", pu.RGB(0, 0, 0), True, True),
         }
     else:
         index_dx_dict = {
-            12: ("$\Delta x = 1/512$", pu.RGB(0, 0, 0), False, True),
-            11: ("$\Delta x = 1/256$", pu.RGB(216, 27, 96), False, True),
-            10: ("$\Delta x = 1/128$", pu.RGB(30, 136, 229), True, True),
-            9: ("$\Delta x = 1/64$", pu.RGB(255, 193, 7), True, True),
-            8: ("$\Delta x = 1/32$", pu.RGB(0, 0, 0), True, True),
+            12: (r"$\Delta x = 1/512$", pu.RGB(0, 0, 0), False, True),
+            11: (r"$\Delta x = 1/256$", pu.RGB(216, 27, 96), True, True),
+            10: (r"$\Delta x = 1/128$", pu.RGB(30, 136, 229), True, True),
+            9: (r"$\Delta x = 1/64$", pu.RGB(255, 193, 7), True, True),
+            8: (r"$\Delta x = 1/32$", pu.RGB(0, 0, 0), True, True),
         }
 
     for key, value in index_dx_dict.items():

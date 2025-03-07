@@ -9,8 +9,7 @@ sys.path.append("../")
 
 import plotting.plot_utils as pu
 import run_models.run_linear_model as rlm
-from models import DynamicMomentumBalanceABCLinear
-from utils import u_v_a_wrap
+from convergence_analysis_models.model_energy_decay_analysis import ModelEnergyDecay
 
 # Prepare path for generated output files
 folder_name = "energy_values"
@@ -23,108 +22,12 @@ coarse = True
 save_figure = True
 
 
-# Model class for setting up and running the simulation from here and onwards.
-class BoundaryConditionsEnergyDecayAnalysis:
-    def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
-        dt = self.time_manager.dt
-        vals_0 = self.initial_condition_value_function(bg=bg, t=0)
-        vals_1 = self.initial_condition_value_function(bg=bg, t=0 - dt)
-
-        data = self.mdg.boundary_grid_data(bg)
-
-        # The values for the 0th and -1th time step are to be stored
-        pp.set_solution_values(
-            name="boundary_displacement_values",
-            values=vals_1,
-            data=data,
-            time_step_index=1,
-        )
-        pp.set_solution_values(
-            name="boundary_displacement_values",
-            values=vals_0,
-            data=data,
-            time_step_index=0,
-        )
-        return vals_0
-
-    def initial_condition_value_function(self, bg, t):
-        sd = bg.parent
-
-        x = sd.face_centers[0, :]
-        y = sd.face_centers[1, :]
-
-        boundary_sides = self.domain_boundary_sides(sd)
-
-        inds_north = np.where(boundary_sides.north)[0]
-        inds_south = np.where(boundary_sides.south)[0]
-        inds_west = np.where(boundary_sides.west)[0]
-        inds_east = np.where(boundary_sides.east)[0]
-
-        bc_vals = np.zeros((sd.dim, sd.num_faces))
-
-        displacement_function = u_v_a_wrap(model=self)
-
-        # North
-        bc_vals[0, :][inds_north] = displacement_function[0](
-            x[inds_north], y[inds_north], t
-        )
-        bc_vals[1, :][inds_north] = displacement_function[1](
-            x[inds_north], y[inds_north], t
-        )
-
-        # East
-        bc_vals[0, :][inds_east] = displacement_function[0](
-            x[inds_east], y[inds_east], t
-        )
-        bc_vals[1, :][inds_east] = displacement_function[1](
-            x[inds_east], y[inds_east], t
-        )
-
-        # West
-        bc_vals[0, :][inds_west] = displacement_function[0](
-            x[inds_west], y[inds_west], t
-        )
-        bc_vals[1, :][inds_west] = displacement_function[1](
-            x[inds_west], y[inds_west], t
-        )
-
-        # South
-        bc_vals[0, :][inds_south] = displacement_function[0](
-            x[inds_south], y[inds_south], t
-        )
-        bc_vals[1, :][inds_south] = displacement_function[1](
-            x[inds_south], y[inds_south], t
-        )
-
-        bc_vals = bc_vals.ravel("F")
-        bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
-        return bc_vals
-
-
-class SourceValuesEnergyDecayAnalysis:
-    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
-        vals = np.zeros((self.nd, sd.num_cells))
-        return vals.ravel("F")
-
-
-class Geometry:
-    def nd_rect_domain(self, x, y) -> pp.Domain:
-        box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
-        box.update({"ymin": 0, "ymax": y})
-        return pp.Domain(box)
-
-    def set_domain(self) -> None:
-        x = self.units.convert_units(1.0, "m")
-        y = self.units.convert_units(1.0, "m")
-        self._domain = self.nd_rect_domain(x, y)
-
+class MeshingAndExport:
     def meshing_arguments(self) -> dict:
         cell_size = self.units.convert_units(0.1 if coarse else 0.015625, "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
-
-class ExportEnergy:
     def data_to_export(self):
         """Define the data to export to vtu.
 
@@ -146,8 +49,11 @@ class ExportEnergy:
 
         with open(os.path.join(output_dir, f"energy_values_{i}.txt"), "a") as file:
             file.write(f"{np.sum(vel_op_int_val)},")
-
         return data
+
+    def write_pvd_and_vtu(self) -> None:
+        """Override method such that pvd and vtu files are not created."""
+        self.data_to_export()
 
 
 class RotationAngle:
@@ -157,16 +63,11 @@ class RotationAngle:
 
 
 class ModelSetupEnergyDecayAnalysis(
-    BoundaryConditionsEnergyDecayAnalysis,
-    SourceValuesEnergyDecayAnalysis,
-    Geometry,
-    ExportEnergy,
+    MeshingAndExport,
     RotationAngle,
-    DynamicMomentumBalanceABCLinear,
+    ModelEnergyDecay,
 ):
-    def write_pvd_and_vtu(self) -> None:
-        """Override method such that pvd and vtu files are not created."""
-        self.data_to_export()
+    """Model class setup for the energy decay analysis with varying theta."""
 
 
 # This is where the simulation actually is run. We loop through different wave rotation
@@ -213,10 +114,10 @@ if save_figure:
     #   * Dashed/not dashed line
     #   * Logarithmic y scale/not logarithmic y scale.
     index_angle_dict = {
-        1: (r"$\\theta = \pi/6$", pu.RGB(30, 136, 229), False, True),
-        2: (r"$\\theta = \pi/3$", pu.RGB(255, 193, 7), True, True),
-        3: (r"$\\theta = \pi/4$", pu.RGB(0, 0, 0), True, True),
-        4: (r"$\\theta = \pi/8$", pu.RGB(25, 25, 25), False, True),
+        1: (r"$\theta = \pi/6$", pu.RGB(30, 136, 229), False, True),
+        2: (r"$\theta = \pi/3$", pu.RGB(255, 193, 7), True, True),
+        3: (r"$\theta = \pi/4$", pu.RGB(0, 0, 0), True, True),
+        4: (r"$\theta = \pi/8$", pu.RGB(25, 25, 25), False, True),
     }
 
     for key, value in index_angle_dict.items():
@@ -225,7 +126,7 @@ if save_figure:
             pu.read_float_values(filename=filename)
             / pu.read_float_values(filename=filename)[0]
         )
-        final_time = tf
+        final_time = 15
         time_values = np.linspace(0, final_time, len(energy_values))
 
         plt.yscale("log" if value[3] else "linear")
