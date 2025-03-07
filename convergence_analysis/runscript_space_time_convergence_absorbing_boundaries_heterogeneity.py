@@ -26,6 +26,10 @@ class ConvergenceAnalysisHeterogeneity(ABCModelHeterogeneous):
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
+    def write_pvd_and_vtu(self) -> None:
+        """Override method such that pvd and vtu files are not created."""
+        self.data_to_export()
+
 
 heterogeneity_factors = [
     # Homogeneous case
@@ -38,8 +42,6 @@ heterogeneity_factors = [
 anisotropy_factors_mu_lambda = [
     # Isotropic case
     (1, 0),
-    # Anisotropic case
-    (1, 1e2),
     # Anisotropic case
     (1, 1e4),
 ]
@@ -55,9 +57,9 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
 
         filename = os.path.join(output_dir, filename)
 
-        refinements = np.arange(1, 5)
+        refinements = np.arange(2, 7)
         for refinement_coefficient in refinements:
-            if refinement_coefficient == 1:
+            if refinement_coefficient == 2:
                 with open(filename, "w") as file:
                     file.write(header)
             tf = 15.0
@@ -96,7 +98,6 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
                 "anisotropy_constants": anisotropy_constants,
                 "symmetry_axis": [0, 1, 0],
                 "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
-                # "petsc_solver_q": True,
             }
 
             model = ConvergenceAnalysisHeterogeneity(params)
