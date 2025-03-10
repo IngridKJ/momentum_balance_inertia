@@ -54,17 +54,17 @@ anisotropy_pairs = sorted(anisotropy_pairs)
 custom_colors_displacement = [
     "#D8B5DE",
     "black",
-    "#55A1FF",
+    "#9FE6A2",
     "black",
-    "#FF9E57",
+    "#55A1FF",
     "black",
 ]
 custom_colors_traction = [
     "#A45892",
     "darkgray",
-    "#003FBB",
+    "#00630C",
     "darkgray",
-    "#900B00",
+    "#003FBB",
     "darkgray",
 ]
 custom_linestyles = [
@@ -97,7 +97,7 @@ for i, combo in enumerate(product(factors, anisotropy_pairs)):
     }
 
 # Create figure
-fig, ax = plt.subplots(figsize=(14, 11))
+fig, ax = plt.subplots(figsize=(16, 9))
 
 # Lists to store handles and labels for displacement (u) and traction (T)
 handles_u = []
@@ -152,7 +152,7 @@ for factor, mu, lam, filename in file_info:
             fig,
             ax,
             origin=(1.05 * x_axis[-2], 1.05 * displacement_errors[-2]),
-            triangle_width=2.0,
+            triangle_width=2.25,
             slopes=[-2],
             inverted=False,
         )
@@ -165,7 +165,7 @@ ax.grid(True, which="both", linestyle="--", linewidth=0.5)
 ax.xaxis.set_tick_params(which="both", labelsize=18)
 ax.yaxis.set_tick_params(which="both", labelsize=18)
 # ax.set_xlim(right=3e2)
-ax.set_ylim(top=2.25e1)
+ax.set_ylim(top=10e1)
 
 # Custom Legend
 handles = handles_u + handles_T
