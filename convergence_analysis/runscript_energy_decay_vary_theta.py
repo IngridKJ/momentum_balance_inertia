@@ -114,10 +114,10 @@ if save_figure:
     #   * Dashed/not dashed line
     #   * Logarithmic y scale/not logarithmic y scale.
     index_angle_dict = {
-        1: (r"$\theta = \pi/6$", pu.RGB(30, 136, 229), False, True),
-        2: (r"$\theta = \pi/3$", pu.RGB(255, 193, 7), True, True),
+        1: (r"$\theta = \pi/6$", "#FF9E57", False, True),
+        2: (r"$\theta = \pi/3$", "#A45892", True, True),
         3: (r"$\theta = \pi/4$", pu.RGB(0, 0, 0), True, True),
-        4: (r"$\theta = \pi/8$", pu.RGB(25, 25, 25), False, True),
+        4: (r"$\theta = \pi/8$", "#55A1FF", False, True),
     }
 
     for key, value in index_angle_dict.items():
@@ -136,6 +136,7 @@ if save_figure:
             label=value[0],
             color=value[1],
             linestyle="-" if not value[2] else "--",
+            linewidth=2,
         )
 
     plt.axvline(
@@ -163,10 +164,10 @@ if save_figure:
         linewidth=0.5,
     )
 
-    plt.xlabel("Time [s]", fontsize=12)
+    plt.xlabel("Time [s]", fontsize=14)
     plt.ylabel("$\\frac{E}{E_0}$", fontsize=16)
     plt.title("Energy evolution with respect to time")
-    plt.legend()
+    plt.legend(fontsize=12)
 
     folder_name = "figures"
     script_dir = os.path.dirname(os.path.abspath(__file__))

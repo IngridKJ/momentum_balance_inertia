@@ -111,15 +111,15 @@ if save_figure:
     plt.figure(figsize=(7, 5))
     if coarse:
         index_dx_dict = {
-            9: (r"$\Delta x = 1/64$", pu.RGB(255, 193, 7), True, True),
+            9: (r"$\Delta x = 1/64$", "#FF9E57", True, True),
             8: (r"$\Delta x = 1/32$", pu.RGB(0, 0, 0), True, True),
         }
     else:
         index_dx_dict = {
             12: (r"$\Delta x = 1/512$", pu.RGB(0, 0, 0), False, True),
-            11: (r"$\Delta x = 1/256$", pu.RGB(216, 27, 96), True, True),
-            10: (r"$\Delta x = 1/128$", pu.RGB(30, 136, 229), True, True),
-            9: (r"$\Delta x = 1/64$", pu.RGB(255, 193, 7), True, True),
+            11: (r"$\Delta x = 1/256$", "#A45892", True, True),
+            10: (r"$\Delta x = 1/128$", "#55A1FF", True, True),
+            9: (r"$\Delta x = 1/64$", "#FF9E57", True, True),
             8: (r"$\Delta x = 1/32$", pu.RGB(0, 0, 0), True, True),
         }
 
@@ -139,6 +139,7 @@ if save_figure:
             label=value[0],
             color=value[1],
             linestyle="-" if not value[2] else "--",
+            linewidth=2,
         )
 
     plt.axhline(
@@ -149,10 +150,10 @@ if save_figure:
         linewidth=0.5,
     )
 
-    plt.xlabel("Time [s]", fontsize=12)
+    plt.xlabel("Time [s]", fontsize=14)
     plt.ylabel("$\\frac{E}{E_0}$", fontsize=16)
     plt.title("Energy evolution with respect to time")
-    plt.legend()
+    plt.legend(fontsize=12)
 
     folder_name = "figures"
     script_dir = os.path.dirname(os.path.abspath(__file__))
