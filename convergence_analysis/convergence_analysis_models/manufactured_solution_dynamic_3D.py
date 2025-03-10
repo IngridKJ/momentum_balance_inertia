@@ -130,6 +130,10 @@ class ManuMechDataSaving(pp.PorePyModel):
 
         return collected_data
 
+    def write_pvd_and_vtu(self) -> None:
+        """Override method such that pvd and vtu files are not created."""
+        self.data_to_export()
+
 
 # -----> Exact solution
 class ManuMechExactSolution3d:
