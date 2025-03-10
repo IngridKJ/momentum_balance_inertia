@@ -665,6 +665,7 @@ def use_constraints_for_inner_domain_cells(model, sd) -> np.ndarray:
             all_nodes_of_constraints = np.array([c1, c2, c3, c4])
         polygon_vertices = all_nodes_of_constraints.T[0]
         inside = pp.geometry_property_checks.point_in_polygon(polygon_vertices, points)
+        return np.where(inside)[0]
     elif model.nd == 3:
         if model.params["grid_type"] == "simplex":
             all_nodes_of_constraints = np.array(
@@ -678,7 +679,7 @@ def use_constraints_for_inner_domain_cells(model, sd) -> np.ndarray:
         inside = points_in_polyhedron(
             points=points, all_nodes_of_constraints=all_nodes_of_constraints
         )
-    return np.where(inside)[0]
+        return inside
 
 
 def points_in_polyhedron(points, all_nodes_of_constraints):
