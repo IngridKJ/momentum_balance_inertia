@@ -100,15 +100,19 @@ if save_figure:
         num_cells,
         y_disp,
         "o--",
-        color="firebrick",
+        color="#55A1FF",
         label="Displacement",
+        linewidth=2.5,
+        markersize=6,
     )
     ax.loglog(
         num_cells,
         y_trac,
         "o--",
-        color="royalblue",
+        color="#003FBB",
         label="Traction",
+        linewidth=2.5,
+        markersize=6,
     )
     ax.set_title("Convergence analysis: Setup with Dirichlet boundaries")
     ax.set_xlabel("$(N_x \\cdot N_t)^{1/4}$")

@@ -91,7 +91,6 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
                 "time_manager": time_manager,
                 "grid_type": "simplex",
                 "progressbars": True,
-                "folder_name": "heterogeneity",
                 "heterogeneity_factor": h_h,
                 "heterogeneity_location": 0.5,
                 "material_constants": material_constants,
