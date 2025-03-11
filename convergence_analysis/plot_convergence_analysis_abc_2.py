@@ -7,9 +7,13 @@ import matplotlib.pyplot as plt
 from itertools import product
 from plotting.plot_utils import draw_multiple_loglog_slopes
 
-sys.path.append("../")
+# Set paths for modules and data directories
+folder_name = "convergence_analysis_results"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_dir = os.path.join(script_dir, folder_name)
+os.makedirs(output_dir, exist_ok=True)
 
-# Manually defined dictionary for legend labels
+# Define legend labels using a dictionary
 label_dict = {
     (0, 0, 0): r"$r_h = 1, r_{a} = 0$",
     (1, 0, 0): r"$r_h = 2^{-5}, r_{a} = 0$",
@@ -19,93 +23,57 @@ label_dict = {
     (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10^{4}$",
 }
 
-# Prepare path for generated output files
-folder_name = "convergence_analysis_results"
-script_dir = os.path.dirname(os.path.abspath(__file__))
-output_dir = os.path.join(script_dir, folder_name)
-os.makedirs(output_dir, exist_ok=True)
-
-# Find all heterogeneity error files
+# Get list of heterogeneity error files
 heterogeneity_files = [
     f
     for f in os.listdir(output_dir)
     if f.startswith("errors_heterogeneity") and f.endswith(".txt")
 ]
 
-# Extract unique factors and anisotropy coefficients
+# Parse file info and extract unique factors and anisotropy coefficients
 file_info = []
 factors = set()
 anisotropy_pairs = set()
 
 for filename in heterogeneity_files:
     parts = filename.replace("errors_heterogeneity_", "").replace(".txt", "").split("_")
-    factor = float(parts[0])
-    mu_lam_index = int(parts[-1])
-    mu = lam = mu_lam_index
-    file_info.append((factor, mu, lam, filename))
+    factor, mu_lam_index = float(parts[0]), int(parts[-1])
+    file_info.append((factor, mu_lam_index, mu_lam_index, filename))
     factors.add(factor)
-    anisotropy_pairs.add((mu, lam))
+    anisotropy_pairs.add((mu_lam_index, mu_lam_index))
 
+# Sort the file info and factor/aniso lists
 file_info.sort()
 factors = sorted(factors)
 anisotropy_pairs = sorted(anisotropy_pairs)
 
-# Define customizable styles
-custom_colors_displacement = [
-    "#D8B5DE",
-    "black",
-    "#9FE6A2",
-    "black",
-    "#55A1FF",
-    "black",
-]
-custom_colors_traction = [
-    "#A45892",
-    "darkgray",
-    "#00630C",
-    "darkgray",
-    "#003FBB",
-    "darkgray",
-]
-custom_linestyles = [
-    "-",
-    ":",
-    "-",
-    ":",
-    "-",
-    ":",
-]
-custom_markers = [
-    "o",
-    "s",
-    "o",
-    "D",
-    "o",
-    "d",
-]
+# Define custom styles for plotting
+custom_styles = {
+    "displacement": ["#D8B5DE", "black", "#9FE6A2", "black", "#55A1FF", "black"],
+    "traction": ["#A45892", "darkgray", "#00630C", "darkgray", "#003FBB", "darkgray"],
+    "linestyles": ["-", ":", "-", ":", "-", ":"],
+    "markers": ["o", "s", "o", "D", "o", "d"],
+}
 
-# Assign styles uniquely for each combination
+# Map styles to each combination of factor and anisotropy
 style_map = {}
 for i, combo in enumerate(product(factors, anisotropy_pairs)):
     style_map[combo] = {
-        "color_displacement": custom_colors_displacement[
-            i % len(custom_colors_displacement)
+        "color_displacement": custom_styles["displacement"][
+            i % len(custom_styles["displacement"])
         ],
-        "color_traction": custom_colors_traction[i % len(custom_colors_traction)],
-        "linestyle": custom_linestyles[i % len(custom_linestyles)],
-        "marker": custom_markers[i % len(custom_markers)],
+        "color_traction": custom_styles["traction"][i % len(custom_styles["traction"])],
+        "linestyle": custom_styles["linestyles"][i % len(custom_styles["linestyles"])],
+        "marker": custom_styles["markers"][i % len(custom_styles["markers"])],
     }
 
-# Create figure
+# Create figure for plotting
 fig, ax = plt.subplots(figsize=(16, 9))
 
-# Lists to store handles and labels for displacement (u) and traction (T)
-handles_u = []
-labels_u = []
-handles_T = []
-labels_T = []
+# Initialize lists for handles and labels
+handles_u, labels_u, handles_T, labels_T = [], [], [], []
 
-# Loop through all data and plot in the same figure
+# Plot data for each file
 for factor, mu, lam, filename in file_info:
     filepath = os.path.join(output_dir, filename)
     num_cells, num_time_steps, displacement_errors, traction_errors = np.loadtxt(
@@ -125,12 +93,12 @@ for factor, mu, lam, filename in file_info:
         linestyle=style["linestyle"],
         marker=style["marker"],
         color=style["color_displacement"],
-        label=f"{label_name}",
-        markersize=8 if style["marker"] != "o" else 14,
+        label=label_name,
+        markersize=8 if style["marker"] != "o" else 16,
         linewidth=5,
     )
     handles_u.append(line_u)
-    labels_u.append(f"{label_name}")
+    labels_u.append(label_name)
 
     # Plot traction error
     (line_T,) = ax.loglog(
@@ -139,14 +107,14 @@ for factor, mu, lam, filename in file_info:
         linestyle=style["linestyle"],
         marker=style["marker"],
         color=style["color_traction"],
-        label=f"{label_name}",
-        markersize=8 if style["marker"] != "o" else 14,
+        label=label_name,
+        markersize=8 if style["marker"] != "o" else 16,
         linewidth=5,
     )
     handles_T.append(line_T)
-    labels_T.append(f"{label_name}")
+    labels_T.append(label_name)
 
-    # Draw convergence slope indicator (only once per unique factor)
+    # Draw convergence slope indicator for the last factor and anisotropy pair
     if factor == factors[-1] and (mu, lam) == anisotropy_pairs[-1]:
         draw_multiple_loglog_slopes(
             fig,
@@ -157,46 +125,83 @@ for factor, mu, lam, filename in file_info:
             inverted=False,
         )
 
-# Configure plot
+# Create 7 additional white lines and add them to the legend
+white_lines = [
+    plt.Line2D([0], [0], color="white", linestyle="-", linewidth=2) for _ in range(7)
+]
+
+# Add labels for the 7 white lines (you can modify these as needed)
+white_line_labels = [
+    "",
+    r"$r_h = 1, r_{a} = 0$",
+    r"$r_h = 1, r_{a} = 10^{4}$",
+    r"$r_h = 2^{-5}, r_{a} = 0$",
+    r"$r_h = 2^{-5}, r_{a} = 10^{4}$",
+    r"$r_h = 2^{-8}, r_{a} = 0$",
+    r"$r_h = 2^{-8}, r_{a} = 10^{4}$",
+]
+
+# Configure plot labels, title, grid, and ticks
 ax.set_xlabel(r"$(N_x \cdot N_t)^{1/4}$", fontsize=20)
 ax.set_ylabel("Relative $L^2$ error", fontsize=20)
 ax.set_title("Convergence analysis results", fontsize=24)
 ax.grid(True, which="both", linestyle="--", linewidth=0.5)
 ax.xaxis.set_tick_params(which="both", labelsize=18)
 ax.yaxis.set_tick_params(which="both", labelsize=18)
-# ax.set_xlim(right=3e2)
 ax.set_ylim(top=10e1)
 
-# Custom Legend
-handles = handles_u + handles_T
-labels = labels_u + labels_T
-
-
-# Create custom legend labels for the top of each column
-# Add these headers as custom labels for "e_u" and "e_T"
+# Create custom legend with headers for displacement and traction errors
 handles_u_header = plt.Line2D([0], [0], color="white", linewidth=0)  # Invisible handle
 handles_T_header = plt.Line2D([0], [0], color="white", linewidth=0)  # Invisible handle
-labels_u_header = r"$\mathcal{E}_u$"
-labels_T_header = r"$\mathcal{E}_T$"
+labels_u_header, labels_T_header = (
+    r"$\mathcal{E}_u$",
+    r"$\mathcal{E}_T$",
+)
 
-# Add custom headers to the top of each column in the legend
-ax.legend(
-    handles=[handles_u_header] + handles_u + [handles_T_header] + handles_T,
-    labels=[labels_u_header] + labels_u + [labels_T_header] + labels_T,
+# Modify labels_u to have empty strings for the first column
+labels_u_empty = [""] * len(labels_u)
+
+# Create the legend, adjust spacing, and center the headers
+handles = white_lines + [handles_u_header] + handles_u + [handles_T_header] + handles_T
+labels = (
+    white_line_labels
+    + [labels_u_header]
+    + labels_u_empty
+    + [labels_T_header]
+    + labels_u_empty
+)
+
+# Creating the legend with fine-tuned spacing and alignment
+leg = ax.legend(
+    handles,
+    labels,
     fontsize=15,
     loc="upper right",
     bbox_to_anchor=(0.995, 0.995),
-    borderaxespad=0,
-    ncol=2,
+    ncol=3,  # Number of columns in the legend
     frameon=True,
-    handleheight=2,
-    handlelength=1.5,
+    handleheight=2,  # Control height of the legend entries
+    handlelength=2.5,  # Control length of the legend handles
+    columnspacing=0.5,  # Reduce space between columns (tweak as needed)
+    labelspacing=0.25,  # Adjust spacing between labels within a column
 )
 
-# Save and show plot
+# Adjust column alignment and further refine the positioning
+for vpack in leg._legend_handle_box.get_children():
+    for hpack in vpack.get_children()[:1]:
+        hpack.get_children()[0].set_width(0)  # Ensure proper alignment
+
+
+for vpack in leg._legend_handle_box.get_children()[:1]:
+    for hpack in vpack.get_children():
+        hpack.get_children()[0].set_width(0)
+
+
+# Save the plot to a file
 figures_folder = "figures"
 figures_output_dir = os.path.join(script_dir, figures_folder)
 os.makedirs(figures_output_dir, exist_ok=True)
+
 plt.savefig(
     os.path.join(figures_output_dir, "heterogeneity_errors_single_plot.png"),
     bbox_inches="tight",
