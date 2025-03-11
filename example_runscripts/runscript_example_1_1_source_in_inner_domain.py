@@ -21,7 +21,7 @@ coarse = True
 
 # Only export visualization files corresponding to the ones visualized in the article:
 limit_file_export = True
-times_in_article = [0.05, 0.1]
+times_in_article = [0.05, 0.125]
 
 
 class Geometry:
