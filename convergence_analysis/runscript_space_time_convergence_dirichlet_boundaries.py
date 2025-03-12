@@ -95,29 +95,33 @@ if save_figure:
     y_trac = values["error_force"]
 
     # Plot the sample data
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(8, 6))
     ax.loglog(
         num_cells,
         y_disp,
         "o--",
         color="#55A1FF",
-        label="Displacement",
+        label=r"$\mathcal{E}_u$",
         linewidth=2.5,
-        markersize=6,
+        markersize=8,
     )
     ax.loglog(
         num_cells,
         y_trac,
         "o--",
         color="#003FBB",
-        label="Traction",
+        label=r"$\mathcal{E}_T$",
         linewidth=2.5,
-        markersize=6,
+        markersize=8,
     )
-    ax.set_title("Convergence analysis: Setup with Dirichlet boundaries")
-    ax.set_xlabel("$(N_x \\cdot N_t)^{1/4}$")
-    ax.set_ylabel("Relative $L^2$ error")
-    ax.legend()
+    ax.set_title("Convergence analysis: Setup with Dirichlet boundaries", fontsize=18)
+    ax.set_xlabel("$(N_x \\cdot N_t)^{1/4}$", fontsize=16)
+    ax.set_ylabel("Relative $L^2$ error", fontsize=16)
+    ax.legend(handlelength=2.3, handleheight=2, fontsize=14, labelspacing=0.2)
+
+    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    ax.xaxis.set_tick_params(which="both", labelsize=14)
+    ax.yaxis.set_tick_params(which="both", labelsize=14)
 
     if not coarse:
         # Draw the convergence triangle with multiple slopes
@@ -125,7 +129,7 @@ if save_figure:
             fig,
             ax,
             origin=(0.915 * num_cells[-1], 1.05 * y_disp[-1]),
-            triangle_width=1.0,
+            triangle_width=1.4,
             slopes=[-2],
             inverted=True,
             labelcolor=(0.33, 0.33, 0.33),
@@ -135,13 +139,11 @@ if save_figure:
             fig,
             ax,
             origin=(1.1 * num_cells[-2], y_trac[-2]),
-            triangle_width=1.0,
+            triangle_width=1.4,
             slopes=[-1.5],
             inverted=False,
             labelcolor=(0.33, 0.33, 0.33),
         )
-
-    ax.grid(True, which="both", color=(0.87, 0.87, 0.87))
 
     folder_name = "figures"
     script_dir = os.path.dirname(os.path.abspath(__file__))
