@@ -50,7 +50,7 @@ anisotropy_pairs = sorted(anisotropy_pairs)
 # Define custom styles for plotting
 custom_styles = {
     "displacement": ["#D8B5DE", "black", "#9FE6A2", "black", "#55A1FF", "black"],
-    "traction": ["#A45892", "darkgray", "#00630C", "darkgray", "#003FBB", "darkgray"],
+    "traction": ["#A45892", "darkgray", "#01840C", "darkgray", "#01308E", "darkgray"],
     "linestyles": ["-", ":", "-", ":", "-", ":"],
     "markers": ["o", "s", "o", "D", "o", "d"],
 }
@@ -117,16 +117,17 @@ for factor, mu, lam, filename in file_info:
             fig,
             ax,
             origin=(1.05 * x_axis[-2], 1.05 * displacement_errors[-2]),
-            triangle_width=1.3,
+            triangle_width=1.45,
             slopes=[-2],
             inverted=False,
         )
 
-# Create 7 additional white lines and add them to the legend
-invisible_lines = [
-    plt.Line2D([0], [0], color="white", linestyle="-", linewidth=2) for _ in range(7)
-]
+# Create 7 additional white lines and add them to the legend. This is done to ease
+# further customization with the legend.
+invisible_lines = [plt.Line2D([0], [0], color="white") for _ in range(7)]
 
+# These are the labels which are common for the displacement and traction errors for
+# each of the simulation runs:
 common_labels = [
     "",
     r"$r_h = 1$" + ",     " + r"$ r_{a} = 0$",
@@ -139,13 +140,13 @@ common_labels = [
 
 
 # Configure plot labels, title, grid and ticks
-ax.set_xlabel(r"$(N_x \cdot N_t)^{1/4}$", fontsize=18)
-ax.set_ylabel("Relative $L^2$ error", fontsize=18)
+ax.set_xlabel(r"$(N_x \cdot N_t)^{1/4}$", fontsize=16)
+ax.set_ylabel("Relative $L^2$ error", fontsize=16)
 ax.set_title("Convergence analysis results", fontsize=22)
 ax.grid(True, which="both", linestyle="--", linewidth=0.5)
-ax.xaxis.set_tick_params(which="both", labelsize=18)
-ax.yaxis.set_tick_params(which="both", labelsize=18)
-ax.set_ylim(top=15e1)
+ax.xaxis.set_tick_params(which="both", labelsize=15)
+ax.yaxis.set_tick_params(which="both", labelsize=15)
+ax.set_ylim(top=2e1)
 
 # Create custom legend with headers for displacement and traction errors
 handles_u_header = plt.Line2D([0], [0], color="white", linewidth=0)
@@ -158,7 +159,7 @@ labels_u_header, labels_T_header = (
 # Modify labels_u to have empty strings for the first column
 labels_u_empty = [""] * 6
 
-# Create the legend, adjust spacing, and center the headers
+# Create the legend, adjust spacing and center the headers
 handles = (
     [handles_u_header] + handles_u + [handles_T_header] + handles_T + invisible_lines
 )
@@ -184,20 +185,20 @@ leg = ax.legend(
     labelspacing=0.25,
 )
 
-# Adjust column alignment and further refine the positioning
+# Adjust alignment and further refine the positioning of legend entries
 for vpack in leg._legend_handle_box.get_children():
     for hpack in vpack.get_children()[:1]:
-        hpack.get_children()[0].set_width(0)  # Ensure proper alignment
+        hpack.get_children()[0].set_width(0)
 
 
 for vpack in leg._legend_handle_box.get_children()[:1]:
     for hpack in vpack.get_children():
         hpack.get_children()[0].set_width(0)
 
-for vpack in leg._legend_handle_box.get_children()[2:3]:  # Target the third column
+for vpack in leg._legend_handle_box.get_children()[2:3]:
     for hpack in vpack.get_children():
-        handle = hpack.get_children()[0]  # The handle (symbol or line)
-        handle.set_visible(False)  # Hide the handle but keep the text
+        handle = hpack.get_children()[0]
+        handle.set_visible(False)
 
 
 # Save the plot to a file
