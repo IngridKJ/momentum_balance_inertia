@@ -160,14 +160,14 @@ labels_u_empty = [""] * 6
 
 # Create the legend, adjust spacing, and center the headers
 handles = (
-    invisible_lines + [handles_u_header] + handles_u + [handles_T_header] + handles_T
+    [handles_u_header] + handles_u + [handles_T_header] + handles_T + invisible_lines
 )
 labels = (
-    common_labels
-    + [labels_u_header]
+    [labels_u_header]
     + labels_u_empty
     + [labels_T_header]
     + labels_u_empty
+    + common_labels
 )
 
 leg = ax.legend(
@@ -178,10 +178,10 @@ leg = ax.legend(
     bbox_to_anchor=(0.999, 0.999),
     ncol=3,
     frameon=True,
-    handleheight=1.5,
-    handlelength=2.25,
-    columnspacing=0.5,
-    labelspacing=0.15,
+    handleheight=1.7,
+    handlelength=2.2,
+    columnspacing=0.8,
+    labelspacing=0.25,
 )
 
 # Adjust column alignment and further refine the positioning
@@ -193,6 +193,11 @@ for vpack in leg._legend_handle_box.get_children():
 for vpack in leg._legend_handle_box.get_children()[:1]:
     for hpack in vpack.get_children():
         hpack.get_children()[0].set_width(0)
+
+for vpack in leg._legend_handle_box.get_children()[2:3]:  # Target the third column
+    for hpack in vpack.get_children():
+        handle = hpack.get_children()[0]  # The handle (symbol or line)
+        handle.set_visible(False)  # Hide the handle but keep the text
 
 
 # Save the plot to a file
