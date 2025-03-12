@@ -68,7 +68,7 @@ for i, combo in enumerate(product(factors, anisotropy_pairs)):
     }
 
 # Create figure for plotting
-fig, ax = plt.subplots(figsize=(16, 9))
+fig, ax = plt.subplots(figsize=(10, 9))
 
 # Initialize lists for handles and labels
 handles_u, labels_u, handles_T, labels_T = [], [], [], []
@@ -93,12 +93,9 @@ for factor, mu, lam, filename in file_info:
         linestyle=style["linestyle"],
         marker=style["marker"],
         color=style["color_displacement"],
-        label=label_name,
         markersize=8 if style["marker"] != "o" else 16,
         linewidth=5,
     )
-    handles_u.append(line_u)
-    labels_u.append(label_name)
 
     # Plot traction error
     (line_T,) = ax.loglog(
@@ -107,12 +104,12 @@ for factor, mu, lam, filename in file_info:
         linestyle=style["linestyle"],
         marker=style["marker"],
         color=style["color_traction"],
-        label=label_name,
         markersize=8 if style["marker"] != "o" else 16,
         linewidth=5,
     )
+
+    handles_u.append(line_u)
     handles_T.append(line_T)
-    labels_T.append(label_name)
 
     # Draw convergence slope indicator for the last factor and anisotropy pair
     if factor == factors[-1] and (mu, lam) == anisotropy_pairs[-1]:
@@ -120,70 +117,71 @@ for factor, mu, lam, filename in file_info:
             fig,
             ax,
             origin=(1.05 * x_axis[-2], 1.05 * displacement_errors[-2]),
-            triangle_width=2.25,
+            triangle_width=1.3,
             slopes=[-2],
             inverted=False,
         )
 
 # Create 7 additional white lines and add them to the legend
-white_lines = [
+invisible_lines = [
     plt.Line2D([0], [0], color="white", linestyle="-", linewidth=2) for _ in range(7)
 ]
 
-# Add labels for the 7 white lines (you can modify these as needed)
-white_line_labels = [
+common_labels = [
     "",
-    r"$r_h = 1, r_{a} = 0$",
-    r"$r_h = 1, r_{a} = 10^{4}$",
-    r"$r_h = 2^{-5}, r_{a} = 0$",
-    r"$r_h = 2^{-5}, r_{a} = 10^{4}$",
-    r"$r_h = 2^{-8}, r_{a} = 0$",
-    r"$r_h = 2^{-8}, r_{a} = 10^{4}$",
+    r"$r_h = 1$" + ",     " + r"$ r_{a} = 0$",
+    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10^{4}$",
+    r"$r_h = 2^{-5}$" + ",  " + r"$r_{a} = 0$",
+    r"$r_h = 2^{-5}$" + ",  " + r"$r_{a} = 10^{4}$",
+    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 0$",
+    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10^{4}$",
 ]
 
-# Configure plot labels, title, grid, and ticks
-ax.set_xlabel(r"$(N_x \cdot N_t)^{1/4}$", fontsize=20)
-ax.set_ylabel("Relative $L^2$ error", fontsize=20)
-ax.set_title("Convergence analysis results", fontsize=24)
+
+# Configure plot labels, title, grid and ticks
+ax.set_xlabel(r"$(N_x \cdot N_t)^{1/4}$", fontsize=18)
+ax.set_ylabel("Relative $L^2$ error", fontsize=18)
+ax.set_title("Convergence analysis results", fontsize=22)
 ax.grid(True, which="both", linestyle="--", linewidth=0.5)
 ax.xaxis.set_tick_params(which="both", labelsize=18)
 ax.yaxis.set_tick_params(which="both", labelsize=18)
-ax.set_ylim(top=10e1)
+ax.set_ylim(top=15e1)
 
 # Create custom legend with headers for displacement and traction errors
-handles_u_header = plt.Line2D([0], [0], color="white", linewidth=0)  # Invisible handle
-handles_T_header = plt.Line2D([0], [0], color="white", linewidth=0)  # Invisible handle
+handles_u_header = plt.Line2D([0], [0], color="white", linewidth=0)
+handles_T_header = plt.Line2D([0], [0], color="white", linewidth=0)
 labels_u_header, labels_T_header = (
     r"$\mathcal{E}_u$",
     r"$\mathcal{E}_T$",
 )
 
 # Modify labels_u to have empty strings for the first column
-labels_u_empty = [""] * len(labels_u)
+labels_u_empty = [""] * 6
 
 # Create the legend, adjust spacing, and center the headers
-handles = white_lines + [handles_u_header] + handles_u + [handles_T_header] + handles_T
+handles = (
+    invisible_lines + [handles_u_header] + handles_u + [handles_T_header] + handles_T
+)
 labels = (
-    white_line_labels
+    common_labels
     + [labels_u_header]
     + labels_u_empty
     + [labels_T_header]
     + labels_u_empty
 )
 
-# Creating the legend with fine-tuned spacing and alignment
 leg = ax.legend(
     handles,
     labels,
     fontsize=15,
     loc="upper right",
-    bbox_to_anchor=(0.995, 0.995),
-    ncol=3,  # Number of columns in the legend
+    bbox_to_anchor=(0.999, 0.999),
+    ncol=3,
     frameon=True,
-    handleheight=2,  # Control height of the legend entries
-    handlelength=2.5,  # Control length of the legend handles
-    columnspacing=0.5,  # Reduce space between columns (tweak as needed)
-    labelspacing=0.25,  # Adjust spacing between labels within a column
+    handleheight=1.5,
+    handlelength=2.25,
+    columnspacing=0.5,
+    labelspacing=0.15,
 )
 
 # Adjust column alignment and further refine the positioning
