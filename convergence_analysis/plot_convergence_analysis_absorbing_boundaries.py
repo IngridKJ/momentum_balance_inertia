@@ -210,6 +210,8 @@ figures_output_dir = os.path.join(script_dir, figures_folder)
 os.makedirs(figures_output_dir, exist_ok=True)
 
 plt.savefig(
-    os.path.join(figures_output_dir, "heterogeneity_errors_single_plot_100.png"),
+    os.path.join(
+        figures_output_dir, "space_time_convergence_analysis_absorbing_boundaries.png"
+    ),
     bbox_inches="tight",
 )
