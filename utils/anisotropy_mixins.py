@@ -18,11 +18,6 @@ class TransverselyIsotropicTensorMixin:
             sd=subdomain,
         )
 
-        try:
-            h = self.heterogeneity_factor
-        except AttributeError:
-            h = 1
-
         # Preparing basis arrays for inner and outer domains
         inner = np.zeros(subdomain.num_cells)
         inner[inner_cell_indices] = 1
@@ -47,7 +42,8 @@ class TransverselyIsotropicTensorMixin:
         mu_parallel_mat = stiffness_matrices["mu_parallel"]
         mu_orthogonal_mat = stiffness_matrices["mu_perpendicular"]
 
-        # Extract individual constants from the anisotropy constants dictionary
+        # Extract individual constants from the anisotropy constants dictionary. The
+        # default here is set according to an isotropic tensor.
         anisotropy_constants = self.params.get(
             "anisotropy_constants",
             {
@@ -59,11 +55,11 @@ class TransverselyIsotropicTensorMixin:
             },
         )
 
-        volumetric_compr_lambda = anisotropy_constants["volumetric_compr_lambda"] * h
-        lambda_parallel = anisotropy_constants["lambda_parallel"] * h
-        lambda_orthogonal = anisotropy_constants["lambda_orthogonal"] * h
-        mu_parallel = anisotropy_constants["mu_parallel"] * h
-        mu_orthogonal = anisotropy_constants["mu_orthogonal"] * h
+        volumetric_compr_lambda = anisotropy_constants["volumetric_compr_lambda"]
+        mu_parallel = anisotropy_constants["mu_parallel"]
+        mu_orthogonal = anisotropy_constants["mu_orthogonal"]
+        lambda_parallel = anisotropy_constants["lambda_parallel"]
+        lambda_orthogonal = anisotropy_constants["lambda_orthogonal"]
 
         # Standard material values: assigned to the outer domain
         lmbda = self.solid.lame_lambda * outer
