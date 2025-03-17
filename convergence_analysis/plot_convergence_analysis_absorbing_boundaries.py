@@ -16,11 +16,11 @@ os.makedirs(output_dir, exist_ok=True)
 # Define legend labels using a dictionary
 label_dict = {
     (0, 0, 0): r"$r_h = 1, r_{a} = 0$",
-    (1, 0, 0): r"$r_h = 2^{-5}, r_{a} = 0$",
+    (1, 0, 0): r"$r_h = 2^{-4}, r_{a} = 0$",
     (2, 0, 0): r"$r_h = 2^{-8}, r_{a} = 0$",
-    (0, 1, 1): r"$r_h = 1, r_{a} = 10^{4}$",
-    (1, 1, 1): r"$r_h = 2^{-5}, r_{a} = 10^{4}$",
-    (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10^{4}$",
+    (0, 1, 1): r"$r_h = 1, r_{a} = 10$",
+    (1, 1, 1): r"$r_h = 2^{-4}, r_{a} = 10$",
+    (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10$",
 }
 
 # Get list of heterogeneity error files
@@ -53,6 +53,7 @@ custom_styles = {
     "traction": ["#A45892", "darkgray", "#01840C", "darkgray", "#01308E", "darkgray"],
     "linestyles": ["-", ":", "-", ":", "-", ":"],
     "markers": ["o", "s", "o", "D", "o", "d"],
+    "alpha": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 }
 
 # Map styles to each combination of factor and anisotropy
@@ -65,6 +66,7 @@ for i, combo in enumerate(product(factors, anisotropy_pairs)):
         "color_traction": custom_styles["traction"][i % len(custom_styles["traction"])],
         "linestyle": custom_styles["linestyles"][i % len(custom_styles["linestyles"])],
         "marker": custom_styles["markers"][i % len(custom_styles["markers"])],
+        "alpha": custom_styles["alpha"][i % len(custom_styles["alpha"])],
     }
 
 # Create figure for plotting
@@ -93,6 +95,7 @@ for factor, mu, lam, filename in file_info:
         linestyle=style["linestyle"],
         marker=style["marker"],
         color=style["color_displacement"],
+        alpha=style["alpha"],
         markersize=8 if style["marker"] != "o" else 16,
         linewidth=5,
     )
@@ -131,11 +134,11 @@ invisible_lines = [plt.Line2D([0], [0], color="white") for _ in range(7)]
 common_labels = [
     "",
     r"$r_h = 1$" + ",     " + r"$ r_{a} = 0$",
-    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10^{4}$",
-    r"$r_h = 2^{-5}$" + ",  " + r"$r_{a} = 0$",
-    r"$r_h = 2^{-5}$" + ",  " + r"$r_{a} = 10^{4}$",
+    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10$",
+    r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 0$",
+    r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 10$",
     r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 0$",
-    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10^{4}$",
+    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10$",
 ]
 
 

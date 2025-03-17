@@ -26,34 +26,53 @@ class ConvergenceAnalysisHeterogeneity(ABCModelHeterogeneous):
         mesh_args: dict[str, float] = {"cell_size": cell_size}
         return mesh_args
 
+    def set_geometry(self):
+        """Perturb all internal boundary nodes randomly to ensure an unstructured
+        grid."""
+
+        # Choose a seed for reproducibility.
+        np.random.seed(42)
+        super().set_geometry()
+
+        sd = self.mdg.subdomains()[0]
+        h = self.meshing_arguments()["cell_size"]
+
+        inds = sd.get_internal_nodes()
+        inds_not_constraint = np.where(sd.nodes[0, inds] != self.heterogeneity_location)
+        inds = inds[inds_not_constraint]
+
+        perturbation = 0.1 * h
+        signs = np.random.choice([-1, 1], size=len(inds))
+        sd.nodes[:2, inds] += perturbation * signs
+
+        sd.compute_geometry()
+
     def write_pvd_and_vtu(self) -> None:
         """Override method such that pvd and vtu files are not created."""
         self.data_to_export()
 
 
-heterogeneity_factors = [
+heterogeneity_coefficients = [
     # Homogeneous case
     1,
-    # Heterogeneous case
-    1 / 2**5,
-    # Heterogeneous case
+    # # Heterogeneous case
+    1 / 2**4,
+    # # Heterogeneous case
     1 / 2**8,
 ]
-anisotropy_factors_mu_lambda = [
+anisotropy_coefficients = [
     # Isotropic case
-    (1, 0),
+    0,
     # Anisotropic case
-    (1, 1e4),
+    1e1,
+    1e2,
 ]
 
-for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
-    h_h = heterogeneity_factors[heterogeneity_factor_index]
-    for (
-        h_mu,
-        h_lambda,
-    ) in anisotropy_factors_mu_lambda:
-        h_mu_ind = anisotropy_factors_mu_lambda.index((h_mu, h_lambda))
-        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_mu_ind)}.txt"
+for heterogeneity_factor_index in range(0, len(heterogeneity_coefficients)):
+    r_h = heterogeneity_coefficients[heterogeneity_factor_index]
+    for r_a in anisotropy_coefficients:
+        h_lambda_ind = anisotropy_coefficients.index(r_a)
+        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_lambda_ind)}.txt"
 
         filename = os.path.join(output_dir, filename)
 
@@ -81,9 +100,9 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
 
             anisotropy_constants = {
                 "mu_parallel": shear_modulus,
-                "mu_orthogonal": shear_modulus * h_mu,
+                "mu_orthogonal": shear_modulus,
                 "lambda_parallel": 0.0,
-                "lambda_orthogonal": lame_lambda * h_lambda,
+                "lambda_orthogonal": lame_lambda * r_a,
                 "volumetric_compr_lambda": lame_lambda,
             }
 
@@ -91,12 +110,13 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_factors)):
                 "time_manager": time_manager,
                 "grid_type": "simplex",
                 "progressbars": True,
-                "heterogeneity_factor": h_h,
+                "heterogeneity_factor": r_h,
                 "heterogeneity_location": 0.5,
                 "material_constants": material_constants,
                 "anisotropy_constants": anisotropy_constants,
                 "symmetry_axis": [0, 1, 0],
                 "meshing_kwargs": {"constraints": [0, 1, 2, 3]},
+                "run_type": "vertical_anisotropy",
             }
 
             model = ConvergenceAnalysisHeterogeneity(params)
