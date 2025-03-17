@@ -18,9 +18,9 @@ label_dict = {
     (0, 0, 0): r"$r_h = 1, r_{a} = 0$",
     (1, 0, 0): r"$r_h = 2^{-4}, r_{a} = 0$",
     (2, 0, 0): r"$r_h = 2^{-8}, r_{a} = 0$",
-    (0, 1, 1): r"$r_h = 1, r_{a} = 10^{2}$",
-    (1, 1, 1): r"$r_h = 2^{-4}, r_{a} = 10^{2}$",
-    (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10^{2}$",
+    (0, 1, 1): r"$r_h = 1, r_{a} = 10$",
+    (1, 1, 1): r"$r_h = 2^{-4}, r_{a} = 10$",
+    (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10$",
 }
 
 # Get list of heterogeneity error files
@@ -134,11 +134,11 @@ invisible_lines = [plt.Line2D([0], [0], color="white") for _ in range(7)]
 common_labels = [
     "",
     r"$r_h = 1$" + ",     " + r"$ r_{a} = 0$",
-    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10^{2}$",
+    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10$",
     r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 0$",
-    r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 10^{2}$",
+    r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 10$",
     r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 0$",
-    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10^{2}$",
+    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10$",
 ]
 
 
@@ -185,7 +185,7 @@ leg = ax.legend(
     handleheight=1.7,
     handlelength=2.2,
     columnspacing=0.8,
-    labelspacing=0.25,
+    labelspacing=0.275,
 )
 
 # Adjust alignment and further refine the positioning of legend entries
