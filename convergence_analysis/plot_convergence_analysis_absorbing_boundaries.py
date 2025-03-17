@@ -18,9 +18,9 @@ label_dict = {
     (0, 0, 0): r"$r_h = 1, r_{a} = 0$",
     (1, 0, 0): r"$r_h = 2^{-4}, r_{a} = 0$",
     (2, 0, 0): r"$r_h = 2^{-8}, r_{a} = 0$",
-    (0, 1, 1): r"$r_h = 1, r_{a} = 10$",
-    (1, 1, 1): r"$r_h = 2^{-4}, r_{a} = 10$",
-    (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10$",
+    (0, 1, 1): r"$r_h = 1, r_{a} = 10^{2}$",
+    (1, 1, 1): r"$r_h = 2^{-4}, r_{a} = 10^{2}$",
+    (2, 1, 1): r"$r_h = 2^{-8}, r_{a} = 10^{2}$",
 }
 
 # Get list of heterogeneity error files
@@ -134,11 +134,11 @@ invisible_lines = [plt.Line2D([0], [0], color="white") for _ in range(7)]
 common_labels = [
     "",
     r"$r_h = 1$" + ",     " + r"$ r_{a} = 0$",
-    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10$",
+    r"$r_h = 1$" + ",     " + r"$ r_{a} = 10^{2}$",
     r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 0$",
-    r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 10$",
+    r"$r_h = 2^{-4}$" + ",  " + r"$r_{a} = 10^{2}$",
     r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 0$",
-    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10$",
+    r"$r_h = 2^{-8}$" + ",  " + r"$ r_{a} = 10^{2}$",
 ]
 
 
@@ -210,6 +210,6 @@ figures_output_dir = os.path.join(script_dir, figures_folder)
 os.makedirs(figures_output_dir, exist_ok=True)
 
 plt.savefig(
-    os.path.join(figures_output_dir, "heterogeneity_errors_single_plot.png"),
+    os.path.join(figures_output_dir, "heterogeneity_errors_single_plot_100.png"),
     bbox_inches="tight",
 )
