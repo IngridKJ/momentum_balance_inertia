@@ -7,8 +7,8 @@ import numpy as np
 import porepy as pp
 
 import run_models.run_linear_model as rlm
-from convergence_analysis.convergence_analysis_models.model_convergence_ABC_heterogeneity import (
-    ABCModelHeterogeneous,
+from convergence_analysis.convergence_analysis_models.model_convergence_ABC import (
+    ABCModel,
 )
 
 
@@ -20,7 +20,7 @@ output_dir = os.path.join(script_dir, folder_name)
 os.makedirs(output_dir, exist_ok=True)
 
 
-class ConvergenceAnalysisHeterogeneity(ABCModelHeterogeneous):
+class ConvergenceAnalysisHeterogeneity(ABCModel):
     def meshing_arguments(self) -> dict:
         cell_size = self.units.convert_units(0.125 / 2 ** (self.refinement), "m")
         mesh_args: dict[str, float] = {"cell_size": cell_size}
@@ -72,11 +72,11 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_coefficients)):
     r_h = heterogeneity_coefficients[heterogeneity_factor_index]
     for r_a in anisotropy_coefficients:
         h_lambda_ind = anisotropy_coefficients.index(r_a)
-        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_lambda_ind)}.txt"
+        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_lambda_ind)}_test.txt"
 
         filename = os.path.join(output_dir, filename)
 
-        refinements = np.arange(2, 7)
+        refinements = np.arange(2, 5)
         for refinement_coefficient in refinements:
             if refinement_coefficient == 2:
                 with open(filename, "w") as file:
@@ -112,6 +112,7 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_coefficients)):
                 "progressbars": True,
                 "heterogeneity_factor": r_h,
                 "heterogeneity_location": 0.5,
+                "folder_name": "VIZZZZ",
                 "material_constants": material_constants,
                 "anisotropy_constants": anisotropy_constants,
                 "symmetry_axis": [0, 1, 0],
