@@ -73,9 +73,7 @@ class ManuMechDataSaving(pp.PorePyModel):
     """
 
     lp_error: Callable
-    """Method for computing the discrete relative Lp-error. Normally provided by a
-    mixin instance of :class:`~porepy.applications.building_blocks.
-    verification_utils.VerificationUtils`.
+    """Method for computing the discrete relative Lp-error.
 
     """
 
@@ -164,8 +162,8 @@ class ManuMechExactSolution3d:
             time: Time in seconds.
 
         Returns:
-            Array of ``shape=(2 * sd.num_cells, )`` containing the exact displacements
-            at the cell centers for the given ``time``.
+            Array of `shape=(2 * sd.num_cells, )` containing the exact displacements
+            at the cell centers for the given `time`.
 
         Notes:
             The returned displacement is given in PorePy's flattened vector format.
@@ -204,12 +202,11 @@ class ManuMechExactSolution3d:
             time: Time in seconds.
 
         Returns:
-            Array of ``shape=(2 * sd.num_faces, )`` containing the exact ealstic
-            force at the face centers for the given ``time``.
+            Array of `shape=(2 * sd.num_faces, )` containing the exact ealstic force at
+            the face centers for the given `time`.
 
         Notes:
-            - The returned elastic force is given in PorePy's flattened vector
-              format.
+            - The returned elastic force is given in PorePy's flattened vector format.
             - Recall that force = (stress dot_prod unit_normal) * face_area.
 
         """
@@ -269,8 +266,8 @@ class ManuMechExactSolution3d:
             time: Time in seconds.
 
         Returns:
-            Exact right hand side of the momentum balance equation with ``shape=(
-            2 * sd.num_cells, )``.
+            Exact right hand side of the momentum balance equation with `shape=(
+            2 * sd.num_cells, )`.
 
         Notes:
             The returned array is given in PorePy's flattened vector format.
@@ -342,8 +339,8 @@ class ManuMechUtils(VerificationUtils):
 
 
 # -----> Geometry
-class UnitSquareGrid:
-    """Class for setting up the geometry of the unit square domain."""
+class UnitCubeGrid:
+    """Class for setting up the geometry of the unit cube domain."""
 
     params: dict
     """Simulation model parameters."""
@@ -366,10 +363,7 @@ class ManuMechSolutionStrategy3d:
     """Exact solution object."""
 
     plot_results: Callable
-    """Method for plotting results. Usually provided by the mixin class
-    :class:`SetupUtilities`.
-
-    """
+    """Method for plotting results."""
 
     results: list[ManuMechSaveData]
     """List of SaveData objects."""
@@ -440,14 +434,11 @@ class ManuMechBoundaryConditions:
 
 # -----> Mixer class
 class ManuMechSetup3d(  # type: ignore[misc]
-    UnitSquareGrid,
+    UnitCubeGrid,
     ManuMechSolutionStrategy3d,
     ManuMechUtils,
     ManuMechDataSaving,
     ManuMechBoundaryConditions,
     DynamicMomentumBalanceABCLinear,
 ):
-    """
-    Mixer class for the two-dimensional mechanics verification setup.
-
-    """
+    """Mixer class for the three-dimensional mechanics verification setup."""

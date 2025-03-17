@@ -1,4 +1,3 @@
-import logging
 import sys
 from typing import Union
 
@@ -10,8 +9,6 @@ sys.path.append("../")
 import time_derivatives
 from solvers.solver_mixins import CustomSolverMixin
 from utils import acceleration_velocity_displacement, body_force_function, u_v_a_wrap
-
-logger = logging.getLogger(__name__)
 
 
 class NamesAndConstants:
@@ -68,16 +65,13 @@ class NamesAndConstants:
         return "bc_values_mechanics"
 
     def primary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
-        """Primary wave speed (c_p).
+        """Primary wave speed.
 
         Speed of the compressive elastic waves.
 
         Parameters:
-            is_scalar: Whether the primary wavespeed should be scalar or not. Relevant
-                for use with manufactured solutions for constructing the source term. In
-                that case, the present method is called before the vector valued lambda
-                and vector valued mu are available. Thus, scalar valued wave speed is
-                accomodated.
+            is_scalar: Whether the primary wave speed should be scalar or not. Relevant
+                for use with manufactured solutions which only supports a scalar wave speed for now.
 
         Returns:
             The value of the compressive elastic waves. Either scalar valued or the
@@ -93,15 +87,13 @@ class NamesAndConstants:
             )
 
     def secondary_wave_speed(self, is_scalar: bool = False) -> Union[float, np.ndarray]:
-        """Secondary wave speed (c_s).
+        """Secondary wave speed.
 
         Speed of the shear elastic waves.
 
         Parameters:
-            is_scalar: Whether the primary wavespeed should be scalar or not. Relevant
-                for use with manufactured solutions for constructing the source term. In
-                that case, the present method is called before the vector valued mu is
-                available. Thus, scalar valued wave speed is accomodated.
+            is_scalar: Whether the primary wave speed should be scalar or not. Relevant
+                for use with manufactured solutions which only supports a scalar wave speed for now.
 
         Returns:
             The value of the shear elastic waves. Either scalar valued or the
@@ -161,13 +153,53 @@ class BoundaryAndInitialConditions:
         self.assign_robin_weight(sd=sd, bc=bc)
         return bc
 
+    def assign_robin_weight(
+        self, sd: pp.Grid, bc: pp.BoundaryConditionVectorial
+    ) -> None:
+        """Assigns the Robin weight for Robin boundary conditions.
+
+        Parameters:
+            sd: The subdomain whose boundary conditions are to be defined.
+            bc: The vectorial boundary condition object.
+
+        """
+        # Initiating the arrays for the Robin weight
+        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
+        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
+
+        # The Robin weight should only be assigned to subdomains of max dimension.
+        if sd.dim != self.nd:
+            bc.robin_weight = value
+        else:
+            # The coefficient matrix is constructed elsewhere, so we fetch it by making
+            # this call.
+            total_coefficient_matrix = self.total_coefficient_matrix(
+                sd=sd,
+            )
+
+            # Discretizing the u_t term in the absorbing boundaries introduces an
+            # additional weight to the u-term of the resulting Robin boundary condition
+            # (see the method total_coefficient_matrix).
+            # The next line includes that weight.
+            total_coefficient_matrix *= self.discrete_robin_weight_coefficient
+
+            # Fethcing all boundary faces for the domain and assigning the
+            # total_coefficient_matrix to the boundary faces.
+            boundary_faces = sd.get_boundary_faces()
+            value[:, :, boundary_faces] *= total_coefficient_matrix.T
+
+            # Finally setting the actual Robin weight.
+            bc.robin_weight = value
+
     def bc_values_stress(self, boundary_grid: pp.BoundaryGrid) -> np.ndarray:
-        """Method for assigning Robin boundary condition values.
+        """Method for assigning Robin boundary condition values (the right-hand side).
 
         Specifically, this method assigns the values corresponding to absorbing boundary
         conditions when we have used a second order approximation to u_t in:
 
             sigma * n + alpha * u_t = G
+
+        See the method total_coefficient_matrix() for the expressions.
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -210,44 +242,6 @@ class BoundaryAndInitialConditions:
         robin_rhs = robin_rhs.T
         return robin_rhs.ravel("F")
 
-    def assign_robin_weight(
-        self, sd: pp.Grid, bc: pp.BoundaryConditionVectorial
-    ) -> None:
-        """Assigns the Robin weight for Robin boundary conditions.
-
-        Parameters:
-            sd: The subdomain whose boundary conditions are to be defined.
-            bc: The vectorial boundary condition object.
-
-        """
-        # Initiating the arrays for the Robin weight
-        r_w = np.tile(np.eye(sd.dim), (1, sd.num_faces))
-        value = np.reshape(r_w, (sd.dim, sd.dim, sd.num_faces), "F")
-
-        # The Robin weight should only be assigned to subdomains of max dimension.
-        if sd.dim != self.nd:
-            bc.robin_weight = value
-        else:
-            # The coefficient matrix is constructed elsewhere, so we fetch it by making
-            # this call.
-            total_coefficient_matrix = self.total_coefficient_matrix(
-                sd=sd,
-            )
-
-            # Discretizing the u_t term in the absorbing boundaries introduces an
-            # additional weight to the u-term of the resulting Robin boundary condition
-            # (see the method total_coefficient_matrix).
-            # The next line includes that weight.
-            total_coefficient_matrix *= self.discrete_robin_weight_coefficient
-
-            # Fethcing all boundary faces for the domain and assigning the
-            # total_coefficient_matrix to the boundary faces.
-            boundary_faces = sd.get_boundary_faces()
-            value[:, :, boundary_faces] *= total_coefficient_matrix.T
-
-            # Finally setting the actual Robin weight.
-            bc.robin_weight = value
-
     def total_coefficient_matrix(self, sd: pp.Grid) -> np.ndarray:
         """Coefficient matrix for the absorbing boundary conditions.
 
@@ -269,11 +263,11 @@ class BoundaryAndInitialConditions:
         where D_t = 1/dt * D. Note the coefficient 3 / 2 (termed
         discrete_robin_weight_coefficient in the method assign_robin_weight)
 
-        This method thus creates D_t.
+        This method creates D_t, which is subsequently used both as a part of the weight
+        in front of u_n and in the right hand side.
 
         Parameters:
             sd: The subdomain where the boundary conditions are assigned.
-
 
         Returns:
             A block array which is the sum of the normal and tangential component of the
@@ -316,8 +310,10 @@ class BoundaryAndInitialConditions:
         return total_coefficient_matrix
 
     def robin_weight_value(self, direction: str) -> float:
-        """Robin weight value for Robin boundary conditions.
+        """Robin weight value for the Robin (Absorbing) boundary conditions.
 
+        The weight in the Robin (Absorbing) boundary conditions. The Robin weight is
+        different for the tensile "direction" and the shear directions of a surface.
         Either shear or tensile Robin weight will be returned by this method. This
         depends on whether shear or tensile "direction" is chosen.
 
@@ -343,8 +339,8 @@ class BoundaryAndInitialConditions:
     def boundary_displacement(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
         """Method for reconstructing the boundary displacement.
 
-        Usage within the "realm" of absorbing boundary conditions: we need the
-        displacement values on the boundary at the previous time step.
+        For now the only usage is within the "realm" of absorbing boundary conditions:
+        we need the displacement values on the boundary at the previous time step.
 
         Note: This is for the pure mechanical problem. Modifications are needed when a
             coupling to fluid flow is introduced at some later point.
@@ -379,6 +375,48 @@ class BoundaryAndInitialConditions:
 
         boundary_displacement.set_name("boundary_displacement")
         return boundary_displacement
+
+    def construct_and_save_boundary_displacement(
+        self, boundary_grid: pp.BoundaryGrid
+    ) -> None:
+        """Construct and save boundary displacement for usage in boundary conditions.
+
+        The absorbing boundary conditions require the previous displacement values on
+        the domain boundary. This method makes sure that the displacement values two
+        time steps back in time is stored on the appropriate time step solution index.
+        Additionally it constructs the previous boundary displacement, and saves it to
+        the current time step solution index (= 0).
+
+        Paramters:
+            boundary_grid: The grid that the displacement values are evaluated on.
+
+        """
+        data = self.mdg.boundary_grid_data(boundary_grid)
+        name = "boundary_displacement_values"
+
+        # The displacement value for the previous time step is constructed and the
+        # one two time steps back in time is fetched from the dictionary.
+        location = pp.TIME_STEP_SOLUTIONS
+        pp.shift_solution_values(
+            name=name,
+            data=data,
+            location=location,
+            max_index=2,
+        )
+
+        sd = boundary_grid.parent
+        displacement_boundary_operator = self.boundary_displacement([sd])
+        displacement_values = self.equation_system.evaluate(
+            displacement_boundary_operator
+        )
+
+        displacement_values_0 = boundary_grid.projection(self.nd) @ displacement_values
+        pp.set_solution_values(
+            name=name,
+            values=displacement_values_0,
+            data=data,
+            time_step_index=0,
+        )
 
     def initial_condition(self) -> None:
         """Assigning initial displacement, velocity and acceleration values."""
@@ -569,7 +607,7 @@ class BoundaryAndInitialConditions:
 
 class DynamicMomentumBalanceEquations:
     def momentum_balance_equation(self, subdomains: list[pp.Grid]):
-        """Momentum balance equation in the rock matrix.
+        """Dynamic momentum balance equation in the rock matrix.
 
         Parameters:
             subdomains: List of subdomains where the force balance is defined.
@@ -589,10 +627,10 @@ class DynamicMomentumBalanceEquations:
         return equation
 
     def inertia(self, subdomains: list[pp.Grid]) -> pp.ad.Operator:
-        """Inertia mass in the elastic wave equation.
+        """Inertia mass in the elastic wave equation/dynamic momentum balance equation.
 
         The elastic wave equation contains a term on the form M * u_tt (that is, M *
-        acceleration/inertia term). This method represents an operator for M.
+        acceleration term/inertia term). This method represents an operator for M.
 
         Parameters:
             subdomains: List of subdomains where the inertia mass is defined.
@@ -690,14 +728,14 @@ class SolutionStrategyDynamicMomentumBalance:
         self.save_data_time_step()
 
     def set_vector_valued_mu_lambda(self) -> None:
-        """Instantiate boundary cell information and assign vector values mu and lambda.
+        """Instantiate boundary cell information and assign vector valued mu and lambda.
 
         Allow mu and lambda (Lamé parameters) to be assigned as cell wise values instead
         of only scalars.
 
         Additionally, creating the coefficient matrix for the absorbing
         boundaries requires the attribute boundary_cells_of_grid to distinguish which
-        cells are bordering the domain boundary.
+        cells are bordering the domain boundary. boundary_cells_of_grid is therefore defined as an attribute of the model class setup here.
 
         """
         sd = self.mdg.subdomains(dim=self.nd)[0]
@@ -715,7 +753,6 @@ class SolutionStrategyDynamicMomentumBalance:
         the grid fixes this issue.
 
         """
-
         super().set_discretization_parameters()
         if self.params["grid_type"] == "simplex":
             num_subfaces = 0
@@ -738,8 +775,8 @@ class SolutionStrategyDynamicMomentumBalance:
     ) -> pp.ad.TimeDependentDenseArray:
         """Time dependent dense array for the velocity.
 
-        Creates a time dependent dense array to represent the velocity, which is
-        needed for the Newmark time discretization.
+        Creates a time dependent dense array to represent the velocity, which is needed
+        for the Newmark time discretization.
 
         Parameters:
             subdomains: List of subdomains on which to define the velocity.
@@ -833,19 +870,11 @@ class SolutionStrategyDynamicMomentumBalance:
         )
         return a
 
-    def update_velocity_acceleration_time_dependent_ad_arrays(
-        self, initial: bool
-    ) -> None:
+    def update_velocity_acceleration_time_dependent_ad_arrays(self) -> None:
         """Update the time dependent ad arrays for the velocity and acceleration.
 
         The new velocity and acceleration values (the value at the end of each time
         step) are set into the data dictionary.
-
-        Parameters:
-            initial: If True, the array generating method is called for both the stored
-                time steps and the stored iterates. If False, the array generating
-                method is called only for the iterate, and the time step solution is
-                updated by copying the iterate.
 
         """
         for sd, data in self.mdg.subdomains(return_data=True, dim=self.nd):
@@ -878,48 +907,6 @@ class SolutionStrategyDynamicMomentumBalance:
                 iterate_index=0,
             )
 
-    def construct_and_save_boundary_displacement(
-        self, boundary_grid: pp.BoundaryGrid
-    ) -> None:
-        """Construct and save boundary displacement for usage in boundary conditions.
-
-        The absorbing boundary conditions require the previous displacement values on
-        the domain boundary. This method makes sure that the displacement values two
-        time steps back in time is stored on the appropriate time step solution index.
-        Additionally it constructs the previous boundary displacement, and saves it to
-        the current time step solution index (= 0).
-
-        Paramters:
-            boundary_grid: The grid that the displacement values are evaluated on.
-
-        """
-        data = self.mdg.boundary_grid_data(boundary_grid)
-        name = "boundary_displacement_values"
-
-        # The displacement value for the previous time step is constructed and the
-        # one two time steps back in time is fetched from the dictionary.
-        location = pp.TIME_STEP_SOLUTIONS
-        pp.shift_solution_values(
-            name=name,
-            data=data,
-            location=location,
-            max_index=2,
-        )
-
-        sd = boundary_grid.parent
-        displacement_boundary_operator = self.boundary_displacement([sd])
-        displacement_values = self.equation_system.evaluate(
-            displacement_boundary_operator
-        )
-
-        displacement_values_0 = boundary_grid.projection(self.nd) @ displacement_values
-        pp.set_solution_values(
-            name=name,
-            values=displacement_values_0,
-            data=data,
-            time_step_index=0,
-        )
-
     def after_nonlinear_convergence(self, iteration_counter: int = 1) -> None:
         """Method to be called after every non-linear iteration.
 
@@ -937,7 +924,7 @@ class SolutionStrategyDynamicMomentumBalance:
         """
         solution = self.equation_system.get_variable_values(iterate_index=0)
 
-        self.update_velocity_acceleration_time_dependent_ad_arrays(initial=True)
+        self.update_velocity_acceleration_time_dependent_ad_arrays()
 
         self.equation_system.shift_time_step_values()
         self.equation_system.set_variable_values(
@@ -956,6 +943,7 @@ class ConstitutiveLawsDynamicMomentumBalance:
         """Vector representation of mu and lambda.
 
         Cell-wise representation of the mu and lambda quantities in the rock matrix.
+        Both are saved as an attribute of the model class setup.
 
         """
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
@@ -1000,7 +988,14 @@ class TimeDependentSourceTerm:
         return external_sources
 
     def before_nonlinear_loop(self) -> None:
-        """Update the time dependent mechanics source."""
+        """Update the time dependent mechanics source before every nonlinear loop.
+
+        The default behaviour is to save source values which correspond to a source
+        which is constructed from a known analytical reference solution. In the case of
+        no analytical reference solution being chosen (this is done in the params
+        dictionary), the source is just zero.
+
+        """
         super().before_nonlinear_loop()
 
         sd = self.mdg.subdomains(dim=self.nd)[0]

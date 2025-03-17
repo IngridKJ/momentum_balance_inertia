@@ -1,9 +1,5 @@
 """Model class setup for the convergence analysis of MPSA-Newmark with absorbing
-boundaries.
-
-All off-diagonal/shear components of the stiffness tensor are discarded.
-
-"""
+boundaries."""
 
 import sys
 
@@ -13,29 +9,45 @@ import sympy as sym
 
 sys.path.append("../../")
 
-from models import DynamicMomentumBalanceABCLinear
-
-from utils.utility_functions import (
-    use_constraints_for_inner_domain_cells,
-    create_stiffness_tensor_basis,
-)
-from utils.stiffness_tensors import TensorAllowingForCustomFields
-
+from typing import Callable, List, Tuple, Union
 
 from porepy.applications.convergence_analysis import ConvergenceAnalysis
+
+from models import DynamicMomentumBalanceABCLinear
+from utils.stiffness_tensors import TensorAllowingForCustomFields
+from utils.utility_functions import (
+    create_stiffness_tensor_basis,
+    use_constraints_for_inner_domain_cells,
+)
 
 
 class HeterogeneityProperties:
     @property
-    def heterogeneity_location(self):
+    def heterogeneity_location(self) -> float:
+        """Location on the x-axis of the vertical split of the simulation domain."""
         return self.params.get("heterogeneity_location", 0.5)
 
     @property
-    def heterogeneity_factor(self):
+    def heterogeneity_factor(self) -> float:
+        """Factor determining how strong heterogeneity we have in a domain.
+
+        Determines the factor that the material parameters to the left of
+        self.heterogeneity_location should differ from the material parameters to the
+        right of self.heterogeneity_location.
+
+        """
         return self.params.get("heterogeneity_factor", 1.0)
 
 
 class Geometry:
+    """Mixin for setting the geometry used in the convergene analysis.
+
+    Here we set a square unit domain. Additionally, the methods set_polygons() and
+    set_fractures() is set. Those methods are used (in other methods and classes) to
+    define different stiffness tensors in different regions in the simulation domain.
+
+    """
+
     def nd_rect_domain(self, x, y) -> pp.Domain:
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
         box.update({"ymin": 0, "ymax": y})
@@ -47,6 +59,8 @@ class Geometry:
         self._domain = self.nd_rect_domain(x, y)
 
     def set_polygons(self):
+        """Defining polygons around the region where a different stiffness tensor is
+        to be defined."""
         if type(self.heterogeneity_location) is list:
             L = self.heterogeneity_location[0]
             W = self.heterogeneity_location[1]
@@ -62,7 +76,20 @@ class Geometry:
         return west, north, east, south
 
     def set_fractures(self) -> None:
-        """Setting a diagonal fracture"""
+        """Setting constraints for meshing.
+
+        The constraints, defined by help of the set_polygons()-method, are used for the
+        meshing such that the grid conforms to the intersection between two regions in
+        the simulation domain. This necessitates the usage of the meshing kwargs
+        "constraints". This can be done e.g. in the following way via the params
+        dictionary:
+
+            params = {"meshing_kwargs": {"constraints": [0, 1, 2, 3]}}.
+
+        If not, the objects being defined and set to self._fractures here will in fact
+        be fractures, and not only meshing constraints.
+
+        """
         west, north, east, south = self.set_polygons()
 
         self._fractures = [
@@ -73,7 +100,7 @@ class Geometry:
         ]
 
 
-class BoundaryConditions:
+class BoundaryConditionsAndSource:
     def bc_type_mechanics(self, sd: pp.Grid) -> pp.BoundaryConditionVectorial:
         """Method for assigning boundary condition type.
 
@@ -115,8 +142,8 @@ class BoundaryConditions:
 
             sigma * n + alpha * u_t = G
 
-        Robin/Absorbing boundaries are employed for the east and west boundary. Zero
-        Neumann conditions are assigned for the north and south boundary.
+        Robin/Absorbing boundaries are employed for the east boundary. Zero Neumann
+        values are assigned for the north and south boundary.
 
         Parameters:
             boundary_grid: The boundary grids on which to define boundary conditions.
@@ -156,8 +183,14 @@ class BoundaryConditions:
         total_coefficient_matrix = self.total_coefficient_matrix(sd=sd)
         robin_rhs = np.matmul(total_coefficient_matrix, displacement_values).squeeze(-1)
         robin_rhs *= sd.face_areas[boundary_faces][:, None]
+
+        # Values corresponding to the right-hand side of the absorbing boundaries for
+        # all boundary sides.
         robin_rhs = robin_rhs.T
 
+        # As the same method (bc_values_stress) is used for assigning Neumann and Robin
+        # (Absorbing) boundaries, we need to set zero-values where we have assigned the
+        # Neumann boundary type.
         boundary_sides = self.domain_boundary_sides(sd)
         for direction in ["north", "south"]:
             inds = np.where(getattr(boundary_sides, direction))[0]
@@ -169,8 +202,10 @@ class BoundaryConditions:
     def bc_values_displacement(self, bg: pp.BoundaryGrid) -> np.ndarray:
         """Method for setting Dirichlet boundary values.
 
-        Sets a time dependent sine condition in the x-direction of the western boundary.
-        Zero elsewhere.
+        Sets a time dependent condition in the x-direction of the western boundary. Zero
+        elsewhere. The boundary value function is determined by the method
+        heterogeneous_analytical_solution(), which is the known analytical solution for
+        a 1D wave travelling in an inhomogeneous domain.
 
         Parameters:
             bg: Boundary grid whose boundary displacement value is to be set.
@@ -185,7 +220,6 @@ class BoundaryConditions:
 
         xmin = self.domain.bounding_box["xmin"]
 
-        # Time dependent sine Dirichlet condition
         bc_left, _ = self.heterogeneous_analytical_solution()
         values[0][bounds.west] += np.ones(len(values[0][bounds.west])) * bc_left[0](
             xmin, t
@@ -196,7 +230,18 @@ class BoundaryConditions:
     def initial_condition_value_function(
         self, bg: pp.BoundaryGrid, t: float
     ) -> np.ndarray:
-        """Initial values for the absorbing boundary."""
+        """Initial values for the absorbing boundary.
+
+        Parameters:
+            bg: The boundary grid where the initial values are to be defined.
+            t: The time which the values are to be defined for. Typically t = 0 or t =
+                -dt, as we set initial values for the boundary condition both at initial
+                time and one time-step back in time.
+
+        Returns:
+            An array of the initial boundary values.
+
+        """
         sd = bg.parent
 
         x = sd.face_centers[0, :]
@@ -211,6 +256,7 @@ class BoundaryConditions:
         # East
         bc_vals[0, :][inds_east] = displacement_function_left[0](x[inds_east], t)
 
+        # Mapping the face-wise values of the parent grid onto the boundary grid.
         bc_vals = bg.projection(self.nd) @ bc_vals.ravel("F")
         return bc_vals
 
@@ -245,12 +291,36 @@ class BoundaryConditions:
         )
         return vals_0
 
+    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
+        vals = np.zeros((self.nd, sd.num_cells))
+        return vals.ravel("F")
+
 
 class InitialConditions:
     def heterogeneous_analytical_solution(
-        self, return_dt=False, return_ddt=False, lambdify=True
-    ):
-        """Compute the analytical solution and its time derivatives."""
+        self, return_dt: bool = False, return_ddt: bool = False, lambdify: bool = True
+    ) -> Union[
+        Tuple[List[Callable], List[Callable]],  # When lambdify=True
+        Tuple[sym.Symbol, sym.Symbol, sym.Expr, sym.Expr],  # When lambdify=False
+    ]:
+        """Analytical solutions for wave propagation in inhomogeneous media.
+
+        Representation of the displacement (and, upon request, the velocity and
+        acceleration) wave in an inhomogeneous media.
+
+        Parameters:
+            return_dt: If True, the first time-derivative (velocity) is returned.
+            return_ddt: If True, the second time-derivative (acceleration) is returned.
+            lambdify: If True, the lambdified expression is returned. The lambdified
+                expression can be used to evaluate the function value. This method is
+                only used with lambdify=False when the displacement expressions here are
+                used for constructing the exact heterogeneous force.
+
+        Returns:
+            Either the callable functions for displacement/velocity/acceleration, or the
+            sympy expression of the displacement.
+
+        """
         x, t = sym.symbols("x t")
 
         L = self.heterogeneity_location
@@ -287,7 +357,9 @@ class InitialConditions:
         else:
             return x, t, u_left, u_right
 
-    def _compute_initial_condition(self, return_dt=False, return_ddt=False):
+    def _compute_initial_condition(
+        self, return_dt: bool = False, return_ddt: bool = False
+    ) -> np.ndarray:
         """Helper function to compute displacement, velocity or acceleration."""
         sd = self.mdg.subdomains()[0]
         x = sd.cell_centers[0, :]
@@ -307,21 +379,23 @@ class InitialConditions:
         vals[0, right_layer] = right_solution[0](x[right_layer], t)
         return vals.ravel("F")
 
-    def initial_displacement(self, dofs):
+    def initial_displacement(self, dofs) -> np.ndarray:
         """Compute the initial displacement."""
         return self._compute_initial_condition()
 
-    def initial_velocity(self, dofs):
+    def initial_velocity(self, dofs) -> np.ndarray:
         """Compute the initial velocity."""
         return self._compute_initial_condition(return_dt=True)
 
-    def initial_acceleration(self, dofs):
+    def initial_acceleration(self, dofs) -> np.ndarray:
         """Compute the initial acceleration."""
         return self._compute_initial_condition(return_ddt=True)
 
 
 class ExactHeterogeneousSigmaAndForce:
-    def exact_heterogeneous_sigma(self, u, lam, mu, x) -> list:
+    def exact_heterogeneous_sigma(
+        self, u: sym.Expr, lam: float, mu: float, x: sym.Symbol
+    ) -> list:
         """Representation of the exact stress tensor given a displacement field.
 
         Parameters:
@@ -363,11 +437,18 @@ class ExactHeterogeneousSigmaAndForce:
         ]
         return sigma
 
-    def evaluate_exact_force(self, sd, time, sigma, inds, force_array) -> np.ndarray:
+    def evaluate_exact_force(
+        self,
+        sd: pp.Grid,
+        time: float,
+        sigma: sym.Expr,
+        inds: np.ndarray,
+        force_array: np.ndarray,
+    ) -> np.ndarray:
         """Evaluate exact elastic force at the face centers for certain face indices.
 
-        This method is, as it is implemented now, called more than once. This is because
-        the exact elastic force values may be different in two or more parts of the
+        This method is called more than once in the same simulation. This is because the
+        exact elastic force values may be different in two or more parts of the
         subdomain. In the case of two parts of the subdomain, the method fills half the
         `force_array` in the first call, and then the other half in the second call. The
         filling of the array is done index wise, determined by `inds`.
@@ -382,8 +463,8 @@ class ExactHeterogeneousSigmaAndForce:
                 indices in `inds`.
 
         Returns:
-            Array of `shape=(self.nd, sd.num_faces)` containing the exact elastic
-            force at the face centers of `inds` for the given `time`.
+            Array of `shape=(self.nd, sd.num_faces)` containing the exact elastic force
+            at the face centers of `inds` for the given `time`.
 
         Notes:
             - The returned elastic force is _not_ given in PorePy's flattened vector
@@ -426,12 +507,12 @@ class ExactHeterogeneousSigmaAndForce:
 
         return force_array
 
-    def evaluate_exact_heterogeneous_force(self, sd) -> np.ndarray:
+    def evaluate_exact_heterogeneous_force(self, sd: pp.Grid) -> np.ndarray:
         """Evaluate the exact heterogeneous force in the entire domain.
 
         The domain is split in 2: One left and one right part, where the exact force may
         be different in each part of the domain. This method handles computing the exact
-        force values for the entire domain.
+        force values for the entire domain, one region at a time.
 
         Parameters:
             sd: The subdomain grid where the forces are to be evaluated.
@@ -475,12 +556,8 @@ class ExactHeterogeneousSigmaAndForce:
         full_force_array: np.ndarray = np.asarray(full_force_array).ravel("F")
         return full_force_array
 
-    def evaluate_mechanics_source(self, f: list, sd: pp.Grid, t: float) -> np.ndarray:
-        vals = np.zeros((self.nd, sd.num_cells))
-        return vals.ravel("F")
-
     def vector_valued_mu_lambda(self) -> None:
-        """Setting a vertically layered medium."""
+        """Setting a vertically layered medium based on self.heterogeneity_location."""
         subdomain = self.mdg.subdomains(dim=self.nd)[0]
         x = subdomain.cell_centers[0, :]
 
@@ -559,7 +636,20 @@ class ExportData:
 
 class TensorForConvergenceWithAbsorbingBoundaries:
     def stiffness_tensor(self, subdomain: pp.Grid):
-        """Compute the stiffness tensor for a given subdomain."""
+        """Compute the stiffness tensor for a given subdomain.
+
+        Takes into consideration that there is a heterogeneity factor for determining
+        the heterogeneity in a domain. The tensor of a certain cell is multiplied by the
+        heterogeneity factor if the cell is inside the constraints that are defined in
+        set_fractures() and set_polygons().
+
+        Parameters:
+            subdomain: The subdomain where the tensor is to be defined.
+
+        Returns:
+            The stiffness tensor.
+
+        """
         # Fetch inner domain indices
         inner_cell_indices = use_constraints_for_inner_domain_cells(
             model=self,
@@ -639,10 +729,11 @@ class TensorForConvergenceWithAbsorbingBoundaries:
 class ABCModel(
     HeterogeneityProperties,
     Geometry,
-    BoundaryConditions,
+    BoundaryConditionsAndSource,
     InitialConditions,
     ExactHeterogeneousSigmaAndForce,
     ExportData,
     TensorForConvergenceWithAbsorbingBoundaries,
     DynamicMomentumBalanceABCLinear,
-): ...
+):
+    """Model class setup for the convergence analysis with absorbing boundaries."""

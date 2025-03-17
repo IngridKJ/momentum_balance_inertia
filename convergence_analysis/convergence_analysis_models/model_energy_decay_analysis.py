@@ -11,6 +11,15 @@ from utils import u_v_a_wrap
 
 class BoundaryConditionsEnergyDecayAnalysis:
     def initial_condition_bc(self, bg: pp.BoundaryGrid) -> np.ndarray:
+        """Method for setting initial boundary values for 0th and -1st time step.
+
+        Parameters:
+            bg: Boundary grid whose boundary displacement value is to be set.
+
+        Returns:
+            An array with the initial displacement boundary values.
+
+        """
         dt = self.time_manager.dt
         vals_0 = self.initial_condition_value_function(bg=bg, t=0)
         vals_1 = self.initial_condition_value_function(bg=bg, t=0 - dt)
@@ -33,6 +42,19 @@ class BoundaryConditionsEnergyDecayAnalysis:
         return vals_0
 
     def initial_condition_value_function(self, bg, t):
+        """Initial values for the absorbing boundary.
+
+        Parameters:
+            bg: The boundary grid where the initial values are to be defined.
+            t: The time which the values are to be defined for. Typically t = 0 or t =
+                -dt, as we set initial values for the boundary condition both at initial
+                time and one time-step back in time.
+
+        Returns:
+            An array of the initial boundary values.
+
+        """
+
         sd = bg.parent
 
         x = sd.face_centers[0, :]
@@ -94,11 +116,13 @@ class SourceValuesEnergyDecayAnalysis:
 
 class Geometry:
     def nd_rect_domain(self, x, y) -> pp.Domain:
+        """Setting a rectangular domain."""
         box: dict[str, pp.number] = {"xmin": 0, "xmax": x}
         box.update({"ymin": 0, "ymax": y})
         return pp.Domain(box)
 
     def set_domain(self) -> None:
+        """Defining the dimensions of the rectangular domain."""
         x = self.units.convert_units(1.0, "m")
         y = self.units.convert_units(1.0, "m")
         self._domain = self.nd_rect_domain(x, y)
@@ -110,4 +134,4 @@ class ModelEnergyDecay(
     Geometry,
     DynamicMomentumBalanceABCLinear,
 ):
-    """"""
+    """Model class setup for the energy decay analysis."""

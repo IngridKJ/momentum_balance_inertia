@@ -4,7 +4,7 @@ The default behavior when running PorePy models is that the Jacobian is assemble
 every time step. This is not necessary for linear problems, where the Jacobian doesn't
 change between time steps. Hence, this is a model class setup with the purpose of
 running linear models.
-    
+
 Note that the Jacobian must be constant throughout the simulation (linear problem) for
 this simplification to be valid.
 
@@ -22,7 +22,9 @@ class SolutionStrategyAssembleLinearSystemOnce:
     def assemble_linear_system(self) -> None:
         """Assemble the linearized system and store it in :attr:`linear_system`.
 
-        The linear system is defined by the current state of the model.
+        The linear system is defined by the current state of the model at the first time
+        step. The problem is linear, and thus we only need to assemble the Jacobian
+        once.
 
         """
         t_0 = time.time()
