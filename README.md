@@ -102,3 +102,4 @@ Tests are covering:
 * The utility functions ``inner_domain_cells``
   ``use_constraints_for_inner_domain_cells`` which can be used in the construction of
   the transversely isotropic tensor.
+* The generation of a heterogeneous stiffness tensor.
