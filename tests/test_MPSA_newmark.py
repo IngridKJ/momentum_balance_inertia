@@ -6,10 +6,10 @@ import pytest
 sys.path.append("../")
 import numpy as np
 import porepy as pp
-from convergence_analysis.convergence_analysis_models.manufactured_solution_dynamic_2D import (
+from convergence_and_stability_analysis.analysis_models.manufactured_solution_dynamic_2D import (
     ManuMechSetup2d,
 )
-from convergence_analysis.convergence_analysis_models.manufactured_solution_dynamic_3D import (
+from convergence_and_stability_analysis.analysis_models.manufactured_solution_dynamic_3D import (
     ManuMechSetup3d,
 )
 from porepy.applications.convergence_analysis import ConvergenceAnalysis

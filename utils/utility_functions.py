@@ -7,10 +7,10 @@ solutions are determined by the "manufactured_solution" key value in the params
 dictionary. Creation of source terms uses symbolic differentiation provided by sympy.
 Therefore, running other manufactured solutions than those already present is easily
 done by adding the expression for it where the manufactured solution is defined.
+Additionally, there are utility functions for construction of the 9x9 representation of
+a stiffness tensor representing a transversely isotropic media with arbitrary symmetry
+axis.
 
-Specific note: there is a function for fetching cell indices of boundary cells. It might
-be done in a brute force way, and the functionality may already lie within PorePy, but I
-failed to find it.
 
 """
 
@@ -20,6 +20,8 @@ import numpy as np
 import porepy as pp
 import sympy as sym
 
+from scipy.spatial import Delaunay
+
 # -------- Fetching/Computing values
 
 
@@ -28,9 +30,6 @@ def acceleration_velocity_displacement(
     data: dict,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Function for fetching acceleration, velocity and displacement values.
-
-    Found it repetitive to do this in the methods for updating velocity and acceleration
-    values in the dynamic momentum balance model.
 
     Parameters:
         model: The model.
@@ -107,13 +106,14 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
 
     Use of this method is rather simple, as the default analytical solution is that with
     the name "simply_zero" which is just zero solution. For another analytical solution
-    one must simply just assign a different value to the key "manufactured_solution" in
-    the model's parameter dictionary. Look into the code for what solutions are
-    accessible, or make new ones if the ones already existing do not suffice.
+    one must just assign a different value to the key "manufactured_solution" in the
+    model's parameter dictionary. Look into the code for what solutions are accessible,
+    or make new ones if the ones already existing do not suffice.
 
     Parameters:
         model: The model class.
-        return_dt: Flag for wether velocity is returned. Return velocity if True.
+        return_dt: Flag for wether velocity is returned. Return
+        velocity if True.
         return_ddt: Flag for whether acceleration is returned. Return acceleration if
             True.
 
@@ -140,36 +140,12 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
         u = [u1, u2]
     elif manufactured_sol == "simply_zero":
         u = [0, 0]
-    elif manufactured_sol == "bubble":
-        u1 = u2 = t**2 * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "drum_solution":
-        u1 = u2 = sym.sin(sym.pi * t) * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
     elif manufactured_sol == "diagonal_wave":
         alpha = model.rotation_angle
         u1 = u2 = sym.sin(t - (x * sym.cos(alpha) + y * sym.sin(alpha)) / (cp))
         u = [sym.cos(alpha) * u1, sym.sin(alpha) * u2]
-    elif manufactured_sol == "bubble_30":
-        u1 = u2 = t**2 * x * (30 - x) * y * (30 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "bubble_1000":
-        u1 = u2 = t**2 * x * (1000 - x) * y * (1000 - y)
-        u = [u1, u2]
     elif manufactured_sol == "sin_bubble":
         u1 = u2 = sym.sin(5.0 * np.pi * t / 2.0) * x * (1 - x) * y * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "cub_cub":
-        u1 = u2 = t**3 * x**2 * y**2 * (1 - x) * (1 - y)
-        u = [u1, u2]
-    elif manufactured_sol == "quad_time":
-        u1 = u2 = t**2 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-        u = [u1, u2]
-    elif manufactured_sol == "cub_time":
-        u1 = u2 = t**3 * sym.sin(np.pi * x) * sym.sin(np.pi * y)
-        u = [u1, u2]
-    elif manufactured_sol == "quad_space":
-        u1 = u2 = x * y * (1 - x) * (1 - y) * sym.cos(t)
         u = [u1, u2]
 
     if return_dt:
@@ -185,7 +161,7 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
 
 
 def _symbolic_equation_terms_2D(model, u, x, y, t):
-    """Symbolic representation of the momentum balance eqn. terms in 3D.
+    """Symbolic representation of the momentum balance equation terms in 2D.
 
     Parameters:
         model: The model class
@@ -329,7 +305,7 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
 
 
 def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
-    """Symbolic representation of the momentum balance eqn. terms in 3D.
+    """Symbolic representation of the momentum balance equation terms in 3D.
 
     Parameters:
         model: The model class
@@ -452,6 +428,11 @@ def u_v_a_wrap(
             to False.
         return_ddt: True if acceleration is to be returned instead of displacement.
             Defaults to False.
+
+    Returns:
+        A list of the lambdified expression for displacement, velocity or acceleration.
+        The list has two element in 2D and three elements in 3D - one for each
+        coordinate direction.
 
     """
     if is_2D:
@@ -654,57 +635,79 @@ def _body_force_func_3D(model) -> list:
     ]
 
 
-# -------- Body force function to be deprecated, but kept for now.
-def body_force_func(model) -> list:
-    """Function for calculating rhs corresponding to a static manufactured solution, 2D.
+# -------- Functions related to subdomains
 
-    Might be deprecated.
+
+def use_constraints_for_inner_domain_cells(model, sd) -> np.ndarray:
+    """Finds cell indices of the cells laying within constraints in the grid.
+
+    Assumes the existance of the method set_polygons() in the model class which is
+    calling this function. This function takes the nodes of the lines/polygons set by
+    set_polygons(). The nodes are subsequently fed to the PorePy-function
+    point_in_polygon() (for 2D) or points_in_polyhedron() (for 3D, found in this file)
+    to find the indices of the cells within the constraints.
+
+    Parameters:
+        model: The model class.
+        sd: The subdomain where we want to find the indices of the cells within the
+            constraints.
+
+    Returns:
+        An array of the cell indices of the cells within the constraints.
 
     """
-    lam = model.solid.lame_lambda
-    mu = model.solid.shear_modulus
+    points = sd.cell_centers[: model.nd, :]
 
-    x, y = sym.symbols("x y")
-
-    # Manufactured solution (bubble<3)
-    u1 = u2 = x * (1 - x) * y * (1 - y)
-    u = [u1, u2]
-
-    grad_u = [
-        [sym.diff(u[0], x), sym.diff(u[0], y)],
-        [sym.diff(u[1], x), sym.diff(u[1], y)],
-    ]
-
-    grad_u_T = [[grad_u[0][0], grad_u[1][0]], [grad_u[0][1], grad_u[1][1]]]
-
-    div_u = sym.diff(u[0], x) + sym.diff(u[1], y)
-
-    trace_grad_u = grad_u[0][0] + grad_u[1][1]
-
-    strain = 0.5 * np.array(
-        [
-            [grad_u[0][0] + grad_u_T[0][0], grad_u[0][1] + grad_u_T[0][1]],
-            [grad_u[1][0] + grad_u_T[1][0], grad_u[1][1] + grad_u_T[1][1]],
-        ]
-    )
-
-    sigma = [
-        [2 * mu * strain[0][0] + lam * trace_grad_u, 2 * mu * strain[0][1]],
-        [2 * mu * strain[1][0], 2 * mu * strain[1][1] + lam * trace_grad_u],
-    ]
-
-    div_sigma = [
-        sym.diff(sigma[0][0], x) + sym.diff(sigma[0][1], y),
-        sym.diff(sigma[1][0], x) + sym.diff(sigma[1][1], y),
-    ]
-
-    return [
-        sym.lambdify((x, y), div_sigma[0], "numpy"),
-        sym.lambdify((x, y), div_sigma[1], "numpy"),
-    ]
+    if model.nd == 2:
+        if model.params["grid_type"] == "simplex":
+            all_nodes_of_constraints = np.array(
+                [
+                    model._fractures[i].pts
+                    for i in model.params["meshing_kwargs"]["constraints"]
+                ]
+            )
+        else:
+            c1, c2, c3, c4 = model.set_polygons()
+            all_nodes_of_constraints = np.array([c1, c2, c3, c4])
+        polygon_vertices = all_nodes_of_constraints.T[0]
+        inside = pp.geometry_property_checks.point_in_polygon(polygon_vertices, points)
+        return np.where(inside)[0]
+    elif model.nd == 3:
+        if model.params["grid_type"] == "simplex":
+            all_nodes_of_constraints = np.array(
+                [
+                    model._fractures[i].pts
+                    for i in model.params["meshing_kwargs"]["constraints"]
+                ]
+            )
+        else:
+            all_nodes_of_constraints = model.set_polygons()
+        inside = points_in_polyhedron(
+            points=points, all_nodes_of_constraints=all_nodes_of_constraints
+        )
+        return inside
 
 
-# -------- Functions related to subdomains
+def points_in_polyhedron(points, all_nodes_of_constraints):
+    """Determine which points are inside a convex polyhedron.
+
+    Parameters:
+        points: (3, N) array of points.
+        all_nodes_of_constraints: tuple of typically six (3, 4) arrays, each
+            representing a face with 4 vertices.
+
+    Returns:
+        Indices of points that are inside the polyhedron.
+
+    """
+    vertices = np.hstack(all_nodes_of_constraints).T
+    unique_vertices = np.unique(vertices, axis=0)
+
+    points = np.asarray(points).T
+
+    hull = Delaunay(unique_vertices)
+    inside = hull.find_simplex(points) >= 0
+    return np.where(inside)[0]
 
 
 def inner_domain_cells(
@@ -718,9 +721,6 @@ def inner_domain_cells(
     Relevant for e.g. constructing an inner anisotropic domain within an outer isotropic
     one. I need the cell numbers of the inner cells. Cell indices of the cells in the
     internal domain is returned.
-
-    TODO:
-        * Raise an error if the inner domains are intersecting with the outer domain.
 
     Raises:
         ValueError if the inner domain width exceeds that of the outer domain.
@@ -861,10 +861,6 @@ def get_boundary_cells(
 
     Wrapper-like function for fetching boundary cell indices.
 
-    This might already exist within PorePy, but I couldn't find it ...
-
-    TODO: Add possibility to return all boundary cells, not only for one side at a time.
-
     Parameters:
         sd: The subdomain
         side: The side we want the cell indices for. Should take values "south",
@@ -889,3 +885,128 @@ def get_boundary_cells(
     if return_faces:
         return faces
     return cells
+
+
+# -------- 9x9 representation of transversely isotropic stiffness tensor
+"""The following functions are used to create a 9x9 matrix representation of the tensor 
+corresponding to a transversely isotropic media with an arbitrary symmetry axis. The
+expression for the stiffness tensor is taken from its tensor notation and split into
+five terms, one per material parameter. """
+
+
+def kronecker_delta(i_ind, j_ind):
+    """Returns 1 if i_ind == j_ind, otherwise 0."""
+    return 1 if i_ind == j_ind else 0
+
+
+def _compute_term(index_map, n, tensor_func, *args):
+    """Generalized function to compute stiffness terms."""
+    term = np.zeros((9, 9), dtype=float)
+    for i_ind in range(1, 4):  # i_ind, j_ind, k_ind, l_ind range from 1 to 3
+        for j_ind in range(1, 4):
+            for k_ind in range(1, 4):
+                for l_ind in range(1, 4):
+                    idx_ij = index_map[(i_ind, j_ind)]
+                    idx_kl = index_map[(k_ind, l_ind)]
+                    term[idx_ij, idx_kl] += tensor_func(
+                        i_ind, j_ind, k_ind, l_ind, n, *args
+                    )
+    return term
+
+
+def _term_1(i_ind, j_ind, k_ind, l_ind, n, lambda_val):
+    return lambda_val * kronecker_delta(i_ind, j_ind) * kronecker_delta(k_ind, l_ind)
+
+
+def _term_2(i_ind, j_ind, k_ind, l_ind, n, lambda_parallel):
+    return lambda_parallel * (
+        kronecker_delta(i_ind, j_ind) * kronecker_delta(k_ind, l_ind)
+        - kronecker_delta(i_ind, j_ind) * n[k_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(k_ind, l_ind) * n[i_ind - 1] * n[j_ind - 1]
+        + n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+    )
+
+
+def _term_3(i_ind, j_ind, k_ind, l_ind, n, lambda_perpendicular):
+    return (
+        lambda_perpendicular * n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+    )
+
+
+def _term_4(i_ind, j_ind, k_ind, l_ind, n, mu_parallel):
+    return mu_parallel * (
+        2 * n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(i_ind, k_ind) * n[j_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(j_ind, k_ind) * n[i_ind - 1] * n[l_ind - 1]
+        - kronecker_delta(i_ind, l_ind) * n[j_ind - 1] * n[k_ind - 1]
+        - kronecker_delta(j_ind, l_ind) * n[i_ind - 1] * n[k_ind - 1]
+        + kronecker_delta(i_ind, k_ind) * kronecker_delta(j_ind, l_ind)
+        + kronecker_delta(i_ind, l_ind) * kronecker_delta(j_ind, k_ind)
+    )
+
+
+def _term_5(i_ind, j_ind, k_ind, l_ind, n, mu_perpendicular):
+    return mu_perpendicular * (
+        kronecker_delta(i_ind, k_ind) * n[j_ind - 1] * n[l_ind - 1]
+        + kronecker_delta(j_ind, k_ind) * n[i_ind - 1] * n[l_ind - 1]
+        + kronecker_delta(i_ind, l_ind) * n[j_ind - 1] * n[k_ind - 1]
+        + kronecker_delta(j_ind, l_ind) * n[i_ind - 1] * n[k_ind - 1]
+        - 2 * n[i_ind - 1] * n[j_ind - 1] * n[k_ind - 1] * n[l_ind - 1]
+    )
+
+
+def create_stiffness_tensor_basis(
+    lambda_val, lambda_parallel, lambda_perpendicular, mu_parallel, mu_perpendicular, n
+):
+    """Creates 9x9 matrix representation of transversely isotropic tensor.
+
+    Basis for each of the five material parameters used in a transversely isotropic
+    media is generated here. The basis is matrices are constructed from helper functions
+    term_1(), term_2(), term_3(), term_4() and term_5().
+
+    All the values that are passed here (except for `n`) can be assigned in two ways:
+        * Assign the value 1 to all of them. In that way, this function returns only the
+          basis matrices for the stiffness tensor. This is useful in the case of
+          constructing the stiffness tensor by passing the 9x9 matrix and the value of
+          the material parameter (as it is used now). This is an easier choice if the
+          goal is to later assign a heterogeneous tensor (e.g. transversely isotropic in
+          one region and isotropic in another).
+        * Assign values different form 1 to receive a dictionary of the 9x9 matrix
+          representation with the set material values, and not only receive the "clean"
+          basis matrices as described above.
+
+    Parameters:
+        lambda_val: First Lamé parameter.
+        lambda_parallel: Transverse compressive stress parameter.
+        lambda_perpendicular: Perpendicular compressive stress parameter.
+        mu_parallel: transverse shear parameter.
+        mu_perpendicular: transverse-to-perpendicular shear parameter.
+        n: The vector representing the symmetry axis of the transversely isotropic
+            medium.
+
+    """
+    # Define a mapping of indices to a 9x9 structure
+    index_map = {
+        (1, 1): 0,
+        (1, 2): 1,
+        (1, 3): 2,
+        (2, 1): 3,
+        (2, 2): 4,
+        (2, 3): 5,
+        (3, 1): 6,
+        (3, 2): 7,
+        (3, 3): 8,
+    }
+
+    # Compute each term using the generalized function
+    stiffness_matrices = {
+        "lambda": _compute_term(index_map, n, _term_1, lambda_val),
+        "lambda_parallel": _compute_term(index_map, n, _term_2, lambda_parallel),
+        "lambda_perpendicular": _compute_term(
+            index_map, n, _term_3, lambda_perpendicular
+        ),
+        "mu_parallel": _compute_term(index_map, n, _term_4, mu_parallel),
+        "mu_perpendicular": _compute_term(index_map, n, _term_5, mu_perpendicular),
+    }
+
+    return stiffness_matrices

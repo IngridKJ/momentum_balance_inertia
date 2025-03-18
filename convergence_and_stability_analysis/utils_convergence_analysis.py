@@ -2,6 +2,7 @@ import sys
 from copy import deepcopy
 
 import numpy as np
+
 from porepy.utils.txt_io import TxtData, export_data_to_txt
 
 sys.path.append("../")

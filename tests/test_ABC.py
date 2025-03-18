@@ -32,7 +32,7 @@ def test_energy_decay():
             [sd]
         )
         vel_op_int = model.volume_integral(integrand=vel_op, grids=[sd], dim=2)
-        vel_op_int_val = vel_op_int.value(model.equation_system)
+        vel_op_int_val = model.equation_system.evaluate(vel_op_int)
         # Sorry, this is ugly, but, yeah:
         vel_op_int_val_expected = np.array(
             [

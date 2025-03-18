@@ -1,6 +1,5 @@
 from .elastic_wave_equation_abc import (
-    DynamicMomentumBalanceABC1,
-    DynamicMomentumBalanceABC2,
+    DynamicMomentumBalanceABC,
 )
 
-from .elastic_wave_equation_abc_linear import DynamicMomentumBalanceABC2Linear
+from .elastic_wave_equation_abc_linear import DynamicMomentumBalanceABCLinear

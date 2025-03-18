@@ -35,42 +35,39 @@ time step.
 The convergence analyses presented in the article are performed with 
 homogeneous Dirichlet conditions on a 3D simplex grid:
 * Convergence in space and time:
-  * [runscript_convergence_analysis_3D_space_time](./convergence_analysis/runscript_convergence_analysis_3D_space_time.py)
+  * [runscript_space_time_convergence_dirichlet_boundaries](./convergence_and_stability_analysis/runscript_space_time_convergence_dirichlet_boundaries.py)
 * Convergence in space:
-  * [runscript_convergence_analysis_3D_space](./convergence_analysis/runscript_convergence_analysis_3D_space.py) 
+  * [runscript_space_convergence_dirichlet_boundaries](./convergence_and_stability_analysis/runscript_space_convergence_dirichlet_boundaries.py) 
 * Convergence in time:
-  * [runscript_convergence_analysis_3D_time](./convergence_analysis/runscript_convergence_analysis_3D_time.py) 
+  * [runscript_time_convergence_dirichlet_boundaries](./convergence_and_stability_analysis/runscript_time_convergence_dirichlet_boundaries.py) 
 
 All the runscripts utilize
-[manufactured_solution_dynamic_3D](./convergence_analysis/convergence_analysis_models/manufactured_solution_dynamic_3D.py)
+[manufactured_solution_dynamic_3D](./convergence_and_stability_analysis/analysis_models/manufactured_solution_dynamic_3D.py)
 as the manufactured solution setup.
 
 ### Convergence analysis of MPSA-Newmark with absorbing boundaries
-Convergence of the solution is performed in a quasi-1D setting
+Convergence of the solution is performed by sending an orthogonal wave from the left
+towards the right boundary, where the right boundary is absorbing. The top and bottom
+boundaries have roller conditions, and the left boundary is a time-dependent Dirichlet
+condition which maintaints the orthogonal wave after initialization.
 
-Convergence in space and time:
-  * [convergence_model_with_abc2_space_time](./convergence_analysis/convergence_model_with_abc2_space_time.py)
+Convergence in space and time, with isotropic, anisotropic, homogeneous and
+heterogeneous considerations:
+  * [runscript_space_time_convergence_absorbing_boundaries](./convergence_and_stability_analysis/runscript_space_time_convergence_absorbing_boundaries.py)
+    which uses the model class setup found in
+    [model_convergence_ABC](./convergence_and_stability_analysis/analysis_models/model_convergence_ABC.py)
 
-
-All the runscripts utilize
-[model_convergence_ABC2](./convergence_analysis/convergence_analysis_models/model_convergence_ABC2.py)
-as the model class setup. 
 
 ### Energy decay analysis of MPSA-Newmark with absorbing boundaries
 The energy decay analysis is performed both for successive refinement 
 of the grid, as well as for varying wave incidence angles. 
 
 * Successive grid refinement is done by running the script
-[render_figure_energy_decay_space_refinement](./convergence_analysis/render_figure_energy_decay_space_refinement.py).
-The script which renders the figure uses the runscript
-[runscript_ABC_energy_vary_dx](./convergence_analysis/runscript_ABC_energy_vary_dx.py)
-for running the simulations.
+[runscript_energy_decay_space_refinement](./convergence_and_stability_analysis/runscript_energy_decay_space_refinement.py).
 
 * Varying the wave incidence angle, $\theta$, is done by running the script
-  [runscript_ABC_energy_vary_theta](./convergence_analysis/runscript_ABC_energy_vary_theta.py).
+  [runscript_energy_decay_vary_theta](./convergence_and_stability_analysis/runscript_energy_decay_vary_theta.py).
   
-* A quasi-1d version is found in
-  [runscript_ABC_energy_quasi_1d](./convergence_analysis/runscript_ABC_energy_quasi_1d.py).
 
 ## Simulation examples
 Simulation example runscripts are found within [this](./example_runscripts/) folder.
@@ -86,14 +83,14 @@ Simulation example runscripts are found within [this](./example_runscripts/) fol
 
 ## Utility material
 A collection of utility material is found within the [utils](./utils/) directory:
-* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins 
-for anisotropic stiffness tensors.
+* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic
+stiffness tensors.
 * [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for
 three types/configurations of perturbed geometry.
-* [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness
-tensor object for a transversely isotropic material.
 * [utility functions](./utils/utility_functions.py) contains mostly functions related to
-analytical solution expressions and fetching subdomain-related quantities.
+analytical solution expressions and fetching subdomain-related quantities. Utility
+functions for defining the stiffness tensor for a transversely isotropic media are also
+to be found found here.
 
 I refer to the files within the directory for more details about the specific contents.
 
@@ -102,4 +99,7 @@ Tests are covering:
 * MPSA-Newmark convergence with homogeneous Dirichlet conditions in 2D and 3D.
 * MPSA-Newmark convergence with absorbing boundary conditions.
 * Construction of the transversely isotropic tensor.
-* The utility function ``inner_domain_cells`` which is used in the construction of the transversely isotropic tensor.
+* The utility functions ``inner_domain_cells``
+  ``use_constraints_for_inner_domain_cells`` which can be used in the construction of
+  the transversely isotropic tensor.
+* The generation of a heterogeneous stiffness tensor.
