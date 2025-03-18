@@ -6,7 +6,6 @@ from utils.utility_functions import (
     use_constraints_for_inner_domain_cells,
     create_stiffness_tensor_basis,
 )
-from utils.stiffness_tensors import TensorAllowingForCustomFields
 
 
 class TransverselyIsotropicTensorMixin:
@@ -73,7 +72,7 @@ class TransverselyIsotropicTensorMixin:
         lambda_orthogonal_inner = lambda_orthogonal * inner
 
         # Create the final stiffness tensor
-        stiffness_tensor = TensorAllowingForCustomFields(
+        stiffness_tensor = pp.FourthOrderTensor(
             mu=mu,
             lmbda=lmbda,
             other_fields={
