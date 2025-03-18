@@ -72,11 +72,11 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_coefficients)):
     r_h = heterogeneity_coefficients[heterogeneity_factor_index]
     for r_a in anisotropy_coefficients:
         h_lambda_ind = anisotropy_coefficients.index(r_a)
-        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_lambda_ind)}_test.txt"
+        filename = f"errors_heterogeneity_{str(heterogeneity_factor_index)}_mu_lam_{str(h_lambda_ind)}.txt"
 
         filename = os.path.join(output_dir, filename)
 
-        refinements = np.arange(2, 5)
+        refinements = np.arange(2, 7)
         for refinement_coefficient in refinements:
             if refinement_coefficient == 2:
                 with open(filename, "w") as file:
@@ -112,7 +112,6 @@ for heterogeneity_factor_index in range(0, len(heterogeneity_coefficients)):
                 "progressbars": True,
                 "heterogeneity_factor": r_h,
                 "heterogeneity_location": 0.5,
-                "folder_name": "VIZZZZ",
                 "material_constants": material_constants,
                 "anisotropy_constants": anisotropy_constants,
                 "symmetry_axis": [0, 1, 0],
