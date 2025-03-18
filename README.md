@@ -49,16 +49,13 @@ as the manufactured solution setup.
 Convergence of the solution is performed by sending an orthogonal wave from the left
 towards the right boundary, where the right boundary is absorbing. The top and bottom
 boundaries have roller conditions, and the left boundary is a time-dependent Dirichlet
-condition which sends in the orthogonal wave.
+condition which maintaints the orthogonal wave after initialization.
 
-Convergence in space and time, isotropic:
-  * [runscript_space_time_convergence_absorbing_boundaries](./convergence_and_stability_analysis/runscript_space_time_convergence_absorbing_boundaries.py) which uses the model class setup found in [model_convergence_ABC](./convergence_and_stability_analysis/analysis_models/model_convergence_ABC.py)
-
-Convergence in space and time, vertical strip inside the domain which is anisotropic in
-directions orthogonal to the propagating wave:
-  * [runscript_space_time_absorbing_boundaries_anisotropy](./convergence_and_stability_analysis/runscript_space_time_absorbing_boundaries_anisotropy.py)
+Convergence in space and time, with isotropic, anisotropic, homogeneous and
+heterogeneous considerations:
+  * [runscript_space_time_convergence_absorbing_boundaries](./convergence_and_stability_analysis/runscript_space_time_convergence_absorbing_boundaries.py)
     which uses the model class setup found in
-    [model_convergence_ABC_anisotropy](./convergence_and_stability_analysis/analysis_models/model_convergence_ABC_anisotropy.py)
+    [model_convergence_ABC](./convergence_and_stability_analysis/analysis_models/model_convergence_ABC.py)
 
 
 ### Energy decay analysis of MPSA-Newmark with absorbing boundaries
@@ -86,14 +83,14 @@ Simulation example runscripts are found within [this](./example_runscripts/) fol
 
 ## Utility material
 A collection of utility material is found within the [utils](./utils/) directory:
-* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins 
-for anisotropic stiffness tensors.
+* [anisotropy mixins](./utils/anisotropy_mixins.py) contains mixins for anisotropic
+stiffness tensors.
 * [perturbed_geometry_mixins](./utils/perturbed_geometry_mixins.py) contains mixins for
 three types/configurations of perturbed geometry.
-* [stiffness tensors](./utils/stiffness_tensors.py) contains a fourth order stiffness
-tensor object for a transversely isotropic material.
 * [utility functions](./utils/utility_functions.py) contains mostly functions related to
-analytical solution expressions and fetching subdomain-related quantities.
+analytical solution expressions and fetching subdomain-related quantities. Utility
+functions for defining the stiffness tensor for a transversely isotropic media are also
+to be found found here.
 
 I refer to the files within the directory for more details about the specific contents.
 
@@ -102,6 +99,6 @@ Tests are covering:
 * MPSA-Newmark convergence with homogeneous Dirichlet conditions in 2D and 3D.
 * MPSA-Newmark convergence with absorbing boundary conditions.
 * Construction of the transversely isotropic tensor.
-* The utility function ``inner_domain_cells`` which is used in the construction of the
-  transversely isotropic tensor. Note: Moving over to use
-  ``use_constraints_for_inner_domain_cells``. Consistent update pending.
+* The utility functions ``inner_domain_cells``
+  ``use_constraints_for_inner_domain_cells`` which can be used in the construction of
+  the transversely isotropic tensor.
