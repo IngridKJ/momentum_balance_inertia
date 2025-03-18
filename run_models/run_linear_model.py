@@ -40,7 +40,7 @@ class LinearSolverModifiedResidualInstantiation:
         """Define linear solver.
 
         Parameters:
-            params (dict): Parameters for the linear solver. Will be passed on to the
+            params: Parameters for the linear solver. Will be passed on to the
                 model class. Thus the contect should be adapted to whatever needed for
                 the problem at hand.
 
@@ -49,32 +49,32 @@ class LinearSolverModifiedResidualInstantiation:
             params = {}
         self.params = params
 
-    def solve(self, setup: SolutionStrategy) -> bool:
+    def solve(self, model: SolutionStrategy) -> bool:
         """Solve a linear problem defined by the current state of the model.
 
         Parameters:
-            setup (subclass of pp.SolutionStrategy): Model to be solved.
+            model (subclass of pp.SolutionStrategy): Model to be solved.
 
         Returns:
             boolean: True if the linear solver converged.
 
         """
 
-        setup.before_nonlinear_loop()
+        model.before_nonlinear_loop()
 
-        setup.assemble_linear_system()
-        residual = setup.linear_system_residual
-        nonlinear_increment = setup.solve_linear_system()
+        model.assemble_linear_system()
+        residual = model.linear_system_residual
+        nonlinear_increment = model.solve_linear_system()
 
-        is_converged, _ = setup.check_convergence(
+        is_converged, _ = model.check_convergence(
             nonlinear_increment, residual, residual.copy(), self.params
         )
 
         if is_converged:
-            setup.after_nonlinear_iteration(nonlinear_increment)
-            setup.after_nonlinear_convergence()
+            model.after_nonlinear_iteration(nonlinear_increment)
+            model.after_nonlinear_convergence()
         else:
-            setup.after_nonlinear_failure()
+            model.after_nonlinear_failure()
         return is_converged
 
 
