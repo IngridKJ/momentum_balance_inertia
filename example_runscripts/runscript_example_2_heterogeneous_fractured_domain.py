@@ -84,7 +84,6 @@ class InitialConditionsAndMaterialProperties:
         vals[0] = common_part * (x - x0)
         vals[1] = common_part * (y - y0)
         vals[2] = common_part * (z - z0)
-
         return vals.ravel("F")
 
 
@@ -111,7 +110,6 @@ class Geometry:
                 "zmax": z,
             }
         )
-
         return pp.Domain(box)
 
     def set_fractures(self) -> None:
@@ -175,7 +173,6 @@ time_manager = pp.TimeManager(
     dt_init=dt,
     constant_dt=True,
 )
-
 
 params = {
     "time_manager": time_manager,

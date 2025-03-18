@@ -113,11 +113,8 @@ class ModelSetupSourceInOuterDomain(
         )
 
         vals[0] = common_part * (x - 0.5)
-
         vals[1] = common_part * (y - 0.5)
-
         vals[2] = common_part * (z - 0.7)
-
         return vals.ravel("F")
 
 
