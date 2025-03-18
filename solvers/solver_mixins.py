@@ -29,8 +29,25 @@ logger = logging.getLogger(__name__)
 
 class CustomSolverMixin:
     def solve_linear_system(self) -> np.ndarray:
-        """After calling the parent method, the global solution is calculated by Schur
-        expansion."""
+        """Solve the linear system using PETSc (if available) or a fallback solver.
+
+        This method fetches or assembles the system matrix and residual vector, then
+        solves the linear system using either:
+            * PETSc with GAMG preconditioning (if `petsc_solver_q` is enabled and
+            `petsc4py` is available).
+            * A direct solver (e.g., PyPardiso or SciPy sparse solver) otherwise.
+
+        The method also performs memory cleanup after solving to avoid excessive RAM
+        usage.
+
+        Returns:
+            The computed solution vector.
+
+        Raises:
+            ImportError: If PETSc is selected but `petsc4py` is not installed.
+            AttributeError: If required system attributes are missing.
+
+        """
         import time
 
         petsc_solver_q = self.params.get("petsc_solver_q", False)
@@ -48,58 +65,37 @@ class CustomSolverMixin:
                 bsize=NDIM,
             )
 
-            if self.params.get("hypre", False):
-                # solving ls
-                ksp = PETSc.KSP().create()
-                options = PETSc.Options()
-                options["pc_type"] = "hypre"
-                options["pc_hypre_type"] = "boomeramg"
-                options["pc_hypre_boomeramg_max_iter"] = 1
-                options["pc_hypre_boomeramg_cycle_type"] = "V"
-                options["pc_hypre_boomeramg_truncfactor"] = 0.3
-                options.setValue("ksp_type", "gmres")
-                options.setValue("ksp_rtol", 1e-8)
-                options.setValue("ksp_max_it", 20 * 50)
-                options.setValue("ksp_gmres_restart", 50)
-                options.setValue("ksp_pc_side", "right")
-                options.setValue("ksp_norm_type", "unpreconditioned")
-                ksp.setFromOptions()
+            # Solving linear system with GAMG
+            ksp = PETSc.KSP().create()
+            options = PETSc.Options()
+            options["pc_type"] = "gamg"
+            options["pc_gamg_type"] = "agg"
+            options["pc_gamg_threshold"] = 0.02
 
-                ksp.setOperators(jac_g)
-                b = jac_g.createVecLeft()
-                b.array[:] = res_g
-                x = jac_g.createVecRight()
+            options.setValue("ksp_type", "gmres")
+            options.setValue("ksp_rtol", 1e-8)
+            options.setValue("ksp_max_it", 20 * 50)
+            options.setValue("ksp_gmres_restart", 50)
+            options.setValue("ksp_pc_side", "right")
+            options.setValue("ksp_norm_type", "unpreconditioned")
 
-                ksp.setConvergenceHistory()
-                ksp.solve(b, x)
+            ksp.setFromOptions()
+            ksp.setOperators(jac_g)
 
-                sol = x.array
-            else:
-                # Solving linear system with GAMG
-                ksp = PETSc.KSP().create()
-                options = PETSc.Options()
-                options["pc_type"] = "gamg"
-                options["pc_gamg_type"] = "agg"
-                options["pc_gamg_threshold"] = 0.02
+            b = jac_g.createVecLeft()
+            b.array[:] = res_g
+            x = jac_g.createVecRight()
 
-                options.setValue("ksp_type", "gmres")
-                options.setValue("ksp_rtol", 1e-8)
-                options.setValue("ksp_max_it", 20 * 50)
-                options.setValue("ksp_gmres_restart", 50)
-                options.setValue("ksp_pc_side", "right")
-                options.setValue("ksp_norm_type", "unpreconditioned")
+            ksp.setConvergenceHistory()
+            ksp.solve(b, x)
 
-                ksp.setFromOptions()
-                ksp.setOperators(jac_g)
+            sol = x.array
 
-                b = jac_g.createVecLeft()
-                b.array[:] = res_g
-                x = jac_g.createVecRight()
-
-                ksp.setConvergenceHistory()
-                ksp.solve(b, x)
-
-                sol = x.array
+            # Free up memory
+            x.destroy()
+            b.destroy()
+            jac_g.destroy()
+            ksp.destroy()
 
         else:
             try:
