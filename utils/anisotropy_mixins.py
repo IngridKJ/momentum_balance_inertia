@@ -1,4 +1,4 @@
-"""File for anisotropic stiffness tensor mixins."""
+"""File for anisotropic stiffness tensor mixin."""
 
 import numpy as np
 import porepy as pp
@@ -9,8 +9,33 @@ from utils.utility_functions import (
 
 
 class TransverselyIsotropicTensorMixin:
-    def stiffness_tensor(self, subdomain: pp.Grid):
-        """Compute the stiffness tensor for a given subdomain."""
+    """Mixin which defines a tensor with (possibly) heterogeneous properties.
+
+    The tensor may be assigned to be anisotropic in the regions identified by
+    use_constraints_for_inner_domain_cells(). The default parameter values for the
+    anisotropic region is however isotropic, so this tensor may also be used in fully
+    isotropic cases.
+
+    NOTE: The utility function use_constraints_for_inner_domain_cells() used hereing
+    assumes existence of "constraints" within the domain. For simplex grids that means
+    constraints which influence the meshing, while for Cartesian grids it means polygons
+    which are just used to determine what is part of the "inner" domain and what is part
+    of the "outer" domain. The constriants are set by set_fractures() and the polygons
+    are set by set_polygons(). See the function use_constraints_for_inner_domain_cells()
+    and its documentation for further details.
+
+    """
+
+    def stiffness_tensor(self, subdomain: pp.Grid) -> pp.FourthOrderTensor:
+        """Compute the stiffness tensor for a given subdomain.
+
+        Parameters:
+            subdomain: The subdomain we compute the stiffness tensor for.
+
+        Returns:
+            The stiffness tensor.
+
+        """
         # Fetch inner domain indices
         inner_cell_indices = use_constraints_for_inner_domain_cells(
             model=self,

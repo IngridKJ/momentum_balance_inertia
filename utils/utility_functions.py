@@ -6,7 +6,10 @@ creating source terms, setting initial values, compute errors, etc.). These anal
 solutions are determined by the "manufactured_solution" key value in the params
 dictionary. Creation of source terms uses symbolic differentiation provided by sympy.
 Therefore, running other manufactured solutions than those already present is easily
-done by adding the expression for it where the manufactured solution is defined. Additionally, there are utility functions for construction of the 9x9 representation of a stiffness tensor representing a transversely isotropic media.
+done by adding the expression for it where the manufactured solution is defined.
+Additionally, there are utility functions for construction of the 9x9 representation of
+a stiffness tensor representing a transversely isotropic media with arbitrary symmetry
+axis.
 
 
 """
@@ -27,9 +30,6 @@ def acceleration_velocity_displacement(
     data: dict,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Function for fetching acceleration, velocity and displacement values.
-
-    Found it repetitive to do this in the methods for updating velocity and acceleration
-    values in the dynamic momentum balance model.
 
     Parameters:
         model: The model.
@@ -106,13 +106,14 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
 
     Use of this method is rather simple, as the default analytical solution is that with
     the name "simply_zero" which is just zero solution. For another analytical solution
-    one must simply just assign a different value to the key "manufactured_solution" in
-    the model's parameter dictionary. Look into the code for what solutions are
-    accessible, or make new ones if the ones already existing do not suffice.
+    one must just assign a different value to the key "manufactured_solution" in the
+    model's parameter dictionary. Look into the code for what solutions are accessible,
+    or make new ones if the ones already existing do not suffice.
 
     Parameters:
         model: The model class.
-        return_dt: Flag for wether velocity is returned. Return velocity if True.
+        return_dt: Flag for wether velocity is returned. Return
+        velocity if True.
         return_ddt: Flag for whether acceleration is returned. Return acceleration if
             True.
 
@@ -160,7 +161,7 @@ def _symbolic_representation_2D(model, return_dt=False, return_ddt=False):
 
 
 def _symbolic_equation_terms_2D(model, u, x, y, t):
-    """Symbolic representation of the momentum balance eqn. terms in 3D.
+    """Symbolic representation of the momentum balance equation terms in 2D.
 
     Parameters:
         model: The model class
@@ -304,7 +305,7 @@ def _symbolic_representation_3D(model, return_dt=False, return_ddt=False):
 
 
 def _symbolic_equation_terms_3D(model, u, x, y, z, t) -> list:
-    """Symbolic representation of the momentum balance eqn. terms in 3D.
+    """Symbolic representation of the momentum balance equation terms in 3D.
 
     Parameters:
         model: The model class
@@ -427,6 +428,11 @@ def u_v_a_wrap(
             to False.
         return_ddt: True if acceleration is to be returned instead of displacement.
             Defaults to False.
+
+    Returns:
+        A list of the lambdified expression for displacement, velocity or acceleration.
+        The list has two element in 2D and three elements in 3D - one for each
+        coordinate direction.
 
     """
     if is_2D:
@@ -882,10 +888,10 @@ def get_boundary_cells(
 
 
 # -------- 9x9 representation of transversely isotropic stiffness tensor
-"""The following functions are used to create a 9x9 matrix representation of a
-transversely isotropic media with an arbitrary symmetry axis. The expression for the
-stiffness tensor is taken from its tensor notation and split into five terms, one per
-material parameter. """
+"""The following functions are used to create a 9x9 matrix representation of the tensor 
+corresponding to a transversely isotropic media with an arbitrary symmetry axis. The
+expression for the stiffness tensor is taken from its tensor notation and split into
+five terms, one per material parameter. """
 
 
 def kronecker_delta(i_ind, j_ind):

@@ -7,10 +7,10 @@ import porepy as pp
 class RemoveFractureRelatedEquationsMomentumBalance:
     """Remove equations for fractures and fracture interfaces in momentum balance.
 
-    To simulate an internal Neumann boundary (that is, an open fracture) we have to
-    remove some equations and variables. This mixin includes the necessary modifications
-    to the code for the equations and variables related to fractures and fracture
-    interfaces to be discarded.
+    To simulate an internal Neumann boundary (that is, an open fracture) we remove some
+    equations and variables. This mixin includes the necessary modifications to the code
+    for the equations and variables related to fractures and fracture interfaces to be
+    discarded.
 
     """
 
@@ -46,7 +46,8 @@ class RemoveFractureRelatedEquationsMomentumBalance:
         """
         if len(domains) == 0 or all(isinstance(d, pp.BoundaryGrid) for d in domains):
             return self.create_boundary_operator(
-                name=self.stress_keyword, domains=domains  # type: ignore[call-arg]
+                name=self.stress_keyword,
+                domains=domains,  # type: ignore[call-arg]
             )
 
         # Check that the subdomains are grids.
