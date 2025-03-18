@@ -35,14 +35,14 @@ time step.
 The convergence analyses presented in the article are performed with 
 homogeneous Dirichlet conditions on a 3D simplex grid:
 * Convergence in space and time:
-  * [runscript_space_time_convergence_dirichlet_boundaries](./convergence_analysis/runscript_space_time_convergence_dirichlet_boundaries.py)
+  * [runscript_space_time_convergence_dirichlet_boundaries](./convergence_and_stability_analysis/runscript_space_time_convergence_dirichlet_boundaries.py)
 * Convergence in space:
-  * [runscript_space_convergence_dirichlet_boundaries](./convergence_analysis/runscript_space_convergence_dirichlet_boundaries.py) 
+  * [runscript_space_convergence_dirichlet_boundaries](./convergence_and_stability_analysis/runscript_space_convergence_dirichlet_boundaries.py) 
 * Convergence in time:
-  * [runscript_time_convergence_dirichlet_boundaries](./convergence_analysis/runscript_time_convergence_dirichlet_boundaries.py) 
+  * [runscript_time_convergence_dirichlet_boundaries](./convergence_and_stability_analysis/runscript_time_convergence_dirichlet_boundaries.py) 
 
 All the runscripts utilize
-[manufactured_solution_dynamic_3D](./convergence_analysis/analysis_models/manufactured_solution_dynamic_3D.py)
+[manufactured_solution_dynamic_3D](./convergence_and_stability_analysis/analysis_models/manufactured_solution_dynamic_3D.py)
 as the manufactured solution setup.
 
 ### Convergence analysis of MPSA-Newmark with absorbing boundaries
@@ -52,13 +52,13 @@ boundaries have roller conditions, and the left boundary is a time-dependent Dir
 condition which sends in the orthogonal wave.
 
 Convergence in space and time, isotropic:
-  * [runscript_space_time_convergence_absorbing_boundaries](./convergence_analysis/runscript_space_time_convergence_absorbing_boundaries.py) which uses the model class setup found in [model_convergence_ABC](./convergence_analysis/analysis_models/model_convergence_ABC.py)
+  * [runscript_space_time_convergence_absorbing_boundaries](./convergence_and_stability_analysis/runscript_space_time_convergence_absorbing_boundaries.py) which uses the model class setup found in [model_convergence_ABC](./convergence_and_stability_analysis/analysis_models/model_convergence_ABC.py)
 
 Convergence in space and time, vertical strip inside the domain which is anisotropic in
 directions orthogonal to the propagating wave:
-  * [runscript_space_time_absorbing_boundaries_anisotropy](./convergence_analysis/runscript_space_time_absorbing_boundaries_anisotropy.py)
+  * [runscript_space_time_absorbing_boundaries_anisotropy](./convergence_and_stability_analysis/runscript_space_time_absorbing_boundaries_anisotropy.py)
     which uses the model class setup found in
-    [model_convergence_ABC_anisotropy](./convergence_analysis/analysis_models/model_convergence_ABC_anisotropy.py)
+    [model_convergence_ABC_anisotropy](./convergence_and_stability_analysis/analysis_models/model_convergence_ABC_anisotropy.py)
 
 
 ### Energy decay analysis of MPSA-Newmark with absorbing boundaries
@@ -66,10 +66,10 @@ The energy decay analysis is performed both for successive refinement
 of the grid, as well as for varying wave incidence angles. 
 
 * Successive grid refinement is done by running the script
-[runscript_energy_decay_space_refinement](./convergence_analysis/runscript_energy_decay_space_refinement.py).
+[runscript_energy_decay_space_refinement](./convergence_and_stability_analysis/runscript_energy_decay_space_refinement.py).
 
 * Varying the wave incidence angle, $\theta$, is done by running the script
-  [runscript_energy_decay_vary_theta](./convergence_analysis/runscript_energy_decay_vary_theta.py).
+  [runscript_energy_decay_vary_theta](./convergence_and_stability_analysis/runscript_energy_decay_vary_theta.py).
   
 
 ## Simulation examples

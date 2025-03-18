@@ -7,7 +7,7 @@ import numpy as np
 import porepy as pp
 
 import run_models.run_linear_model as rlm
-from convergence_analysis.analysis_models.model_convergence_ABC import (
+from convergence_and_stability_analysis.analysis_models.model_convergence_ABC import (
     ABCModel,
 )
 
