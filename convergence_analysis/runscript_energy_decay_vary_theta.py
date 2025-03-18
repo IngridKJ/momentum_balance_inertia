@@ -9,7 +9,7 @@ sys.path.append("../")
 
 import plotting.plot_utils as pu
 import run_models.run_linear_model as rlm
-from convergence_analysis_models.model_energy_decay_analysis import ModelEnergyDecay
+from analysis_models.model_energy_decay_analysis import ModelEnergyDecay
 
 # Prepare path for generated output files
 folder_name = "energy_values"
